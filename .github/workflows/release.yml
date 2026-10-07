@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布的标签（如 v1.1.6）'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  # HarmonyOS Command Line Tools（linux-x64）的 GitHub 镜像：https://github.com/ErBWs/ohos-sdk
+  OHOS_SDK_VERSION: 26.0.0.821
+  OHOS_SDK_AA_SHA256: 4321eb328558169e9531594139910a42b1c88057fb09f852be85ff2487e6adbc
+  OHOS_SDK_AB_SHA256: 26e9ae251e761fbc9ec4e7ad780b5b291130e7824af2324167530941e11ad592
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      CLT_HOME: /home/runner/ohos/command-line-tools
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # hvigor 6.26 随 Command Line Tools 附带 Node 24.14.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+
+      - name: 缓存 HarmonyOS Command Line Tools
+        id: clt-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/ohos/command-line-tools
+          key: ohos-clt-${{ env.OHOS_SDK_VERSION }}-linux-x64-pruned-v1
+
+      - name: 下载 HarmonyOS Command Line Tools
+        if: steps.clt-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/ErBWs/ohos-sdk/releases/download/$OHOS_SDK_VERSION"
+          cd "$RUNNER_TEMP"
+          for p in aa ab; do
+            curl -fSL --retry 5 --retry-delay 5 -o "ohos-sdk-linux-amd64.tar.gz.$p" "$base/ohos-sdk-linux-amd64.tar.gz.$p" &
+          done
+          curl -fsSL --retry 5 -o ohos-sdk-linux-amd64.tar.gz.sha256 "$base/ohos-sdk-linux-amd64.tar.gz.sha256"
+          wait
+          echo "$OHOS_SDK_AA_SHA256  ohos-sdk-linux-amd64.tar.gz.aa" >  parts.sha256
+          echo "$OHOS_SDK_AB_SHA256  ohos-sdk-linux-amd64.tar.gz.ab" >> parts.sha256
+          sha256sum -c parts.sha256
+          want=$(cut -d' ' -f1 ohos-sdk-linux-amd64.tar.gz.sha256)
+          mkdir -p /home/runner/ohos
+          # 边合并边解压，同时校验整包 sha256
+          cat ohos-sdk-linux-amd64.tar.gz.aa ohos-sdk-linux-amd64.tar.gz.ab \
+            | tee >(sha256sum | cut -d' ' -f1 > full.sha256) \
+            | tar -xzf - -C /home/runner/ohos
+          sleep 1
+          got=$(cat full.sha256)
+          [ "$got" = "$want" ] || { echo "::error::整包 sha256 不匹配：$got != $want"; exit 1; }
+          rm -f ohos-sdk-linux-amd64.tar.gz.*
+          # 去掉本项目用不到的 NDK 编译器、文档与模拟器（约 4.6 GB），缩小缓存
+          cd "$CLT_HOME"
+          rm -rf emulator sdk/default/openharmony/native/llvm sdk/default/openharmony/native/docs \
+                 sdk/default/hms/native/BiSheng sdk/default/hms/native/docs
+          cat version.txt
+          du -sh "$CLT_HOME"
+
+      - name: 构建 HAP
+        run: |
+          set -euo pipefail
+          export DEVECO_SDK_HOME="$CLT_HOME/sdk"
+          export DEVECO_NODE_HOME="$(dirname "$(dirname "$(command -v node)")")"
+          export PATH="$CLT_HOME/bin:$CLT_HOME/ohpm/bin:$PATH"
+          chmod -R u+x "$CLT_HOME/bin" "$CLT_HOME/ohpm/bin" "$CLT_HOME/hvigor/bin" || true
+          node -v; java -version 2>&1 | head -1
+          ohpm install --all
+          if ! hvigorw --mode module -p module=entry@default -p product=default -p buildMode=release -p debuggable=false \
+               assembleHap --no-daemon --no-parallel > build.log 2>&1; then
+            grep -E "ERROR|Error|error:|FAILED|Failed" build.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+            tail -80 build.log
+            exit 1
+          fi
+          tail -20 build.log
+          VERSION=$(grep -oP '"versionName"\s*:\s*"\K[^"]+' AppScope/app.json5)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          [ "v$VERSION" = "$TAG" ] || echo "::warning::标签 $TAG 与 versionName $VERSION 不一致"
+          mkdir -p dist
+          cp entry/build/default/outputs/default/entry-default-unsigned.hap "dist/ClashPanel-HarmonyOS-$VERSION-unsigned.hap"
+          ls -la dist
+
+      - name: 签名 HAP（可选）
+        env:
+          HAP_SIGN_P12_BASE64: ${{ secrets.HAP_SIGN_P12_BASE64 }}
+          HAP_SIGN_CER_BASE64: ${{ secrets.HAP_SIGN_CER_BASE64 }}
+          HAP_SIGN_P7B_BASE64: ${{ secrets.HAP_SIGN_P7B_BASE64 }}
+          HAP_KEY_ALIAS: ${{ secrets.HAP_KEY_ALIAS }}
+          HAP_KEY_PASSWORD: ${{ secrets.HAP_KEY_PASSWORD }}
+          HAP_STORE_PASSWORD: ${{ secrets.HAP_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # 去掉 Secrets 里可能误带的空格/换行
+          trim() { printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
+          P12=$(trim "$HAP_SIGN_P12_BASE64"); CER=$(trim "$HAP_SIGN_CER_BASE64"); P7B=$(trim "$HAP_SIGN_P7B_BASE64")
+          ALIAS=$(trim "$HAP_KEY_ALIAS"); KEYPW=$(trim "$HAP_KEY_PASSWORD"); STOREPW=$(trim "$HAP_STORE_PASSWORD")
+          if [ -z "$P12" ] || [ -z "$CER" ] || [ -z "$P7B" ] || [ -z "$ALIAS" ] || [ -z "$KEYPW" ] || [ -z "$STOREPW" ]; then
+            echo "::notice::未配置完整的 HAP 签名 Secrets，只发布未签名 HAP"
+            exit 0
+          fi
+          d="$RUNNER_TEMP/sign"; mkdir -p "$d"
+          printf '%s' "$P12" | tr -d ' \t' | base64 -d > "$d/key.p12"
+          printf '%s' "$CER" | tr -d ' \t' | base64 -d > "$d/app.cer"
+          printf '%s' "$P7B" | tr -d ' \t' | base64 -d > "$d/app.p7b"
+          echo "::notice::p12 $(wc -c < "$d/key.p12") B, cer $(wc -c < "$d/app.cer") B, p7b $(wc -c < "$d/app.p7b") B, aliasLen=${#ALIAS}"
+          if ! java -jar "$CLT_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar" sign-app \
+                 -mode localSign -keyAlias "$ALIAS" -keyPwd "$KEYPW" -signAlg SHA256withECDSA \
+                 -appCertFile "$d/app.cer" -profileFile "$d/app.p7b" \
+                 -keystoreFile "$d/key.p12" -keystorePwd "$STOREPW" \
+                 -inFile "dist/ClashPanel-HarmonyOS-$VERSION-unsigned.hap" \
+                 -outFile "dist/ClashPanel-HarmonyOS-$VERSION-signed.hap" -signCode 1 > sign.log 2>&1; then
+            echo "::error::签名失败：$(grep -v '^$' sign.log | tail -5 | head -c 400 | tr '\n' ' ')"
+            exit 1
+          fi
+          rm -rf "$d"
+          echo "SIGNED=1" >> "$GITHUB_ENV"
+          ls -la dist
+
+      - name: 生成发布说明
+        run: |
+          set -euo pipefail
+          {
+            echo "## Clash 面板 HarmonyOS 版 $VERSION"
+            echo
+            awk -v v="### $VERSION" '$0==v{f=1;next} f&&/^##/{exit} f' README.md
+            echo
+            echo "## 安装说明"
+            echo
+            echo "- \`ClashPanel-HarmonyOS-$VERSION-unsigned.hap\`：**未签名**，只能安装到 DevEco Studio 的模拟器上。"
+            if [ "${SIGNED:-}" = "1" ]; then
+              echo "- \`ClashPanel-HarmonyOS-$VERSION-signed.hap\`：已用仓库配置的证书签名，只能安装到该证书/Profile 授权的设备上（\`hdc install\`）。"
+            fi
+            echo "- 真机需要用自己的华为开发者账号签名：在 DevEco Studio 中打开项目，\`File → Project Structure → Signing Configs\` 勾选自动签名后运行，或按 README 的“签名与安装到真机”手动签名。"
+            echo
+            echo "SHA-256："
+            echo '```'
+            (cd dist && sha256sum *.hap)
+            echo '```'
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Clash 面板 HarmonyOS ${{ env.TAG }}
+          body_path: release-notes.md
+          files: dist/*.hap
