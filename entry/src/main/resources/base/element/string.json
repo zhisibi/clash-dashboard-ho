@@ -1,0 +1,8 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "mihomo / Clash 外部控制面板" },
+    { "name": "EntryAbility_desc", "value": "Clash 面板" },
+    { "name": "EntryAbility_label", "value": "Clash 面板" },
+    { "name": "perm_internet", "value": "连接 mihomo / Clash 外部控制器" }
+  ]
+}

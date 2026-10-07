@@ -1,0 +1,21 @@
+/node_modules
+/oh_modules
+/local.properties
+/.idea
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer
+oh-package-lock.json5
+
+# local
+*.hap
+*.app
+*.p12
+*.cer
+*.p7b
+*.csr

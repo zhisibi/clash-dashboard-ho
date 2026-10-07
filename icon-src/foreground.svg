@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <g transform="translate(512 516) scale(0.86) translate(-512 -512)">
+  <!-- whiskers -->
+  <g stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" fill="none" opacity="0.9">
+    <path d="M 300 612 L 200 596"/>
+    <path d="M 300 650 L 206 668"/>
+    <path d="M 724 612 L 824 596"/>
+    <path d="M 724 650 L 818 668"/>
+  </g>
+  <!-- head -->
+  <path d="M 262 560 C 262 470 280 410 310 372 L 300 250 L 410 318 Q 512 292 614 318 L 724 250 L 714 372 C 744 410 762 470 762 560 C 762 690 650 770 512 770 C 374 770 262 690 262 560 Z"
+        fill="#FFFFFF" stroke="#FFFFFF" stroke-width="40" stroke-linejoin="round"/>
+  <!-- inner ears -->
+  <path d="M 318 282 L 326 352 L 388 318 Z" fill="#BFD2FF" stroke="#BFD2FF" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M 706 282 L 698 352 L 636 318 Z" fill="#BFD2FF" stroke="#BFD2FF" stroke-width="18" stroke-linejoin="round"/>
+  <!-- eyes -->
+  <ellipse cx="418" cy="548" rx="36" ry="48" fill="#1B2550"/>
+  <ellipse cx="606" cy="548" rx="36" ry="48" fill="#1B2550"/>
+  <circle cx="430" cy="530" r="12" fill="#FFFFFF"/>
+  <circle cx="618" cy="530" r="12" fill="#FFFFFF"/>
+  <!-- cheeks -->
+  <ellipse cx="366" cy="628" rx="30" ry="18" fill="#FFB3C7" opacity="0.75"/>
+  <ellipse cx="658" cy="628" rx="30" ry="18" fill="#FFB3C7" opacity="0.75"/>
+  <!-- nose + mouth -->
+  <path d="M 496 610 L 528 610 L 512 628 Z" fill="#1B2550" stroke="#1B2550" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M 512 632 Q 512 660 484 660 M 512 632 Q 512 660 540 660" stroke="#1B2550" stroke-width="12" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>
