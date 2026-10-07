@@ -116,6 +116,27 @@ export PATH=$CLT_HOME/bin:$PATH
 hvigorw --mode module -p module=entry@default -p product=default -p buildMode=release assembleHap --no-daemon
 ```
 
+### 自动发布（GitHub Actions）
+
+`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.1.6 && git push origin v1.1.6`）或在 Actions 页手动运行（填写标签）时触发。
+
+- 在 `ubuntu-latest` 上从 [ErBWs/ohos-sdk](https://github.com/ErBWs/ohos-sdk) 镜像下载 Command Line Tools 26.0.0.821（linux-x64，校验 sha256），裁掉用不到的 NDK 后用 `actions/cache` 缓存，之后的运行不再重复下载
+- `ohpm install` 后执行 `hvigorw assembleHap`（release 模式），版本号取自 `AppScope/app.json5`
+- 创建与标签同名的 Release，说明取自本文“更新日志”中对应版本，附件为 `ClashPanel-HarmonyOS-<版本>-unsigned.hap`（**未签名，只能装到模拟器**）
+
+可选签名：在仓库 `Settings → Secrets and variables → Actions` 中配置以下 Secrets 后，会再用 SDK 自带的 `hap-sign-tool.jar` 签名并附上 `ClashPanel-HarmonyOS-<版本>-signed.hap`；不配置则只发布未签名包。Secrets 首尾的空格/换行会被自动去掉。
+
+| Secret | 内容 |
+| --- | --- |
+| `HAP_SIGN_P12_BASE64` | 密钥库 `.p12` 的 base64（`base64 -w0 key.p12`） |
+| `HAP_SIGN_CER_BASE64` | AGC 证书 `.cer` 的 base64 |
+| `HAP_SIGN_P7B_BASE64` | AGC Profile `.p7b` 的 base64 |
+| `HAP_KEY_ALIAS` | 密钥别名 |
+| `HAP_KEY_PASSWORD` | 密钥密码 |
+| `HAP_STORE_PASSWORD` | 密钥库密码 |
+
+> 用 AGC 证书签名的包只能装到该 Profile 授权的设备上；DevEco Studio 自动签名生成的证书绑定本机账号，不适合放进 CI。
+
 ## 签名与安装到真机
 
 HarmonyOS 真机**只能安装签过名的 HAP**；未签名 HAP 只能装到 DevEco Studio 的模拟器上。签名需要你自己的华为开发者账号。
