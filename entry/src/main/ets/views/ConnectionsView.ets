@@ -208,6 +208,7 @@ struct ConnDetail {
       .layoutWeight(1)
       .width('100%')
       .align(Alignment.Top)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .borderRadius(18)
       .attributeModifier(Store.get().glass('row'))
     }
@@ -327,10 +328,19 @@ export struct ConnectionsView {
     Stack({ alignContent: Alignment.Top }) {
       PullRefresh({ topInset: this.headerH, page: 'connections' }) {
         if (this.list().length === 0) {
-          Column() {
-            EmptyCard({ pal: this.store.palette() })
+          // 1.2.2: empty state sits in a full-size Scroll so it still bounces (and pulls to refresh)
+          Scroll() {
+            Column() {
+              EmptyCard({ pal: this.store.palette() })
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, top: this.headerH + 6 })
           }
-          .padding({ left: 14, right: 14, top: this.headerH + 6 })
+          .width('100%')
+          .height('100%')
+          .align(Alignment.Top)
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         } else {
           List({ space: this.compact ? 6 : 10, scroller: this.sc }) {
             Repeat<ConnItem>(this.list())

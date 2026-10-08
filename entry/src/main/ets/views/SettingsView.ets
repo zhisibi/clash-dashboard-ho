@@ -208,6 +208,7 @@ struct BackendPage {
       .layoutWeight(1)
       .align(Alignment.Top)
       .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
     .width('100%')
     .height('100%')
@@ -991,10 +992,12 @@ export struct CrashDetail {
         }
         .scrollable(ScrollDirection.Horizontal)
         .align(Alignment.TopStart)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
       .layoutWeight(1)
       .width('100%')
       .align(Alignment.Top)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .padding(10)
       .borderRadius(12)
       .backgroundColor(this.store.palette().chip)
@@ -1319,6 +1322,8 @@ export struct SettingsView {
       .height('100%')
       .align(Alignment.Top)
       .scrollBar(BarState.Off)
+      // 1.2.2: bounce at top/bottom even when the (filtered) list or a short sub-page fits on screen
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .onDidScroll((x: number, y: number, st: ScrollState) => {
         this.store.navScroll(this.sc, y, st);
       })

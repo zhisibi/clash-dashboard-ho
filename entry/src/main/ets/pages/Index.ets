@@ -285,6 +285,7 @@ struct Index {
       .width('100%')
       .align(Alignment.Top)
       .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
 
       Row() {
         Button(t('disagree'), { type: ButtonType.Capsule })
@@ -354,6 +355,7 @@ struct Index {
     .width('100%')
     .height('100%')
     .align(Alignment.Top)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .backgroundColor(this.store.palette().bg)
   }
 
@@ -562,7 +564,8 @@ struct Index {
         .barMode(BarMode.Fixed)
         .scrollable(true)
         .animationDuration(300)
-        .edgeEffect(EdgeEffect.None)
+        // 1.2.2 (AppGallery self-check): bounce when swiping past the first (Overview) or last (Settings) page
+        .edgeEffect(EdgeEffect.Spring)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
         .onAnimationStart((index: number, targetIndex: number, event: TabsAnimationEvent) => {
           if (targetIndex !== index) {

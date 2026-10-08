@@ -79,6 +79,7 @@ export struct LegalView {
       .width('100%')
       .align(Alignment.Top)
       .scrollBar(BarState.Auto)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
     .width('100%')
     .height('100%')

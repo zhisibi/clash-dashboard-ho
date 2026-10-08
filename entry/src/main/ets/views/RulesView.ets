@@ -99,10 +99,19 @@ export struct RulesView {
       PullRefresh({ topInset: this.headerH, page: 'rules' }) {
         if (this.tab === 0) {
           if (this.rulesList().length === 0) {
-            Column() {
-              EmptyCard({ pal: this.store.palette() })
+            // 1.2.2: empty state sits in a full-size Scroll so it still bounces (and pulls to refresh)
+            Scroll() {
+              Column() {
+                EmptyCard({ pal: this.store.palette() })
+              }
+              .width('100%')
+              .padding({ left: 14, right: 14, top: this.headerH + 14 })
             }
-            .padding({ left: 14, right: 14, top: this.headerH + 14 })
+            .width('100%')
+            .height('100%')
+            .align(Alignment.Top)
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           } else {
             List({ space: 10, scroller: this.sc }) {
               Repeat<RuleItem>(this.rulesList())
@@ -184,10 +193,19 @@ export struct RulesView {
           }
         } else {
           if (this.providerList().length === 0) {
-            Column() {
-              EmptyCard({ pal: this.store.palette() })
+            // 1.2.2: empty state sits in a full-size Scroll so it still bounces (and pulls to refresh)
+            Scroll() {
+              Column() {
+                EmptyCard({ pal: this.store.palette() })
+              }
+              .width('100%')
+              .padding({ left: 14, right: 14, top: this.headerH + 14 })
             }
-            .padding({ left: 14, right: 14, top: this.headerH + 14 })
+            .width('100%')
+            .height('100%')
+            .align(Alignment.Top)
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           } else {
             List({ space: 10, scroller: this.sc2 }) {
               ForEach(this.providerList(), (p: RuleProvider) => {

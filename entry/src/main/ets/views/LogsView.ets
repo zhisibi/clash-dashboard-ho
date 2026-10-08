@@ -71,10 +71,19 @@ export struct LogsView {
     Stack({ alignContent: Alignment.Top }) {
       PullRefresh({ topInset: this.headerH, page: 'logs' }) {
         if (this.list().length === 0) {
-          Column() {
-            EmptyCard({ pal: this.store.palette(), text: this.store.logLevel === 'silent' ? t('log_silent') : t('log_waiting') })
+          // 1.2.2: empty state sits in a full-size Scroll so it still bounces (and pulls to refresh)
+          Scroll() {
+            Column() {
+              EmptyCard({ pal: this.store.palette(), text: this.store.logLevel === 'silent' ? t('log_silent') : t('log_waiting') })
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, top: this.headerH + 14 })
           }
-          .padding({ left: 14, right: 14, top: this.headerH + 14 })
+          .width('100%')
+          .height('100%')
+          .align(Alignment.Top)
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         } else {
           List({ space: 10, scroller: this.sc }) {
             Repeat<LogEntry>(this.list())

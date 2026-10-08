@@ -241,6 +241,7 @@ struct GroupDetail {
         .padding({ left: 14, right: 14, top: 12, bottom: 32 })
         .layoutWeight(1)
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
     }
     .width('100%')
@@ -480,10 +481,19 @@ export struct ProxiesView {
       PullRefresh({ topInset: this.headerH, page: 'proxies' }) {
         if (this.tab === 0 || this.store.providers.length === 0) {
           if (this.shownGroups().length === 0) {
-            Column() {
-              EmptyCard({ pal: this.store.palette(), text: this.store.proxiesLoading ? t('loading') : t('no_data') })
+            // 1.2.2: empty state sits in a full-size Scroll so it still bounces (and pulls to refresh)
+            Scroll() {
+              Column() {
+                EmptyCard({ pal: this.store.palette(), text: this.store.proxiesLoading ? t('loading') : t('no_data') })
+              }
+              .width('100%')
+              .padding({ left: 16, right: 16, top: this.headerH + 16 })
             }
-            .padding({ left: 16, right: 16, top: this.headerH + 16 })
+            .width('100%')
+            .height('100%')
+            .align(Alignment.Top)
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           } else {
             Grid(this.sc) {
               ForEach(this.shownGroups(), (g: ProxyItem) => {

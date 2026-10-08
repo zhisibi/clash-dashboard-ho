@@ -10,11 +10,18 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.2.1 (versionCode 1020100) |
+| Version | 1.2.2 (versionCode 1020200) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.2.2
+
+- Fixes the AppGallery pre-listing check "scrolling to a boundary should give feedback" (flagged on the Settings page of a foldable, folded and unfolded):
+  - Swiping between pages now bounces past the first page (Overview) and the last page (Settings).
+  - Every scrollable area (all six pages, every Settings sub-page, the consent and setup screens, the privacy policy / user agreement, the backend editor, the proxy-group sheet, connection details and crash logs) bounces at the top and bottom, even when the content is shorter than the screen.
+  - Empty, loading and error states on Proxies, Connections, Logs and Rules are now scrollable too, so they bounce and still support pull-to-refresh.
 
 ## What's new in 1.2.1
 
