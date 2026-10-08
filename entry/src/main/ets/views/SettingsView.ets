@@ -426,7 +426,8 @@ struct BackendPage {
     .bindSheet(this.showEditor, this.editorSheet(), {
       height: SheetSize.LARGE,
       dragBar: true,
-      backgroundColor: this.store.palette().card,
+      // 1.2.3: sheet color (opaque without glass, >= 0.88 over the blur with glass); card is translucent with a wallpaper
+      backgroundColor: this.store.palette().sheet,
       blurStyle: this.store.sheetBlur(),
       onDisappear: () => {
         this.showEditor = false;
@@ -588,7 +589,7 @@ struct PanelPage {
           .bindPopup(this.showAccent, {
             builder: this.accentMenu(),
             placement: Placement.BottomRight,
-            popupColor: this.store.palette().card,
+            popupColor: this.store.palette().sheet,
             backgroundBlurStyle: this.store.sheetBlur(),
             enableArrow: false,
             onStateChange: (e) => {
@@ -1146,7 +1147,8 @@ struct CrashLogPage {
     .bindSheet(this.showDetail, this.detailSheet(), {
       height: SheetSize.LARGE,
       dragBar: true,
-      backgroundColor: this.store.palette().card,
+      // 1.2.3: sheet color (opaque without glass, >= 0.88 over the blur with glass); card is translucent with a wallpaper
+      backgroundColor: this.store.palette().sheet,
       blurStyle: this.store.sheetBlur(),
       onDisappear: () => {
         this.showDetail = false;

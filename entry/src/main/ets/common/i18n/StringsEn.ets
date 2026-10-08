@@ -336,5 +336,6 @@ export const EN: Record<string, string> = {
   "withdraw": "Withdraw privacy consent",
   "withdraw_desc": "The app will exit",
   "settings": "Settings",
+  "back": "Back",
   "search_settings": "Search settings"
 };

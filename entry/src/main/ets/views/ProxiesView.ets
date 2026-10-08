@@ -3,7 +3,7 @@ import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ProxyItem, ProxyProvider, parseIsoMillis } from '../common/Models';
 import { fmtAgo, fmtBytes, fmtDate, safeRegex, textMatch } from '../common/Format';
-import { LatencyBadge, ProxyIcon, RoundIconButton, SearchBox, SegTabs, Tag, EmptyCard } from '../components/Widgets';
+import { LatencyBadge, ProxyIcon, RoundIconButton, SearchBox, SheetHeaderButton, SegTabs, Tag, EmptyCard } from '../components/Widgets';
 import { t } from '../common/I18n';
 
 @ComponentV2
@@ -116,17 +116,24 @@ struct NodeCard {
       .width('100%')
 
       Row() {
+        // 1.2.3: the chip area takes the width left of the latency pill; the last chip (a group's current node)
+        // shrinks and ends in an ellipsis instead of running under the pill
         Row({ space: 4 }) {
           Tag({ pal: this.store.palette(), text: this.store.proxies.get(this.node)?.type ?? '?' })
+            .flexShrink(1)
+            .constraintSize({ minWidth: 24 })
           if (this.store.proxies.get(this.node)?.udp === true) {
-            Tag({ pal: this.store.palette(), text: 'UDP' })
+            Tag({ pal: this.store.palette(), text: 'UDP' }).flexShrink(0)
           }
           if (this.store.proxies.get(this.node)?.isGroup() === true) {
             Tag({ pal: this.store.palette(), text: this.store.proxies.get(this.node)?.now ?? '' })
+              .flexShrink(1)
+              .constraintSize({ minWidth: 24 })
           }
         }
         .layoutWeight(1)
         .clip(true)
+        .margin({ right: 6 })
 
         LatencyBadge({
           pal: this.store.palette(),
@@ -173,6 +180,8 @@ struct NodeCard {
 struct GroupDetail {
   private store: Store = Store.get();
   @Param name: string = '';
+  @Event onClose: () => void = () => {
+  };
 
   build() {
     Column() {
@@ -213,10 +222,13 @@ struct GroupDetail {
                 }
               })
           }
-          RoundIconButton({
+          // 1.2.3: the system sheet close (X) sat on top of this button. The sheet now hides it (showClose: false)
+          // and draws test + close side by side, each with a 48 vp touch target
+          SheetHeaderButton({
             pal: this.store.palette(),
             icon: $r('sys.symbol.bolt'),
             active: this.store.testing.get(this.name) === true,
+            label: t('act_test'),
             onTap: () => {
               const g = this.store.proxies.get(this.name);
               if (g !== undefined) {
@@ -224,9 +236,18 @@ struct GroupDetail {
               }
             }
           })
+          SheetHeaderButton({
+            pal: this.store.palette(),
+            icon: $r('sys.symbol.xmark'),
+            label: t('close_btn'),
+            onTap: () => {
+              this.onClose();
+            }
+          })
+            .margin({ left: 2 })
         }
         .width('100%')
-        .padding({ left: 18, right: 18 })
+        .padding({ left: 18, right: 10 })
 
         Grid() {
           ForEach(this.store.nodesOf(this.store.proxies.get(this.name) as ProxyItem), (n: string) => {
@@ -462,7 +483,11 @@ export struct ProxiesView {
 
   @Builder
   groupSheet() {
-    GroupDetail({ name: this.openGroup })
+    GroupDetail({
+      name: this.openGroup, onClose: () => {
+        this.showSheet = false;
+      }
+    })
   }
 
   colsTemplate(): string {
@@ -603,6 +628,7 @@ export struct ProxiesView {
     .bindSheet(this.showSheet, this.groupSheet(), {
       height: SheetSize.LARGE,
       dragBar: true,
+      showClose: false,
       backgroundColor: this.store.palette().sheet,
       blurStyle: this.store.sheetBlur(),
       onDisappear: () => {

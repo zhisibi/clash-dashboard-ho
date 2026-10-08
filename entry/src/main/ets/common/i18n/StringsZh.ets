@@ -336,5 +336,6 @@ export const ZH: Record<string, string> = {
   "withdraw": "撤回隐私政策同意",
   "withdraw_desc": "撤回后应用将退出",
   "settings": "设置",
+  "back": "返回",
   "search_settings": "搜索设置"
 };

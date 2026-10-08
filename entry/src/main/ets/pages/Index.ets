@@ -8,8 +8,9 @@ import { ConnectionsView } from '../views/ConnectionsView';
 import { LogsView } from '../views/LogsView';
 import { RulesView } from '../views/RulesView';
 import { SettingsView, CrashDetail } from '../views/SettingsView';
-import { mixColor, withAlpha } from '../common/Theme';
+import { withAlpha } from '../common/Theme';
 import { LegalView } from '../components/LegalView';
+import { GlassGradient, PageBackdrop } from '../components/PageBackdrop';
 import { I18N, t } from '../common/I18n';
 
 class TabDef {
@@ -152,39 +153,7 @@ struct Index {
   /** With glass on and no wallpaper, draw a soft accent gradient so the blur and light are visible */
   @Builder
   glassBackdrop() {
-    Stack() {
-      Column()
-        .width('100%')
-        .height('100%')
-        .linearGradient({
-          angle: 160,
-          colors: this.store.isDark() ?
-            [['#15171C', 0], [mixColor('#111316', this.store.palette().accentFill, 0.18), 0.55], ['#0E1013', 1]] :
-            [['#F7F8FB', 0], [mixColor('#F4F4F6', this.store.palette().accentFill, 0.16), 0.55], ['#EEF0F4', 1]]
-        })
-      Column()
-        .width('100%')
-        .height('100%')
-        .radialGradient({
-          center: [(this.store.lightOn ? 30 + Math.sin(this.store.lightDeg * Math.PI / 180) * 18 : 22) + '%', '18%'],
-          radius: '75%',
-          colors: [[withAlpha(this.store.palette().accentFill, this.store.isDark() ? 0.38 : 0.30), 0],
-            [withAlpha(this.store.palette().accentFill, 0), 1]]
-        })
-      Column()
-        .width('100%')
-        .height('100%')
-        .radialGradient({
-          center: ['88%', '72%'],
-          radius: '70%',
-          colors: [[withAlpha(this.store.palette().up, this.store.isDark() ? 0.30 : 0.26), 0],
-            [withAlpha(this.store.palette().up, 0), 1]]
-        })
-    }
-    .width('100%')
-    .height('100%')
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    .hitTestBehavior(HitTestMode.Transparent)
+    GlassGradient()
   }
 
   promptCrash(): void {
@@ -230,6 +199,10 @@ struct Index {
   /** First launch: no network requests before consent; declining exits the app */
   @Builder
   consentScreen() {
+    // 1.2.3: own opaque backdrop. After a withdrawn consent the backends (and a wallpaper) remain, and the root then
+    // only drew black under the transparent page color
+    Stack() {
+      PageBackdrop()
     Column() {
       Scroll() {
         Column() {
@@ -311,7 +284,9 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.store.palette().bg)
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -624,7 +599,7 @@ struct Index {
     .bindSheet(this.showCrash, this.crashSheet(), {
       height: SheetSize.LARGE,
       dragBar: true,
-      backgroundColor: this.store.palette().card,
+      backgroundColor: this.store.palette().sheet,
       blurStyle: this.store.sheetBlur(),
       onDisappear: () => {
         this.showCrash = false;

@@ -3,7 +3,7 @@ import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ConnItem } from '../common/Models';
 import { fmtBytes, fmtClock, fmtDuration, fmtSpeed, safeRegex, textMatch } from '../common/Format';
-import { DropdownChip, EmptyCard, RoundIconButton, SearchBox, SegTabs, Tag } from '../components/Widgets';
+import { DropdownChip, EmptyCard, RoundIconButton, SearchBox, SegTabs, SheetHeaderButton, Tag } from '../components/Widgets';
 import { isEn, t } from '../common/I18n';
 
 const SORT_KEYS: string[] = ['host', 'start', 'download', 'upload', 'downloadSpeed', 'uploadSpeed', 'rule', 'chains',
@@ -181,6 +181,16 @@ struct ConnDetail {
               this.onDone();
             })
         }
+        // 1.2.3: own close button beside the action (the system close sat on top of it; the sheet hides it)
+        SheetHeaderButton({
+          pal: this.store.palette(),
+          icon: $r('sys.symbol.xmark'),
+          label: t('close_btn'),
+          onTap: () => {
+            this.onDone();
+          }
+        })
+          .margin({ left: 6 })
       }
       .width('100%')
       .margin({ bottom: 10 })
@@ -498,6 +508,7 @@ export struct ConnectionsView {
     .bindSheet(this.showDetail, this.detailSheet(), {
       height: SheetSize.MEDIUM,
       dragBar: true,
+      showClose: false,
       backgroundColor: this.store.palette().sheet,
       blurStyle: this.store.sheetBlur(),
       onDisappear: () => {

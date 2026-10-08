@@ -116,6 +116,11 @@ for dark in (False, True):
             surfaces['glass chip/%s' % bname] = over(p['chip'], GLASS_ALPHA + 0.15, b)
             surfaces['bar/%s' % bname] = over(base, 0.66, b)              # Glass.ets bottom bar minimum tint
             surfaces['header/%s' % bname] = over(base, 0.55 if dark else 0.58, b)  # glass header minimum tint
+            surfaces['glass sheet/%s' % bname] = over(p['sheet'], 0.88, b)  # 1.2.3: sheets >= 0.88 over the blur
+        # 1.2.3: overlay pages (legal docs, consent) over a wallpaper: page color at OVERLAY_SCRIM (0.92) over the
+        # blurred wallpaper; checked against the extremes, pure white and pure black
+        for wname, w in (('white', '#FFFFFF'), ('black', '#000000')):
+            surfaces['overlay scrim/%s wallpaper' % wname] = over(page, 0.92, w)
         for sname, s in surfaces.items():
             check(mode, key, 'text on ' + sname, p['text'], s, 4.5)
             check(mode, key, 'subtle (secondary/label/placeholder) on ' + sname, p['subtle'], s, 4.5)

@@ -1,6 +1,7 @@
 import { Store } from '../common/Store';
 import { agreementLines, privacyLines } from '../common/Legal';
 import { t } from '../common/I18n';
+import { PageBackdrop } from './PageBackdrop';
 
 /** Full privacy policy / user agreement page (doc: 'privacy' | 'agreement'), shown over the current screen */
 @ComponentV2
@@ -19,19 +20,35 @@ export struct LegalView {
   }
 
   build() {
+    // 1.2.3: the page sits on top of Settings > About (or the consent screen) and the bottom bar; with glass or a
+    // wallpaper palette().bg is transparent, so it now draws its own opaque backdrop and blocks touches beneath
+    Stack({ alignContent: Alignment.Top }) {
+      PageBackdrop()
     Column() {
       Row() {
-        SymbolGlyph($r('sys.symbol.chevron_left'))
-          .fontSize(22)
-          .fontColor([this.store.palette().text])
-          .padding({ left: 2, right: 12, top: 6, bottom: 6 })
-          .onClick(() => {
-            this.onClose();
-          })
-        Text(this.title()).fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
+        Stack() {
+          SymbolGlyph($r('sys.symbol.chevron_left'))
+            .fontSize(22)
+            .fontColor([this.store.palette().text])
+        }
+        .width(48)
+        .height(48)
+        .borderRadius(24)
+        .accessibilityText(t('back'))
+        .onClick(() => {
+          this.onClose();
+        })
+        Text(this.title())
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.store.palette().text)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+          .margin({ left: 2 })
       }
       .width('100%')
-      .padding({ left: 14, right: 14, top: this.store.safeTop + 8, bottom: 8 })
+      .padding({ left: 4, right: 14, top: this.store.safeTop + 2, bottom: 2 })
 
       Scroll() {
         Column() {
@@ -83,6 +100,10 @@ export struct LegalView {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.store.palette().bg)
+    }
+    .width('100%')
+    .height('100%')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .hitTestBehavior(HitTestMode.Block)
   }
 }

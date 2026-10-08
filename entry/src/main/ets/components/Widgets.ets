@@ -127,6 +127,41 @@ export struct RoundIconButton {
   }
 }
 
+/**
+ * 1.2.3: icon button for sheet headers. 48 vp touch target around a 40 vp chip circle. Sheets that put buttons on
+ * the right of their header hide the system close (showClose: false) and draw SheetHeaderButton(xmark) instead, because
+ * the system close sits over the header's top-right corner.
+ */
+@ComponentV2
+export struct SheetHeaderButton {
+  @Param pal: Palette = new Palette();
+  @Param icon: Resource = $r('sys.symbol.xmark');
+  @Param active: boolean = false;
+  @Param label: string = '';
+  @Event onTap: () => void = () => {
+  };
+
+  build() {
+    Stack() {
+      Stack() {
+        SymbolGlyph(this.icon)
+          .fontSize(19)
+          .fontColor([this.active ? this.pal.onPrimary : this.pal.text])
+      }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(this.active ? this.pal.primary : this.pal.chip)
+    }
+    .width(48)
+    .height(48)
+    .accessibilityText(this.label)
+    .onClick(() => {
+      this.onTap();
+    })
+  }
+}
+
 @ComponentV2
 export struct SegTabs {
   @Param pal: Palette = new Palette();
@@ -219,6 +254,8 @@ export struct Tag {
     Text(this.text)
       .fontSize(11)
       .maxLines(1)
+      // 1.2.3: ends in an ellipsis when the caller lets it shrink (.flexShrink(1)) in a Row that is too narrow
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
       .fontColor(this.color.length > 0 ? this.color : this.pal.subtle)
       .padding({ left: 6, right: 6, top: 1, bottom: 1 })
       .borderRadius(6)

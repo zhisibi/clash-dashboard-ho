@@ -349,13 +349,19 @@ export class Store {
       base.bg = '#00000000';
       base.card = withAlpha(base.card, this.glassAlpha);
       base.chip = withAlpha(base.chip, Math.min(1, this.glassAlpha + 0.15));
-      base.sheet = withAlpha(base.sheet, Math.min(0.92, this.glassAlpha + 0.2));
+      // 1.2.3: sheets/popups sit over another page; keep them nearly opaque (over the system blur) so text never mixes
+      base.sheet = withAlpha(base.sheet, Math.max(0.88, Math.min(0.94, this.glassAlpha + 0.3)));
     } else if (this.wallpaperPath.length > 0) {
       base.bg = '#00000000';
       base.card = withAlpha(base.card, this.cardAlpha);
       base.chip = withAlpha(base.chip, Math.min(1, this.cardAlpha + 0.1));
     }
     return base;
+  }
+
+  /** 1.2.3: opaque page color (palette().bg turns transparent with glass/wallpaper); base layer of every overlay page */
+  solidBg(): string {
+    return this.isDark() ? darkPalette().bg : lightPalette().bg;
   }
 
   // ================= frosted glass / immersive light =================
