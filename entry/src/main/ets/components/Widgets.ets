@@ -1,6 +1,7 @@
 import { Store } from '../common/Store';
-/** 通用 UI 组件（对应 Kotlin 版 ui/Common.kt） */
+/** Shared UI components (Kotlin ui/Common.kt) */
 import { Palette } from '../common/Theme';
+import { t } from '../common/I18n';
 
 export function rgba(hex: string, alpha: number): string {
   let h = hex.startsWith('#') ? hex.substring(1) : hex;
@@ -41,7 +42,7 @@ export struct LatencyBadge {
       if (this.testing) {
         LoadingProgress().width(16).height(16).color(this.pal.subtle)
       } else {
-        Text(this.delay > 0 ? this.delay.toString() : (this.delay === 0 ? '-' : '超时'))
+        Text(this.delay > 0 ? this.delay.toString() : (this.delay === 0 ? '-' : t('timeout')))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor(latencyColor(this.pal, this.delay, this.low, this.medium))
@@ -63,8 +64,8 @@ export struct LatencyBadge {
 export struct SearchBox {
   @Param pal: Palette = new Palette();
   @Param value: string = '';
-  @Param placeholder: string = '搜索';
-  /** 紧凑尺寸（用于顶栏） */
+  @Param placeholder: string = '';
+  /** Compact size (for headers) */
   @Param dense: boolean = false;
   @Event onChange: (v: string) => void = (v: string) => {
   };
@@ -105,7 +106,7 @@ export struct RoundIconButton {
   @Param icon: Resource = $r('sys.symbol.gearshape');
   @Param active: boolean = false;
   @Param tint: string = '';
-  /** 紧凑尺寸（用于顶栏） */
+  /** Compact size (for headers) */
   @Param dense: boolean = false;
   @Event onTap: () => void = () => {
   };
@@ -131,7 +132,7 @@ export struct SegTabs {
   @Param pal: Palette = new Palette();
   @Param items: string[] = [];
   @Param selected: number = 0;
-  /** 紧凑尺寸（用于顶栏） */
+  /** Compact size (for headers) */
   @Param dense: boolean = false;
   @Event onSelect: (i: number) => void = (i: number) => {
   };
@@ -166,7 +167,7 @@ export struct DropdownChip {
   @Param label: string = '';
   @Param options: string[] = [];
   @Param chipWidth: Length = 'auto';
-  /** 紧凑尺寸（用于顶栏） */
+  /** Compact size (for headers) */
   @Param dense: boolean = false;
   @Event onSelect: (i: number) => void = (i: number) => {
   };
@@ -243,7 +244,7 @@ export struct SectionTitle {
 @ComponentV2
 export struct EmptyCard {
   @Param pal: Palette = new Palette();
-  @Param text: string = '暂无数据';
+  @Param text: string = '';
 
   build() {
     Column() {
@@ -273,7 +274,7 @@ export struct ProxyIcon {
   }
 }
 
-/** 页面顶部的标题栏：标题 | 状态点 + 后端地址 */
+/** Page title row: title | status dot + backend address */
 @ComponentV2
 export struct HeaderStatus {
   @Param pal: Palette = new Palette();
@@ -317,7 +318,7 @@ export struct HeaderStatus {
   }
 }
 
-/** 折线图（对应 Kotlin 版 LineChart），Canvas 绘制平滑曲线 + 渐变填充 */
+/** Line chart (Kotlin LineChart): smooth Canvas curves + gradient fill */
 @ComponentV2
 export struct LineChart {
   @Param series: number[][] = [];

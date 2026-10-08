@@ -6,20 +6,23 @@ import { fmtClock, fmtStamp, pad2, safeRegex, textMatch } from '../common/Format
 import { FileUtil } from '../common/FileUtil';
 import { Palette } from '../common/Theme';
 import { DropdownChip, EmptyCard, RoundIconButton, SearchBox } from '../components/Widgets';
+import { t } from '../common/I18n';
 
 const LEVELS: string[] = ['debug', 'info', 'warning', 'error', 'silent'];
 const TYPE_KEYS: string[] = ['', 'debug', 'info', 'warning', 'error'];
-const TYPE_LABELS: string[] = ['全部', 'DEBUG', 'INFO', 'WARNING', 'ERROR'];
+function typeLabels(): string[] {
+  return [t('all'), 'DEBUG', 'INFO', 'WARNING', 'ERROR'];
+}
 
 export function levelColor(type: string, p: Palette): string {
-  const t = type.toLowerCase();
-  if (t === 'info') {
+  const lv = type.toLowerCase();
+  if (lv === 'info') {
     return p.info;
   }
-  if (t === 'warning' || t === 'warn') {
+  if (lv === 'warning' || lv === 'warn') {
     return p.warn;
   }
-  if (t === 'error') {
+  if (lv === 'error') {
     return p.bad;
   }
   return p.subtle;
@@ -29,7 +32,7 @@ function logLine(l: LogEntry): string {
   return fmtClock(l.time) + ' [' + l.type + '] ' + l.payload;
 }
 
-// 不在当前页时冻结界面刷新（Tabs 中不可见的 TabContent），切回来时再应用最新数据；页面状态保留
+// Frozen while not the current page (hidden TabContent); latest data applies on return, page state is kept
 @ComponentV2({ freezeWhenInactive: true })
 export struct LogsView {
   private store: Store = Store.get();
@@ -57,10 +60,10 @@ export struct LogsView {
       const text = this.list().map((l: LogEntry) => logLine(l)).join('\n');
       const name = await FileUtil.saveTextAs(ctx, 'mimi-logs-' + fmtStamp(Date.now()) + '.txt', text);
       if (name.length > 0) {
-        this.store.toast('已保存: ' + name);
+        this.store.toast(t('saved_name', name));
       }
     } catch (e) {
-      this.store.toast('导出失败: ' + (e as Error).message);
+      this.store.toast(t('export_failed', (e as Error).message));
     }
   }
 
@@ -69,7 +72,7 @@ export struct LogsView {
       PullRefresh({ topInset: this.headerH, page: 'logs' }) {
         if (this.list().length === 0) {
           Column() {
-            EmptyCard({ pal: this.store.palette(), text: this.store.logLevel === 'silent' ? '日志级别为 silent' : '等待日志…' })
+            EmptyCard({ pal: this.store.palette(), text: this.store.logLevel === 'silent' ? t('log_silent') : t('log_waiting') })
           }
           .padding({ left: 14, right: 14, top: this.headerH + 14 })
         } else {
@@ -152,7 +155,7 @@ export struct LogsView {
               pal: this.store.palette(), dense: true, icon: $r('sys.symbol.square_on_square_fill'), onTap: () => {
                 const l = this.list();
                 FileUtil.copyText(l.map((x: LogEntry) => logLine(x)).join('\n'));
-                this.store.toast('已复制 ' + l.length + ' 条日志');
+                this.store.toast(t('copied_logs', l.length));
               }
             })
             RoundIconButton({
@@ -174,8 +177,8 @@ export struct LogsView {
           Row({ space: 6 }) {
             DropdownChip({
               pal: this.store.palette(), dense: true,
-              label: TYPE_LABELS[Math.max(0, TYPE_KEYS.indexOf(this.typeFilter))],
-              options: TYPE_LABELS,
+              label: typeLabels()[Math.max(0, TYPE_KEYS.indexOf(this.typeFilter))],
+              options: typeLabels(),
               chipWidth: 140,
               onSelect: (i: number) => {
                 this.typeFilter = TYPE_KEYS[i];
@@ -184,7 +187,7 @@ export struct LogsView {
             SearchBox({
               pal: this.store.palette(), dense: true,
               value: this.query,
-              placeholder: '搜索 | Regex',
+              placeholder: t('search_regex'),
               onChange: (v: string) => {
                 this.query = v;
               }

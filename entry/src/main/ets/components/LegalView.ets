@@ -1,7 +1,8 @@
 import { Store } from '../common/Store';
-import { AGREEMENT_LINES, PRIVACY_LINES } from '../common/Legal';
+import { agreementLines, privacyLines } from '../common/Legal';
+import { t } from '../common/I18n';
 
-/** 隐私政策 / 用户协议全文页（doc: 'privacy' | 'agreement'），覆盖在当前界面之上 */
+/** Full privacy policy / user agreement page (doc: 'privacy' | 'agreement'), shown over the current screen */
 @ComponentV2
 export struct LegalView {
   private store: Store = Store.get();
@@ -10,11 +11,11 @@ export struct LegalView {
   };
 
   lines(): string[] {
-    return this.doc === 'agreement' ? AGREEMENT_LINES : PRIVACY_LINES;
+    return this.doc === 'agreement' ? agreementLines() : privacyLines();
   }
 
   title(): string {
-    return this.doc === 'agreement' ? '用户协议' : '隐私政策';
+    return this.doc === 'agreement' ? t('user_agreement') : t('privacy_policy');
   }
 
   build() {

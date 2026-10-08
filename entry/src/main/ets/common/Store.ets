@@ -14,10 +14,11 @@ import { CrashLog } from './CrashLog';
 import { PRIVACY_VERSION } from './Legal';
 import { sensor } from '@kit.SensorServiceKit';
 import { GlassCfg, GlassKind, GlassModifier, detectSysMaterial, sheetBlurStyle } from './Glass';
+import { I18N, initLang, setLangPref, t } from './I18n';
 
 export const HISTORY_LEN: number = 60;
 
-/** 一次性动作的结果，用于让 UI 弹出提示 */
+/** A one-shot async action; failures surface as a toast */
 type Task = () => Promise<void>;
 
 function emptyTraffic(): Traffic[] {
@@ -45,8 +46,8 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * 全局状态与业务逻辑（对应 Kotlin 版 MainViewModel）。
- * 使用 ArkUI 状态管理 V2：@ObservedV2 + @Trace，UI 用 @ComponentV2 直接读取即可自动刷新。
+ * Global state and logic (Kotlin MainViewModel).
+ * Uses ArkUI state management V2 (@ObservedV2 + @Trace); @ComponentV2 UIs re-render on read.
  */
 @ObservedV2
 export class Store {
@@ -59,7 +60,7 @@ export class Store {
     return Store.inst as Store;
   }
 
-  // 非响应式成员
+  // non-reactive members
   ctx: common.UIAbilityContext | null = null;
   uiCtx: UIContext | null = null;
   win: window.Window | null = null;
@@ -76,12 +77,12 @@ export class Store {
   private tiltOn: boolean = false;
   private tiltSmooth: number = 330;
   private foreground: boolean = true;
-  /** 自动收起导航栏：同方向累计的滚动距离 */
+  /** Auto-hide nav bar: scroll distance accumulated in one direction */
   private navAcc: number = 0;
-  /** 触底回弹期间忽略反向滚动，直到这个时间点 */
+  /** Ignore reverse scrolling from the end-of-list bounce until this time */
   private navLockUntil: number = 0;
   private navTab: number = -1;
-  /** 设备是否支持系统沉浸材质（API 26+），启动时检测一次 */
+  /** Whether the device supports the system immersive material (API 26+); detected once at startup */
   sysMaterialSupported: boolean = false;
 
   // ----- backend -----
@@ -95,7 +96,7 @@ export class Store {
 
   // ----- settings -----
   @Trace theme: string = 'system';
-  /** 主题色 key，见 Theme.ets ACCENTS */
+  /** Accent color key, see ACCENTS in Theme.ets */
   @Trace accent: string = 'blue';
   @Trace systemDark: boolean = false;
   @Trace testUrl: string = 'https://www.gstatic.com/generate_204';
@@ -115,35 +116,35 @@ export class Store {
   @Trace wallpaperBlur: number = 0;
   @Trace wallpaperDim: number = 0.1;
   @Trace wallpaperPath: string = '';
-  // ----- 毛玻璃 -----
+  // ----- frosted glass -----
   @Trace glassOn: boolean = false;
   /** custom | thin | regular | thick | system */
   @Trace glassStyle: string = 'custom';
-  /** 模糊强度 0..100 */
+  /** Blur strength 0..100 */
   @Trace glassBlur: number = 45;
-  /** 玻璃卡片不透明度 0.1..0.95 */
+  /** Glass card opacity 0.1..0.95 */
   @Trace glassAlpha: number = 0.55;
-  /** 长列表的每一项也做模糊（较耗性能） */
+  /** Blur every long-list item too (costs more) */
   @Trace glassRows: boolean = false;
-  // ----- 沉浸光感 -----
+  // ----- immersive light -----
   @Trace lightOn: boolean = false;
-  /** 光感强度 0..1 */
+  /** Light intensity 0..1 */
   @Trace lightIntensity: number = 0.6;
   @Trace lightTilt: boolean = false;
   @Trace lightGlow: boolean = true;
   @Trace lightSweep: boolean = true;
-  /** 光源方向（度，从屏幕正上方顺时针），按 6° 量化，跟随重力时由传感器更新 */
+  /** Light direction (degrees clockwise from top), quantized to 6°, driven by the sensor when following tilt */
   @Trace lightDeg: number = 330;
   @Trace connSort: string = 'start';
   @Trace connSortDesc: boolean = true;
-  // ----- 导航栏 / 沉浸式窗口 -----
-  /** 滚动时自动收起底部导航栏 */
+  // ----- nav bar / immersive window -----
+  /** Auto-hide the bottom nav bar while scrolling */
   @Trace autoHideNav: boolean = true;
-  /** 底部导航栏是否收起为左下角的圆形按钮 */
+  /** Whether the bottom bar is collapsed into the round button at the bottom left */
   @Trace navCollapsed: boolean = false;
-  /** 状态栏高度（vp），全屏布局下内容需要自行避让 */
+  /** Status bar height (vp); content must avoid it in the full-screen layout */
   @Trace safeTop: number = 0;
-  /** 底部导航条（手势指示条）高度（vp） */
+  /** Height of the gesture indicator area at the bottom (vp) */
   @Trace safeBottom: number = 0;
 
   // ----- proxies -----
@@ -159,7 +160,7 @@ export class Store {
   @Trace ruleProviders: RuleProvider[] = [];
   @Trace updatingRuleProviders: Map<string, boolean> = new Map<string, boolean>();
   @Trace rulesDisableSupported: boolean = true;
-  /** 当前后端以 404/405/501 拒绝的操作（例如部分客户端限制了外部控制） */
+  /** Ops this backend rejected with 404/405/501 (some clients restrict the external controller) */
   @Trace unsupported: Map<string, number> = new Map<string, number>();
 
   // ----- connections -----
@@ -184,16 +185,16 @@ export class Store {
   @Trace crashPrompt: boolean = false;
 
   // ----- privacy -----
-  /** 用户是否已同意当前版本的隐私政策与用户协议；同意前不发起任何网络请求 */
+  /** Whether the current privacy policy & agreement were accepted; no network requests before that */
   @Trace privacyAgreed: boolean = false;
-  /** 正在查看的协议全文：'' | 'privacy' | 'agreement' */
+  /** Legal document being viewed: '' | 'privacy' | 'agreement' */
   @Trace legalDoc: string = '';
-  /** 同意前暂不连接的后端，同意后再连接 */
+  /** Backend held back until consent is given */
   private pendingBackend: Backend | null = null;
 
   // ----- navigation -----
   @Trace tab: number = 0;
-  /** 设置页中打开的子页面：'' | backend | panel | proxy | conn | crash */
+  /** Open settings sub-page: '' | lang | backend | panel | proxy | conn | crash | about */
   @Trace settingsPage: string = '';
 
   // ================= init =================
@@ -216,6 +217,7 @@ export class Store {
     if (act === null && this.backends.length > 0) {
       act = this.backends[0];
     }
+    initLang(p.str('lang', 'system'));
     this.theme = p.str('theme', 'system');
     this.accent = findAccent(p.str('accent', 'blue')).key;
     this.testUrl = p.str('test_url', 'https://www.gstatic.com/generate_204');
@@ -266,7 +268,7 @@ export class Store {
     }
   }
 
-  /** 首次启动同意隐私政策与用户协议：记录同意的版本，然后才开始连接后端 */
+  /** First-launch consent: record the accepted version, then start connecting */
   agreePrivacy(): void {
     this.prefs?.put('privacy_agreed', PRIVACY_VERSION);
     this.privacyAgreed = true;
@@ -277,7 +279,7 @@ export class Store {
     }
   }
 
-  /** 不同意 / 撤回同意：清除同意记录、断开后端并退出应用 */
+  /** Decline / withdraw: clear consent, disconnect and exit */
   declinePrivacy(): void {
     this.prefs?.remove('privacy_agreed');
     this.privacyAgreed = false;
@@ -343,7 +345,7 @@ export class Store {
   palette(): Palette {
     const base = applyAccent(this.isDark() ? darkPalette() : lightPalette(), findAccent(this.accent));
     if (this.glassOn) {
-      // 毛玻璃：页面背景由 Index 绘制（壁纸或柔和渐变），卡片半透明
+      // Glass: Index draws the page background (wallpaper or soft gradient); cards are translucent
       base.bg = '#00000000';
       base.card = withAlpha(base.card, this.glassAlpha);
       base.chip = withAlpha(base.chip, Math.min(1, this.glassAlpha + 0.15));
@@ -356,7 +358,7 @@ export class Store {
     return base;
   }
 
-  // ================= 毛玻璃 / 沉浸光感 =================
+  // ================= frosted glass / immersive light =================
   glassCfg(): GlassCfg {
     const c = new GlassCfg();
     const p = this.palette();
@@ -375,7 +377,7 @@ export class Store {
     return c;
   }
 
-  /** 卡片/顶栏/底栏的样式修饰器；配置不变时复用同一对象，避免重复应用属性 */
+  /** Style modifier for cards/header/bar; the same object is reused while the config is unchanged */
   glass(kind: GlassKind): GlassModifier {
     const c = this.glassCfg();
     const k = c.key(kind);
@@ -391,7 +393,7 @@ export class Store {
     return m;
   }
 
-  /** 半模态/弹窗的背景模糊样式 */
+  /** Background blur style for sheets and dialogs */
   sheetBlur(): BlurStyle {
     return sheetBlurStyle(this.glassCfg());
   }
@@ -424,7 +426,7 @@ export class Store {
     this.updateTilt();
   }
 
-  /** 重力感应：仅在 光感开 + 跟随重力 + 前台 时以 100ms 低频订阅，量化到 6° 才更新界面 */
+  /** Gravity sensor: subscribed at a low 100 ms rate only when light + tilt are on and in foreground; UI updates per 6° */
   updateTilt(): void {
     const want = this.lightOn && this.lightTilt && this.foreground;
     if (want === this.tiltOn) {
@@ -447,12 +449,12 @@ export class Store {
   }
 
   private onGravity(gx: number, gy: number): void {
-    // 屏幕平面内“世界向上”的方向；平放时（投影很小）回到默认的左上方光源
+    // "World up" within the screen plane; lying flat (tiny projection) falls back to the default top-left light
     let target = 330;
     if (Math.sqrt(gx * gx + gy * gy) > 1.5) {
       target = Math.atan2(gx, gy) * 180 / Math.PI - 30;
     }
-    // 角度平滑（处理 360° 环绕）
+    // Smooth the angle (handles 360° wrap-around)
     const diff = ((target - this.tiltSmooth) % 360 + 540) % 360 - 180;
     this.tiltSmooth = (this.tiltSmooth + diff * 0.35 + 360) % 360;
     const q = (Math.round(this.tiltSmooth / 6) * 6) % 360;
@@ -470,14 +472,24 @@ export class Store {
     this.savePrefs();
   }
 
-  setTheme(t: string): void {
-    this.theme = t;
+  /** In-app language: 'system' | 'zh' | 'en'. Applies immediately (see I18n.ets); persisted in Preferences key `lang`. */
+  setLanguage(pref: string): void {
+    this.prefs?.put('lang', pref);
+    setLangPref(pref);
+  }
+
+  langPref(): string {
+    return I18N.pref;
+  }
+
+  setTheme(th: string): void {
+    this.theme = th;
     this.savePrefs();
     this.applySystemBar();
   }
 
-  // ================= 沉浸式窗口 =================
-  /** 全屏布局：页面背景/壁纸延伸到状态栏与底部导航条下方，内容按避让区高度自行留白 */
+  // ================= immersive window =================
+  /** Full-screen layout: background/wallpaper extends under the status bar and gesture area; content pads by the avoid areas */
   setupImmersive(win: window.Window): void {
     try {
       win.setWindowLayoutFullScreen(true).catch(() => {
@@ -530,7 +542,7 @@ export class Store {
     }
   }
 
-  // ================= 底部导航栏自动收起 =================
+  // ================= auto-hide bottom nav bar =================
   setAutoHideNav(on: boolean): void {
     this.autoHideNav = on;
     this.savePrefs();
@@ -564,10 +576,10 @@ export class Store {
   }
 
   /**
-   * 各页面滚动容器的 onDidScroll 统一调用这里。
-   * delta > 0：内容向上移动（往下翻）→ 收起；delta < 0：内容向下移动（往回翻）→ 展开。
-   * 只响应手指拖动/惯性滑动（控制器触发的程序滚动为 Idle，忽略）；在顶部时始终展开；
-   * 触底回弹产生的反向位移会被短暂锁定忽略，避免抖动。
+   * Every page's scroll container calls this from onDidScroll.
+   * delta > 0: content moves up (scrolling down) -> collapse; delta < 0: content moves down (scrolling back) -> expand.
+   * Only finger drags / fling count (programmatic scrolls are Idle and ignored); always expanded at the top;
+   * the reverse movement of the end-of-list bounce is briefly ignored to avoid flicker.
    */
   navScroll(sc: Scroller, delta: number, state: ScrollState): void {
     if (this.navTab !== this.tab) {
@@ -646,7 +658,7 @@ export class Store {
     return this.unsupported.has(key);
   }
 
-  /** 对应 Kotlin launchSafe：统一捕获异常并提示；404/405/501 记为“后端不支持” */
+  /** Kotlin launchSafe: catch and toast errors; 404/405/501 are recorded as "not supported by backend" */
   async run(label: string, key: string, task: Task): Promise<boolean> {
     try {
       await task();
@@ -656,11 +668,11 @@ export class Store {
         const ae = e as ApiError;
         if ((ae.code === 404 || ae.code === 405 || ae.code === 501) && key.length > 0) {
           this.unsupported.set(key, ae.code);
-          this.toast((label.length > 0 ? label : key) + '失败：当前后端不支持此接口 (HTTP ' + ae.code + ')');
+          this.toast(t('op_failed_unsupported', label.length > 0 ? label : key, ae.code));
           return false;
         }
       }
-      this.toast((label.length > 0 ? label + '失败: ' : '') + errMsg(e as Object));
+      this.toast(label.length > 0 ? t('op_failed', label, errMsg(e as Object)) : errMsg(e as Object));
       return false;
     }
   }
@@ -758,10 +770,10 @@ export class Store {
     });
   }
 
-  /** 测试后端但不切换 */
+  /** Tests a backend without switching to it */
   async probe(b: Backend): Promise<string> {
     const v = await new CoreApi(b).version();
-    return v.version.length > 0 ? v.version : '（未提供版本号）';
+    return v.version.length > 0 ? v.version : t('no_version');
   }
 
   retry(): void {
@@ -838,7 +850,7 @@ export class Store {
       this.logSeq++;
       this.logBuf.push(new LogEntry(this.logSeq, jStr(o, 'type'), jStr(o, 'payload'), Date.now()));
       if (this.logTimer < 0) {
-        // 合并 250ms 内的日志，避免高频刷新
+        // Batch logs within 250 ms to avoid re-rendering too often
         this.logTimer = setTimeout(() => {
           this.logTimer = -1;
           this.flushLogs();
@@ -920,7 +932,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('切换模式', 'patch', async () => {
+    this.run(t('act_mode'), 'patch', async () => {
       const b: JObj = { 'mode': mode };
       await a.patchConfigs(b);
       const c = this.config.copy();
@@ -958,7 +970,7 @@ export class Store {
 
   setAllowLan(v: boolean): void {
     const b: JObj = { 'allow-lan': v };
-    this.patchConfig('局域网', b, (c: CoreConfig) => {
+    this.patchConfig(t('act_lan'), b, (c: CoreConfig) => {
       c.allowLan = v;
     });
   }
@@ -972,7 +984,7 @@ export class Store {
 
   setCoreLogLevel(v: string): void {
     const b: JObj = { 'log-level': v };
-    this.patchConfig('日志级别', b, (c: CoreConfig) => {
+    this.patchConfig(t('act_loglevel'), b, (c: CoreConfig) => {
       c.logLevel = v;
     });
   }
@@ -980,20 +992,21 @@ export class Store {
   setPort(key: string, v: number): void {
     const b: JObj = {};
     b[key] = v;
-    this.patchConfig('端口', b, (c: CoreConfig) => {
+    this.patchConfig(t('act_port'), b, (c: CoreConfig) => {
     });
   }
 
-  /** 运维操作：label 同时作为“不支持”标记的 key */
-  coreAction(label: string, fn: (a: CoreApi) => Promise<void>): void {
+  /** Core maintenance op. key (reload | geo | fakeip | dns | upgrade | restart) also marks "unsupported"; label is t('op_' + key) */
+  coreAction(key: string, fn: (a: CoreApi) => Promise<void>): void {
     const a = this.api;
     if (a === null) {
       return;
     }
-    this.run(label, label, async () => {
+    const label = t('op_' + key);
+    this.run(label, key, async () => {
       await fn(a);
-      this.toast(label + ' 成功');
-      if (label !== '重启内核') {
+      this.toast(t('act_ok', label));
+      if (key !== 'restart') {
         await sleep(500);
         this.refreshAll();
       } else {
@@ -1003,10 +1016,10 @@ export class Store {
     });
   }
 
-  // ================= 下拉刷新（1.1.9） =================
+  // ================= pull to refresh (1.1.9) =================
   /**
-   * 页面下拉刷新：等待对应的请求完成（成功或失败）后才结束刷新动画；失败由 run() 弹出简短提示。
-   * 未同意隐私政策前不发起任何网络请求。
+   * Pull to refresh: the indicator stays until the requests finish (success or failure); run() toasts failures.
+   * No network requests before the privacy policy is accepted.
    */
   async pullRefresh(page: string): Promise<void> {
     if (!this.privacyAgreed) {
@@ -1014,28 +1027,28 @@ export class Store {
     }
     const a = this.api;
     if (a === null) {
-      this.toast(this.active === null ? '尚未连接后端' : '后端未连接');
+      this.toast(this.active === null ? t('not_connected_yet') : t('backend_not_connected'));
       return;
     }
     if (this.connState !== 'connected') {
-      // 连接失败或连接中：重新连接一次，等待版本探测结果
+      // Failed or still connecting: reconnect once and wait for the version probe
       const b = this.active;
       if (b !== null) {
         this.connect(b);
         await this.waitConnected(8000);
         if (this.connState !== 'connected') {
-          this.toast('刷新失败: ' + (this.connError.length > 0 ? this.connError : '无法连接后端'));
+          this.toast(t('refresh_failed', this.connError.length > 0 ? this.connError : t('err_connect')));
         }
       }
       return;
     }
-    const L = '刷新';
+    const L = t('act_refresh');
     if (page === 'proxies') {
       await this.refreshProxies(L);
     } else if (page === 'rules') {
       await this.refreshRules(L);
     } else if (page === 'connections' || page === 'logs') {
-      // 连接与日志来自实时流：先探测后端，再重建实时流
+      // Connections and logs come from live streams: probe the backend, then restart the streams
       const ok = await this.run(L, '', async () => {
         await a.version();
       });
@@ -1044,7 +1057,7 @@ export class Store {
         this.startStreams(a);
       }
     } else {
-      // 概览：先探测后端（失败只提示一次），再并行刷新配置、代理与规则
+      // Overview: probe first (one toast on failure), then refresh config, proxies and rules in parallel
       const ok = await this.run(L, '', async () => {
         const v = await a.version();
         if (this.api === a) {
@@ -1138,7 +1151,7 @@ export class Store {
     if (p === undefined) {
       return 0;
     }
-    // 代理组显示其当前选择（递归到最终节点）的延迟
+    // A group shows the delay of its current selection (resolved down to the final node)
     if (p.isGroup() && p.now.length > 0 && p.now !== name) {
       const seen = new Set<string>();
       let cur: ProxyItem | undefined = p;
@@ -1151,7 +1164,7 @@ export class Store {
     return p.delayFor(url);
   }
 
-  /** 解析代理组链条的最终节点 */
+  /** Resolves a group chain to its final node */
   resolveNow(name: string): string {
     const seen = new Set<string>();
     let cur = this.proxies.get(name);
@@ -1198,10 +1211,10 @@ export class Store {
       return;
     }
     if (!this.isSelectable(group)) {
-      this.toast(group.type + ' 类型的代理组不能手动选择');
+      this.toast(t('group_not_selectable', group.type));
       return;
     }
-    this.run('切换节点', '切换节点', async () => {
+    this.run(t('act_select'), 'select', async () => {
       await a.selectProxy(group.name, name);
       const m = new Map<string, ProxyItem>(this.proxies);
       const g2 = group.copy();
@@ -1234,7 +1247,7 @@ export class Store {
     if (a === null || this.testing.get(g.name) === true) {
       return;
     }
-    this.run('测速', '测速', async () => {
+    this.run(t('act_test'), 'test', async () => {
       this.testing.set(g.name, true);
       try {
         const url = this.groupTestUrl(g);
@@ -1247,7 +1260,7 @@ export class Store {
           }
           ok = true;
         } catch (e) {
-          // 5xx = 所有节点都超时；404 = 内核没有 /group 接口 -> 逐个测速
+          // 5xx = every node timed out; 404 = core has no /group API -> test nodes one by one
           if (e instanceof ApiError && (e as ApiError).code >= 500 && (e as ApiError).code <= 599) {
             for (const n of g.all) {
               this.manualDelay.set(n, 0);
@@ -1272,7 +1285,7 @@ export class Store {
         }
         const p = await a.proxies();
         if (this.api === a) {
-          // 保留刚测得的结果
+          // keep the results just measured
           this.proxies = p;
         }
       } finally {
@@ -1309,7 +1322,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('取消固定', '取消固定', async () => {
+    this.run(t('act_unfix'), 'unfix', async () => {
       await a.unfixProxy(g.name);
       this.refreshProxies();
     });
@@ -1320,9 +1333,9 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('更新订阅', '更新订阅', async () => {
+    this.run(t('act_update_sub'), 'update_provider', async () => {
       await a.updateProxyProvider(name);
-      this.toast(name + ' 已更新');
+      this.toast(t('updated_name', name));
       this.refreshProxies();
     });
   }
@@ -1333,7 +1346,7 @@ export class Store {
       return;
     }
     const key = 'provider:' + name;
-    this.run('健康检查', '健康检查', async () => {
+    this.run(t('act_healthcheck'), 'healthcheck', async () => {
       this.testing.set(key, true);
       try {
         await a.healthcheckProvider(name);
@@ -1373,7 +1386,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('切换规则', '切换规则', async () => {
+    this.run(t('act_toggle_rule'), 'toggle_rule', async () => {
       try {
         await a.setRuleDisabled(r.index, !r.disabled);
         this.rules = this.rules.map((x: RuleItem) => {
@@ -1387,7 +1400,7 @@ export class Store {
       } catch (e) {
         if (e instanceof ApiError && ((e as ApiError).code === 404 || (e as ApiError).code === 405)) {
           this.rulesDisableSupported = false;
-          this.toast('当前内核不支持禁用单条规则');
+          this.toast(t('rule_disable_unsupported'));
           return;
         }
         throw e as Error;
@@ -1400,7 +1413,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('更新规则集', '更新规则集', async () => {
+    this.run(t('act_update_ruleset'), 'update_ruleset', async () => {
       this.updatingRuleProviders.set(name, true);
       try {
         await a.updateRuleProvider(name);
@@ -1423,7 +1436,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('断开连接', '断开连接', async () => {
+    this.run(t('act_close_conn'), 'close_conn', async () => {
       await a.closeConnection(id);
     });
   }
@@ -1433,7 +1446,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('断开连接', '断开连接', async () => {
+    this.run(t('act_close_conn'), 'close_conn', async () => {
       for (const id of ids) {
         try {
           await a.closeConnection(id);
@@ -1449,7 +1462,7 @@ export class Store {
     if (a === null) {
       return;
     }
-    this.run('断开全部', '断开全部', async () => {
+    this.run(t('act_close_all'), 'close_all', async () => {
       await a.closeAllConnections();
     });
   }
@@ -1493,9 +1506,9 @@ export class Store {
       if (old.length > 0 && old !== dest) {
         FileUtil.remove(old);
       }
-      this.toast('壁纸已更新');
+      this.toast(t('wallpaper_updated'));
     } catch (e) {
-      this.toast('无法读取这张图片');
+      this.toast(t('wallpaper_read_failed'));
     }
   }
 

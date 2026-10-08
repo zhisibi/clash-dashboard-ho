@@ -4,6 +4,7 @@ import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { RuleItem, RuleProvider, parseIsoMillis } from '../common/Models';
 import { fmtAgo, safeRegex, textMatch } from '../common/Format';
 import { EmptyCard, ProxyIcon, RoundIconButton, SearchBox, SegTabs, Tag, latencyColor } from '../components/Widgets';
+import { t } from '../common/I18n';
 
 @ComponentV2
 struct ProxyChainChip {
@@ -39,7 +40,7 @@ struct ProxyChainChip {
   }
 }
 
-// 不在当前页时冻结界面刷新（Tabs 中不可见的 TabContent），切回来时再应用最新数据；页面状态保留
+// Frozen while not the current page (hidden TabContent); latest data applies on return, page state is kept
 @ComponentV2({ freezeWhenInactive: true })
 export struct RulesView {
   private store: Store = Store.get();
@@ -78,15 +79,15 @@ export struct RulesView {
   @Builder
   optionsMenu() {
     Menu() {
-      MenuItem({ content: '显示命中次数' }).selected(this.store.showRuleHits).selectIcon(true).onClick(() => {
+      MenuItem({ content: t('show_hit_counts') }).selected(this.store.showRuleHits).selectIcon(true).onClick(() => {
         this.store.showRuleHits = !this.store.showRuleHits;
         this.store.savePrefs();
       })
-      MenuItem({ content: '刷新' }).onClick(() => {
+      MenuItem({ content: t('act_refresh') }).onClick(() => {
         this.store.refreshRules();
       })
       if (this.store.ruleProviders.length > 0) {
-        MenuItem({ content: '更新全部规则集' }).onClick(() => {
+        MenuItem({ content: t('update_all_rulesets') }).onClick(() => {
           this.store.updateAllRuleProviders();
         })
       }
@@ -155,7 +156,7 @@ export struct RulesView {
                         ProxyChainChip({ proxy: ri.item.proxy })
                         if (this.store.showRuleHits && ri.item.hitCount > 0) {
                           Blank()
-                          Text('命中 ' + ri.item.hitCount).fontSize(12).fontColor(this.store.palette().subtle)
+                          Text(t('hits_n', ri.item.hitCount)).maxLines(1).fontSize(12).fontColor(this.store.palette().subtle)
                         }
                       }
                       .width('100%')
@@ -195,6 +196,7 @@ export struct RulesView {
                     Column() {
                       Row() {
                         Text(p.name).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
+                          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).flexShrink(1)
                         Text('(' + p.ruleCount + ')').fontSize(13).fontColor(this.store.palette().subtle).margin({ left: 6 })
                       }
 
@@ -204,7 +206,8 @@ export struct RulesView {
                         if (p.format.length > 0) {
                           Tag({ pal: this.store.palette(), text: p.format })
                         }
-                        Text('更新于 ' + fmtAgo(parseIsoMillis(p.updatedAt))).fontSize(12).fontColor(this.store.palette().subtle)
+                        Text(t('updated_ago', fmtAgo(parseIsoMillis(p.updatedAt)))).fontSize(12).fontColor(this.store.palette().subtle)
+                          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).flexShrink(1)
                       }
                       .margin({ top: 4 })
                     }
@@ -250,7 +253,7 @@ export struct RulesView {
         Column({ space: 6 }) {
           SegTabs({
             pal: this.store.palette(), dense: true,
-            items: ['规则 ' + this.store.rules.length, '规则提供商 ' + this.store.ruleProviders.length],
+            items: [t('seg_rules', this.store.rules.length), t('seg_rule_providers', this.store.ruleProviders.length)],
             selected: this.tab,
             onSelect: (i: number) => {
               this.tab = i;
@@ -260,7 +263,7 @@ export struct RulesView {
             SearchBox({
               pal: this.store.palette(), dense: true,
               value: this.query,
-              placeholder: '搜索 | Regex',
+              placeholder: t('search_regex'),
               onChange: (v: string) => {
                 this.query = v;
               }

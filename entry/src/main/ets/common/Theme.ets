@@ -1,4 +1,4 @@
-/** 配色（对应 Kotlin 版 ui/Theme.kt 的 ExtraColors + ColorScheme） */
+/** Palette (Kotlin ui/Theme.kt ExtraColors + ColorScheme) */
 export class Palette {
   bg: string = '#F4F4F6';
   card: string = '#FFFFFF';
@@ -16,38 +16,38 @@ export class Palette {
   outlineVariant: string = '#E8EAED';
   sheet: string = '#F4F4F6';
   info: string = '#38BDF8';
-  /** 主题色（按钮、选中项、开关、图表等） */
+  /** Accent color (buttons, selection, switches, charts, ...) */
   accent: string = '#0A59F7';
-  /** 主题色上的文字/图标颜色 */
+  /** Text/icon color on the accent */
   onAccent: string = '#FFFFFF';
-  /** 主题色的浅色底（选中背景、高亮 chip） */
+  /** Soft accent background (selection, highlighted chips) */
   accentSoft: string = '#240A59F7';
   dark: boolean = false;
 }
 
-/** 预置主题色 */
+/** Preset accent colors (nameKey is an i18n key) */
 export class AccentDef {
   key: string;
-  name: string;
+  nameKey: string;
   light: string;
   dark: string;
 
-  constructor(key: string, name: string, light: string, dark: string) {
+  constructor(key: string, nameKey: string, light: string, dark: string) {
     this.key = key;
-    this.name = name;
+    this.nameKey = nameKey;
     this.light = light;
     this.dark = dark;
   }
 }
 
 export const ACCENTS: AccentDef[] = [
-  new AccentDef('blue', '星河蓝', '#0A59F7', '#3F7CFF'),
-  new AccentDef('orange', '橘黄黄', '#F39A2B', '#F7AE52'),
-  new AccentDef('cat', '猫咪蓝', '#3F5683', '#7088B8'),
-  new AccentDef('red', '华为红', '#CF0A2C', '#EE4A61'),
-  new AccentDef('purple', '优雅紫', '#8A5CD1', '#A47FE0'),
-  new AccentDef('pink', '哔哩粉', '#FB7299', '#FC8DAE'),
-  new AccentDef('green', '小草绿', '#7BC23E', '#93D15E')
+  new AccentDef('blue', 'accent_blue', '#0A59F7', '#3F7CFF'),
+  new AccentDef('orange', 'accent_orange', '#F39A2B', '#F7AE52'),
+  new AccentDef('cat', 'accent_cat', '#3F5683', '#7088B8'),
+  new AccentDef('red', 'accent_red', '#CF0A2C', '#EE4A61'),
+  new AccentDef('purple', 'accent_purple', '#8A5CD1', '#A47FE0'),
+  new AccentDef('pink', 'accent_pink', '#FB7299', '#FC8DAE'),
+  new AccentDef('green', 'accent_green', '#7BC23E', '#93D15E')
 ];
 
 export function findAccent(key: string): AccentDef {
@@ -65,7 +65,7 @@ function hex2(n: number): string {
   return h.length < 2 ? '0' + h : h;
 }
 
-/** 两个 '#RRGGBB' 颜色按比例 t(0..1) 混合 */
+/** Mixes two '#RRGGBB' colors by ratio t (0..1) */
 export function mixColor(a: string, b: string, t: number): string {
   const pa = a.length === 9 ? a.substring(3) : a.substring(1);
   const pb = b.length === 9 ? b.substring(3) : b.substring(1);
@@ -78,7 +78,7 @@ export function mixColor(a: string, b: string, t: number): string {
   return out;
 }
 
-/** 把主题色应用到配色上 */
+/** Applies an accent to a palette */
 export function applyAccent(p: Palette, a: AccentDef): Palette {
   const c = p.dark ? a.dark : a.light;
   p.accent = c;
@@ -86,7 +86,7 @@ export function applyAccent(p: Palette, a: AccentDef): Palette {
   p.accentSoft = withAlpha(c, p.dark ? 0.24 : 0.14);
   p.primary = c;
   p.onPrimary = '#FFFFFF';
-  // 流量图：下载用主题色，上传用主题色的浅色调，保证两条线可区分且统一风格
+  // Traffic chart: download uses the accent, upload a lighter tint, so both lines are distinct but consistent
   p.down = c;
   p.up = p.dark ? mixColor(c, '#FFFFFF', 0.45) : mixColor(c, '#FFFFFF', 0.5);
   return p;

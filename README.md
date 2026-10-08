@@ -1,5 +1,7 @@
 # 咪咪面板（HarmonyOS 版）
 
+[English](README_en.md) · 简体中文
+
 用 **ArkTS + ArkUI（Stage 模型）** 编写的 HarmonyOS 原生管理面板，适用于与 mihomo 兼容的代理内核所提供的 `external-controller` RESTful API。
 功能与安卓 Kotlin/Compose 版 v1.1.2 对齐，界面参照 Zashboard。
 
@@ -9,13 +11,26 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.1.9（versionCode 1010900） |
+| 版本 | 1.2.0（versionCode 1020000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
 | 状态管理 | ArkUI 状态管理 V2（`@ObservedV2` / `@Trace` / `@ComponentV2`） |
+| 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.2.0
+- 新增 **英文界面（English）**：设置页顶部新增 **语言 / Language**，可选“跟随系统”（默认）、简体中文、English，选择保存在本地设置中
+  - 切换后**立即生效、无需重启**：界面文字统一走应用内字符串表（`common/I18n.ets` 的 `t()` + `common/i18n/StringsZh.ets` / `StringsEn.ets`），语言是响应式状态，切换时整棵界面按语言重建，当前页签与设置子页面保持不变
+  - 同时调用 `i18n.System.setAppPreferredLanguage` 让系统资源（应用名、权限说明等）与应用语言一致；“跟随系统”时系统语言为中文显示中文，其他语言显示英文，运行中修改系统语言也会跟随
+  - 覆盖全部界面：概览、代理、规则 / 规则集、连接、日志、设置及所有子页面、关于、后端表单、首次启动同意页、闪退日志、提示 Toast、确认弹窗、空状态与错误提示、单位与相对时间（如“3 分钟前 / 3 min ago”）、主题色名称、毛玻璃与光感设置等
+  - 新增英文版《隐私政策》《用户协议》（`docs/privacy_en.md`、`docs/agreement_en.md`），应用内按界面语言显示；`scripts/gen-legal.py` 现在生成 `common/i18n/LegalZh.ets` 与 `LegalEn.ets`
+  - 英文排版：底部导航使用短标签（Overview / Proxies / Conns / Logs / Rules / Settings）并在空间不足时自动缩小字号，较长的分段选项在英文下使用紧凑尺寸，标题等单行文字超长时省略号截断；毛玻璃“材质”选项改为标题下方单独一行
+  - 应用名称与能力描述、网络权限说明提供 en_US 资源（Mimi Panel）
+  - 设置搜索同时匹配中英文关键词
+- 代码注释统一改为英文；新增 `scripts/check-i18n.py`：检查中英文字符串表键一致、代码里用到的键都存在、`.ets` 中除中文字符串表外没有中文字符
+- 隐私政策：本地保存的设置项中补充“界面语言”（无实质变更，不需要重新同意）
 
 ### 1.1.9
 - 基于 1.1.7 代码：恢复系统沉浸材质（`uiMaterial` / `systemMaterial`，API 26 且设备支持时在毛玻璃“材质”中可选“系统”），`targetSdkVersion` 恢复为 `26.0.0`，用 DevEco Studio 26.0.0 Release（SDK 26.0.0.821）构建
@@ -81,7 +96,7 @@
 | 连接 | 活跃/已关闭/全部、搜索与正则过滤、来源 IP 筛选、11 种字段排序、紧凑模式、单条/全部/筛选结果断开、连接详情（可复制）、暂停刷新 |
 | 日志 | 日志级别切换、类型过滤、正则搜索、暂停、清空、正序/倒序、复制、另存为文本文件 |
 | 规则 | 规则列表（虚拟滚动，规则多也不卡）、单条规则启用/禁用、规则集更新、命中次数、代理链与延迟 |
-| 设置 | 关于（版本、开发者、隐私政策、用户协议）、多后端管理与连接测试、代理模式、内核日志级别、TUN、局域网、IPv6、各类端口、重载配置、更新 GEO、清空 DNS/FakeIP 缓存、更新/重启内核、主题（跟随系统/浅色/深色）、主题色（7 种预设）、毛玻璃效果、沉浸光感、自定义壁纸（卡片不透明度/暗化/模糊）、测速参数、保留数量、闪退日志 |
+| 设置 | 界面语言（跟随系统 / 简体中文 / English）、关于（版本、开发者、隐私政策、用户协议）、多后端管理与连接测试、代理模式、内核日志级别、TUN、局域网、IPv6、各类端口、重载配置、更新 GEO、清空 DNS/FakeIP 缓存、更新/重启内核、主题（跟随系统/浅色/深色）、主题色（7 种预设）、毛玻璃效果、沉浸光感、自定义壁纸（卡片不透明度/暗化/模糊）、测速参数、保留数量、闪退日志 |
 
 - 实时数据通过 WebSocket 获取：`/traffic`、`/memory`、`/connections`、`/logs`，断线指数退避自动重连（1s → 10s）
 - 后端返回 404/405/501 的接口（例如部分客户端限制了外部控制）会被标记为“当前后端不支持”，并在设置里说明
@@ -138,7 +153,7 @@ hvigorw --mode module -p module=entry@default -p product=default -p buildMode=re
 
 ### 自动发布（GitHub Actions）
 
-`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.1.9 && git push origin v1.1.9`）或在 Actions 页手动运行（填写标签）时触发。
+`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.2.0 && git push origin v1.2.0`）或在 Actions 页手动运行（填写标签）时触发。
 
 - 在 `ubuntu-latest` 上从 [ErBWs/ohos-sdk](https://github.com/ErBWs/ohos-sdk) 镜像下载 Command Line Tools 26.0.0.821（linux-x64，校验 sha256），裁掉用不到的 NDK 后用 `actions/cache` 缓存，之后的运行不再重复下载
 - `ohpm install` 后执行 `hvigorw assembleHap`（release 模式），版本号取自 `AppScope/app.json5`
@@ -199,7 +214,7 @@ hdc shell aa start -a EntryAbility -b com.zhisibi.mimipanel
 
 ```
 AppScope/                       # 应用级配置（bundleName、版本、图标）
-docs/                           # privacy.md 隐私政策、agreement.md 用户协议（可用 GitHub Pages 托管）
+docs/                           # privacy.md / agreement.md 隐私政策与用户协议，privacy_en.md / agreement_en.md 英文版（可用 GitHub Pages 托管）
 icon-src/                       # 图标源文件（SVG：前景小猫 + 渐变背景）
 entry/src/main/
 ├── module.json5                # 模块配置、INTERNET 权限
@@ -212,7 +227,9 @@ entry/src/main/
     ├── common/
     │   ├── Models.ets          # 数据模型与 JSON 解析
     │   ├── CoreApi.ets         # REST + WebSocket 客户端
-    │   ├── Legal.ets           # 隐私政策/用户协议正文（scripts/gen-legal.py 由 docs/*.md 生成）
+    │   ├── I18n.ets            # 界面语言（跟随系统 / 中文 / 英文）与 t() 取字符串
+    │   ├── i18n/               # StringsZh.ets / StringsEn.ets 字符串表；LegalZh.ets / LegalEn.ets（scripts/gen-legal.py 由 docs/*.md 生成）
+    │   ├── Legal.ets           # 按界面语言返回隐私政策/用户协议正文、PRIVACY_VERSION
     │   ├── Store.ets           # 全局状态与业务逻辑（对应 MainViewModel）
     │   ├── Prefs.ets           # preferences 设置存储
     │   ├── CrashLog.ets        # 闪退日志
@@ -247,7 +264,7 @@ entry/src/main/
 4. **发布 Profile**：在 AGC 为该应用申请**发布 Profile**（选择上一步的发布证书），下载 `.p7b`。
 5. **签名**：在 DevEco Studio `File → Project Structure → Signing Configs` 取消自动签名，填入 `.p12`、`.cer`、`.p7b`、别名与密码；或者把这 3 个文件的 base64 与别名/密码配置成仓库 Secrets（见“自动发布”），由 GitHub Actions 签名。不要把这些文件或密码提交到仓库。
 6. **APP 备案**：在中国大陆上架需要先完成 APP 备案（ICP）。在 AGC 或接入商的备案系统中提交，需要填写应用包名 `com.zhisibi.mimipanel` 以及**发布证书的公钥 / 证书 MD5 指纹**（AGC 的证书详情页可查看；本地也可用 `keytool -printcert -file 发布证书.cer` 查看）。备案通过后在 AGC 提交备案号。
-7. **隐私政策网址**：AGC 的“应用信息 → 隐私政策网址”需要一个公开可访问的链接。本仓库的 `docs/privacy.md` 就是应用内同款政策：在仓库 `Settings → Pages` 选择 `main` 分支的 `/docs` 目录后，可使用 `https://zhisibi.github.io/<仓库名>/privacy.html`；未开 Pages 时也可直接使用该文件在 GitHub 上的链接。修改政策时先改 `docs/*.md`，再运行 `python3 scripts/gen-legal.py` 同步到应用内，有实质变更时递增 `scripts/gen-legal.py` 里的 `PRIVACY_VERSION`，用户会被要求重新同意。
+7. **隐私政策网址**：AGC 的“应用信息 → 隐私政策网址”需要一个公开可访问的链接。本仓库的 `docs/privacy.md` 就是应用内同款政策：在仓库 `Settings → Pages` 选择 `main` 分支的 `/docs` 目录后，可使用 `https://zhisibi.github.io/<仓库名>/privacy.html`；未开 Pages 时也可直接使用该文件在 GitHub 上的链接。修改政策时先改 `docs/*.md`，再运行 `python3 scripts/gen-legal.py` 同步到应用内，有实质变更时递增 `entry/src/main/ets/common/Legal.ets` 里的 `PRIVACY_VERSION`，用户会被要求重新同意。
 8. **构建 .app 并上传**：AGC 只接受 `.app` 包。DevEco Studio `Build → Build Hap(s)/APP(s) → Build APP(s)`，或命令行：
 
    ```bash

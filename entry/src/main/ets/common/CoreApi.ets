@@ -6,8 +6,9 @@ import {
   Backend, CoreConfig, JObj, ProxyItem, ProxyProvider, RuleItem, RuleProvider,
   asObj, asNum, jArr, jBool, jHas, jNum, jObj, jStr, parseJsonObj, parseProxy
 } from './Models';
+import { t } from './I18n';
 
-/** HTTP 状态码错误（4xx/5xx） */
+/** HTTP status error (4xx/5xx) */
 export class ApiError extends Error {
   code: number = 0;
 
@@ -18,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-/** 网络层错误（连不上、超时等） */
+/** Network-level error (unreachable, timeout, ...) */
 export class NetError extends Error {
   code: number = 0;
 
@@ -53,32 +54,32 @@ function toMethod(m: string): http.RequestMethod {
   }
 }
 
-/** 把底层异常转成中文提示 */
+/** Turns a low-level error into a short, localized message */
 export function errMsg(e: Object): string {
   if (e instanceof ApiError) {
     const ae = e as ApiError;
     if (ae.code === 401) {
-      return '密钥错误 (401)';
+      return t('err_401');
     }
     return ae.message.length > 0 ? ae.message : 'HTTP ' + ae.code;
   }
   if (e instanceof NetError) {
     const ne = e as NetError;
-    // NetworkKit http 错误码：2300007 连接失败，2300028 超时，2300006 无法解析主机
-    // Remote Communication Kit 对应错误码为 10079000xx
+    // NetworkKit http error codes: 2300007 connect failed, 2300028 timeout, 2300006 can't resolve host
+    // Remote Communication Kit uses the matching codes 10079000xx
     if (ne.code === 2300007 || ne.code === 1007900007) {
-      return '无法连接后端';
+      return t('err_connect');
     }
     if (ne.code === 2300028 || ne.code === 1007900028) {
-      return '连接超时';
+      return t('err_timeout');
     }
     if (ne.code === 2300006 || ne.code === 1007900006) {
-      return '无法解析主机地址';
+      return t('err_dns');
     }
     if (ne.code === 2300997 || ne.code === 1007900201) {
-      return '系统禁止明文 HTTP';
+      return t('err_cleartext');
     }
-    return ne.message.length > 0 ? ne.message : '网络错误 ' + ne.code;
+    return ne.message.length > 0 ? ne.message : t('err_net_code', ne.code);
   }
   if (e instanceof Error) {
     const er = e as Error;
@@ -115,10 +116,10 @@ export class CoreApi {
     return new ApiError(code, msg.length > 0 ? msg : 'HTTP ' + code);
   }
 
-  /** 发送请求，返回响应正文；非 2xx 抛 ApiError，网络错误抛 NetError */
+  /** Sends a request and returns the body; throws ApiError on non-2xx and NetError on network errors */
   async call(method: string, path: string, body: string | null, timeoutMs: number): Promise<string> {
     if (method === 'PATCH') {
-      // NetworkKit http 的 PATCH 枚举直到 API 26 才提供；为兼容 HarmonyOS 6.0 (API 20)，PATCH 走 Remote Communication Kit
+      // NetworkKit http only has a PATCH enum since API 26; for HarmonyOS 6.0 (API 20) PATCH goes through Remote Communication Kit
       return this.callRcp(method, path, body, timeoutMs);
     }
     const req = http.createHttp();
@@ -146,7 +147,7 @@ export class CoreApi {
         throw e as ApiError;
       }
       const be = e as BusinessError;
-      throw new NetError(be.code !== undefined ? be.code : -1, be.message !== undefined ? be.message : '网络错误');
+      throw new NetError(be.code !== undefined ? be.code : -1, be.message !== undefined ? be.message : t('err_net'));
     } finally {
       req.destroy();
     }
@@ -172,8 +173,8 @@ export class CoreApi {
     try {
       const req = new rcp.Request(this.url(path), method, headers, body !== null ? body : '');
       const resp = await session.fetch(req);
-      const t = resp.toString();
-      const text = t !== null ? t : '';
+      const rs = resp.toString();
+      const text = rs !== null ? rs : '';
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         throw CoreApi.failure(resp.statusCode, text);
       }
@@ -183,7 +184,7 @@ export class CoreApi {
         throw e as ApiError;
       }
       const be = e as BusinessError;
-      throw new NetError(be.code !== undefined ? be.code : -1, be.message !== undefined ? be.message : '网络错误');
+      throw new NetError(be.code !== undefined ? be.code : -1, be.message !== undefined ? be.message : t('err_net'));
     } finally {
       session.close();
     }
@@ -308,7 +309,7 @@ export class CoreApi {
     return jNum(parseJsonObj(t), 'delay');
   }
 
-  /** mihomo: GET /group/{name}/delay 返回 {节点名: 延迟} */
+  /** mihomo: GET /group/{name}/delay returns {node name: delay} */
   async groupDelay(name: string, testUrl: string, timeout: number): Promise<Map<string, number>> {
     const t = await this.call('GET', '/group/' + enc(name) + '/delay?url=' + enc(testUrl) + '&timeout=' + timeout, null,
       timeout + 30000);
@@ -470,7 +471,7 @@ export class CoreApi {
   }
 }
 
-/** 自动重连的 WebSocket 流（对应 Kotlin 版 ws() + stream() 退避重连） */
+/** Auto-reconnecting WebSocket stream (Kotlin ws() + stream() with backoff) */
 export class WsStream {
   private url: string;
   private headers: Record<string, string>;
@@ -525,7 +526,7 @@ export class WsStream {
   }
 
   private deliver(t: string): void {
-    // mihomo 可能一条消息内带多行 JSON
+    // mihomo may send several JSON lines in one message
     if (t.indexOf('\n') >= 0) {
       const lines = t.split('\n');
       for (const l of lines) {

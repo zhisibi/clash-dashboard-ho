@@ -2,7 +2,7 @@ import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { Backend, asObj, parseJson } from './Models';
 
-/** 本地设置存储（对应 Kotlin 版 data/Prefs.kt，使用 @ohos.data.preferences） */
+/** Local settings storage (Kotlin data/Prefs.kt, using @ohos.data.preferences) */
 export class Prefs {
   private sp: preferences.Preferences;
 

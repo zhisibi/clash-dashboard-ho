@@ -3,23 +3,23 @@ import { uiMaterial } from '@kit.ArkUI';
 import { withAlpha } from './Theme';
 
 /**
- * 毛玻璃 + 沉浸光感 的组件样式。
+ * Component styles for frosted glass + immersive light.
  *
- * - 毛玻璃：自定义样式走 backgroundEffect（模糊 + 饱和度，API 11），薄/常规/厚走 backgroundBlurStyle(COMPONENT_*)，
- *   都是 API 20 可用的稳定接口。
- * - 沉浸光感：系统级的 ArkUI 组件沉浸材质（uiMaterial.ImmersiveMaterial + systemMaterial）从 API 26 才开放，
- *   且只在支持的设备上生效，所以这里以运行时判断 + try/catch 守护；其他设备使用自绘光感：
- *   按光源方向计算的边缘高光（四边不同亮度的描边）、斜向柔光渐变、主题色光晕阴影。
+ * - Frosted glass: Custom uses backgroundEffect (blur + saturation, API 11); Thin/Regular/Thick use backgroundBlurStyle(COMPONENT_*),
+ *   both stable APIs available on API 20.
+ * - Immersive light: the system ArkUI immersive material (uiMaterial.ImmersiveMaterial + systemMaterial) needs API 26
+ *   and a supporting device, so it is guarded by a runtime check + try/catch; other devices get a self-drawn effect:
+ *   edge highlights by light direction (per-side border brightness), a diagonal soft-light gradient and an accent glow shadow.
  */
 
 const TRANSPARENT: string = '#00000000';
 
-/** 组件类型：card 普通卡片；row 长列表项；plain 不改描边（自带选中边框的卡片/输入框）；top 顶栏；bar 悬浮底栏 */
+/** Kind: card = normal card; row = long-list item; plain = keep border (cards/inputs with their own selection border); top = header; bar = floating bar */
 export type GlassKind = 'card' | 'row' | 'plain' | 'top' | 'bar';
 
 export class GlassCfg {
   dark: boolean = false;
-  /** 已经按透明度处理过的卡片底色 '#AARRGGBB' */
+  /** Card color with opacity already applied, '#AARRGGBB' */
   card: string = '#FFFFFFFF';
   accent: string = '#0A59F7';
   glassOn: boolean = false;
@@ -32,9 +32,9 @@ export class GlassCfg {
   /** 0..1 */
   lightIntensity: number = 0.6;
   lightGlow: boolean = true;
-  /** 光源方向：从屏幕“正上方”顺时针的角度（度），光从这个方向照过来 */
+  /** Light direction: degrees clockwise from the top of the screen; light comes from there */
   lightDeg: number = 330;
-  /** 当前设备是否可用系统沉浸材质（API 26+ 且设备支持） */
+  /** Whether the system immersive material is available (API 26+ and device support) */
   sysMaterial: boolean = false;
 
   key(kind: GlassKind): string {
@@ -44,7 +44,7 @@ export class GlassCfg {
   }
 }
 
-/** '#AARRGGBB' 的 alpha（0..1），其他格式视为不透明 */
+/** Alpha (0..1) of '#AARRGGBB'; other formats count as opaque */
 function cardAlphaOf(c: string): number {
   if (c.length === 9 && c.charAt(0) === '#') {
     const a = parseInt(c.substring(1, 3), 16);
@@ -69,7 +69,7 @@ function presetStyle(s: string): BlurStyle {
   return BlurStyle.COMPONENT_REGULAR;
 }
 
-/** 弹窗/半模态使用的模糊样式 */
+/** Blur style for dialogs and sheets */
 export function sheetBlurStyle(cfg: GlassCfg): BlurStyle {
   if (!cfg.glassOn) {
     return BlurStyle.NONE;
@@ -83,7 +83,7 @@ export function sheetBlurStyle(cfg: GlassCfg): BlurStyle {
   return BlurStyle.COMPONENT_THICK;
 }
 
-/** 系统沉浸材质是否可用：API 26+ 且设备支持（其他情况一律 false，不触碰新接口） */
+/** System immersive material available: API 26+ and device support (otherwise false, new APIs untouched) */
 export function detectSysMaterial(): boolean {
   try {
     if (deviceInfo.sdkApiVersion >= 26) {
@@ -95,13 +95,13 @@ export function detectSysMaterial(): boolean {
   return false;
 }
 
-/** 生成系统沉浸材质对象（仅在 sysMaterial 为 true 时调用） */
+/** Creates the system immersive material (only call when sysMaterial is true) */
 function makeSysMaterial(cfg: GlassCfg, kind: GlassKind): uiMaterial.Material | undefined {
   try {
     if (deviceInfo.sdkApiVersion >= 26) {
       let st: uiMaterial.ImmersiveStyle = uiMaterial.ImmersiveStyle.REGULAR;
       if (kind === 'bar' || kind === 'top') {
-        // 顶栏/底栏下方会有文字滚过，始终使用厚材质，避免透出的文字与标签打架
+        // Text scrolls under the header/bar, so always use the thick material to keep labels readable
         st = uiMaterial.ImmersiveStyle.THICK;
       } else if (cfg.glassBlur < 34) {
         st = uiMaterial.ImmersiveStyle.THIN;
@@ -113,7 +113,7 @@ function makeSysMaterial(cfg: GlassCfg, kind: GlassKind): uiMaterial.Material | 
         style: st,
         materialColor: withAlpha(cfg.dark ? '#1C1F24' : '#FFFFFF', tint),
         applyShadow: kind === 'bar' || kind === 'card',
-        // 1.1.6：关闭底栏材质的“交互形变”，避免它在部分设备上参与底栏页签的触摸竞争
+        // 1.1.6: turn off the bar material's interactive deformation so it doesn't compete with tab taps on some devices
         interactive: false,
         lightEffect: cfg.lightOn ? { color: '#FFFFFF' } as uiMaterial.LightEffectOptions : null
       };
@@ -167,7 +167,7 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
     const I = clamp01(c.lightIntensity);
     const light = c.lightOn && I > 0;
 
-    // ---------- 系统沉浸材质（API 26+ 支持的设备） ----------
+    // ---------- system immersive material (API 26+ devices) ----------
     if (this.mat !== undefined) {
       instance.backgroundColor(TRANSPARENT);
       instance.backgroundEffect({ radius: 0 });
@@ -178,11 +178,11 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
     }
     this.applySystemMaterial(instance, undefined);
 
-    // ---------- 底色 ----------
+    // ---------- base color ----------
     let bg = c.card;
     const chrome = this.kind === 'bar' || this.kind === 'top';
     if (chrome) {
-      // 顶栏 / 悬浮底栏：内容会从下方滚过。开毛玻璃时用强模糊 + 足够的底色；关闭时用接近不透明的底色
+      // Header / floating bar: content scrolls underneath. With glass on use strong blur + enough tint; with it off use a near-opaque color
       const base = c.dark ? '#1C1F24' : '#FFFFFF';
       if (c.glassOn) {
         const minA = this.kind === 'bar' ? (c.dark ? 0.62 : 0.66) : (c.dark ? 0.55 : 0.58);
@@ -193,7 +193,7 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
     }
     instance.backgroundColor(bg);
 
-    // ---------- 模糊 ----------
+    // ---------- blur ----------
     if (chrome) {
       if (c.glassOn) {
         if (c.glassStyle === 'custom' || c.glassStyle === 'system') {
@@ -209,7 +209,7 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
           });
         }
       } else {
-        // 毛玻璃关闭：仍做一次轻度模糊，让 4% 的透出也看不清字
+        // Glass off: still blur lightly so the 4% see-through doesn't show readable text
         instance.backgroundBlurStyle(BlurStyle.NONE);
         instance.backgroundEffect({ radius: 40, saturation: 1.0, brightness: 1.0 });
       }
@@ -231,14 +231,14 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
       instance.backgroundBlurStyle(BlurStyle.NONE);
     }
 
-    // ---------- 光感 ----------
-    // 光源方向向量（屏幕坐标，y 向下），指向光源
+    // ---------- light ----------
+    // Light direction vector (screen coordinates, y down), pointing at the light
     const rad = c.lightDeg * Math.PI / 180;
     const lx = Math.sin(rad);
     const ly = -Math.cos(rad);
 
     if (light) {
-      // 柔光：从光源一侧斜向扫入的白色渐变
+      // Soft light: a white gradient sweeping in diagonally from the light side
       const sheenA = (c.dark ? 0.10 : 0.30) * I * (c.glassOn ? 1 : 0.6);
       const mid = this.kind === 'top' || this.kind === 'bar' ? 0.65 : 0.5;
       instance.linearGradient({
@@ -252,7 +252,7 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
 
     if (this.ownsBorder()) {
       if (light || c.glassOn) {
-        // 边缘高光：朝向光源的边更亮，背光边带一点暗边，形成玻璃厚度感
+        // Edge highlight: brighter edges toward the light, slightly darker away from it, for a sense of glass thickness
         const hi = light ? (c.dark ? 0.42 : 0.95) * I : 0;
         const baseA = c.glassOn ? (c.dark ? 0.10 : 0.45) : 0;
         const shade = light ? (c.dark ? 0.0 : 0.06) * I : 0;
@@ -279,7 +279,7 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
       }
     }
 
-    // ---------- 阴影 / 光晕 ----------
+    // ---------- shadow / glow ----------
     if (this.kind === 'bar') {
       if (light && c.lightGlow) {
         instance.shadow({

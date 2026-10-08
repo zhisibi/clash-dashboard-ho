@@ -4,11 +4,17 @@ import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ConnItem } from '../common/Models';
 import { fmtBytes, fmtClock, fmtDuration, fmtSpeed, safeRegex, textMatch } from '../common/Format';
 import { DropdownChip, EmptyCard, RoundIconButton, SearchBox, SegTabs, Tag } from '../components/Widgets';
+import { isEn, t } from '../common/I18n';
 
 const SORT_KEYS: string[] = ['host', 'start', 'download', 'upload', 'downloadSpeed', 'uploadSpeed', 'rule', 'chains',
   'process', 'source', 'type'];
-const SORT_LABELS: string[] = ['主机', '连接时间', '下载量', '上传量', '下载速度', '上传速度', '规则', '代理链', '进程',
-  '来源 IP', '类型'];
+/** i18n keys of the sort options (same order as SORT_KEYS) */
+const SORT_LABELS: string[] = ['cs_host', 'cs_start', 'cs_download', 'cs_upload', 'cs_dlspeed', 'cs_ulspeed', 'cs_rule',
+  'cs_chains', 'cs_process', 'cs_source', 'cs_type'];
+
+function sortLabels(): string[] {
+  return SORT_LABELS.map((k: string) => t(k));
+}
 
 class KV {
   k: string = '';
@@ -145,14 +151,17 @@ struct ConnDetail {
   rows(): KV[] {
     const c = this.conn;
     const all: KV[] = [
-      new KV('主机', c.meta.host), new KV('嗅探主机', c.meta.sniffHost), new KV('目标 IP', c.meta.destinationIP),
-      new KV('目标端口', c.meta.destinationPort), new KV('远端目标', c.meta.remoteDestination),
-      new KV('来源', c.meta.sourceIP + ':' + c.meta.sourcePort), new KV('入站', c.meta.inboundName),
-      new KV('入站用户', c.meta.inboundUser), new KV('类型', c.meta.type + ' / ' + c.meta.network),
-      new KV('DNS 模式', c.meta.dnsMode), new KV('进程', c.meta.process), new KV('进程路径', c.meta.processPath),
-      new KV('UID', c.meta.uid), new KV('规则', c.rule), new KV('规则内容', c.rulePayload),
-      new KV('代理链', c.chains.slice().reverse().join(' → ')), new KV('上传', fmtBytes(c.upload)),
-      new KV('下载', fmtBytes(c.download)), new KV('开始时间', c.startMillis > 0 ? fmtClock(c.startMillis) : ''),
+      new KV(t('kv_host'), c.meta.host), new KV(t('kv_sniff'), c.meta.sniffHost),
+      new KV(t('kv_dst_ip'), c.meta.destinationIP), new KV(t('kv_dst_port'), c.meta.destinationPort),
+      new KV(t('kv_remote'), c.meta.remoteDestination),
+      new KV(t('kv_source'), c.meta.sourceIP + ':' + c.meta.sourcePort), new KV(t('kv_inbound'), c.meta.inboundName),
+      new KV(t('kv_inbound_user'), c.meta.inboundUser), new KV(t('kv_type'), c.meta.type + ' / ' + c.meta.network),
+      new KV(t('kv_dns'), c.meta.dnsMode), new KV(t('kv_process'), c.meta.process),
+      new KV(t('kv_process_path'), c.meta.processPath),
+      new KV('UID', c.meta.uid), new KV(t('kv_rule'), c.rule), new KV(t('kv_rule_payload'), c.rulePayload),
+      new KV(t('kv_chains'), c.chains.slice().reverse().join(' → ')), new KV(t('kv_upload'), fmtBytes(c.upload)),
+      new KV(t('kv_download'), fmtBytes(c.download)),
+      new KV(t('kv_start'), c.startMillis > 0 ? fmtClock(c.startMillis) : ''),
       new KV('ID', c.id)
     ];
     return all.filter((kv: KV) => kv.v.trim().length > 0 && kv.v !== ':');
@@ -161,9 +170,10 @@ struct ConnDetail {
   build() {
     Column() {
       Row() {
-        Text('连接详情').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text).layoutWeight(1)
+        Text(t('conn_detail')).fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text).layoutWeight(1)
+          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         if (this.conn.closedAt === 0) {
-          Button('断开', { type: ButtonType.Capsule })
+          Button(t('close'), { type: ButtonType.Capsule })
             .fontColor(this.store.palette().onPrimary)
             .backgroundColor(this.store.palette().primary)
             .onClick(() => {
@@ -179,7 +189,8 @@ struct ConnDetail {
         Column() {
           ForEach(this.rows(), (kv: KV) => {
             Row() {
-              Text(kv.k).fontSize(13).fontColor(this.store.palette().subtle).width(84)
+              Text(kv.k).fontSize(13).fontColor(this.store.palette().subtle).width(isEn() ? 104 : 84).maxLines(2)
+                .margin({ right: 6 })
               Text(kv.v)
                 .fontSize(13)
                 .fontColor(this.store.palette().text)
@@ -207,7 +218,7 @@ struct ConnDetail {
   }
 }
 
-// 不在当前页时冻结界面刷新（Tabs 中不可见的 TabContent），切回来时再应用最新数据；页面状态保留
+// Frozen while not the current page (hidden TabContent); latest data applies on return, page state is kept
 @ComponentV2({ freezeWhenInactive: true })
 export struct ConnectionsView {
   private store: Store = Store.get();
@@ -281,16 +292,16 @@ export struct ConnectionsView {
     const ui = this.getUIContext();
     const filtered = this.query.trim().length > 0 || this.sourceFilter.length > 0;
     ui.showAlertDialog({
-      title: filtered ? '断开筛选出的 ' + list.length + ' 条连接？' : '断开所有连接？',
+      title: filtered ? t('close_filtered_q', list.length) : t('close_all_q'),
       message: '',
       autoCancel: true,
       primaryButton: {
-        value: '取消',
+        value: t('cancel'),
         action: () => {
         }
       },
       secondaryButton: {
-        value: '断开',
+        value: t('close'),
         fontColor: this.store.palette().bad,
         action: () => {
           if (filtered) {
@@ -358,12 +369,12 @@ export struct ConnectionsView {
         }
       }) {
         Column({ space: 6 }) {
-          // 第一行：分段 + 上下行总量（紧凑，内嵌在右侧）
+          // First row: segments + up/down totals (compact, on the right)
           Row() {
             SegTabs({
               pal: this.store.palette(),
               dense: true,
-              items: ['活跃 ' + this.store.activeConns.length, '已关闭 ' + this.store.closedConns.length, '全部'],
+              items: [t('seg_active', this.store.activeConns.length), t('seg_closed', this.store.closedConns.length), t('seg_all')],
               selected: this.tab,
               onSelect: (i: number) => {
                 this.tab = i;
@@ -391,14 +402,14 @@ export struct ConnectionsView {
             DropdownChip({
               pal: this.store.palette(),
               dense: true,
-              label: SORT_LABELS[this.sortIndex()],
-              options: SORT_LABELS,
+              label: sortLabels()[this.sortIndex()],
+              options: sortLabels(),
               onSelect: (i: number) => {
                 this.store.setConnSort(SORT_KEYS[i], this.store.connSortDesc);
               }
             })
               .layoutWeight(1)
-            Text(this.list().length + ' 条')
+            Text(t('n_items', this.list().length))
               .fontSize(11)
               .maxLines(1)
               .fontColor(this.store.palette().subtle)
@@ -447,8 +458,8 @@ export struct ConnectionsView {
             DropdownChip({
               pal: this.store.palette(),
               dense: true,
-              label: this.sourceFilter.length === 0 ? '全部来源' : this.sourceFilter,
-              options: ['全部'].concat(this.sources()),
+              label: this.sourceFilter.length === 0 ? t('all_sources') : this.sourceFilter,
+              options: [t('all')].concat(this.sources()),
               chipWidth: 128,
               onSelect: (i: number) => {
                 this.sourceFilter = i === 0 ? '' : this.sources()[i - 1];
@@ -458,7 +469,7 @@ export struct ConnectionsView {
               pal: this.store.palette(),
               dense: true,
               value: this.query,
-              placeholder: '搜索 | Regex',
+              placeholder: t('search_regex'),
               onChange: (v: string) => {
                 this.query = v;
               }

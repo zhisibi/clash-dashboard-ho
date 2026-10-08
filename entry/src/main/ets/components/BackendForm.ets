@@ -2,8 +2,9 @@ import { Store } from '../common/Store';
 import { Backend } from '../common/Models';
 import { errMsg } from '../common/CoreApi';
 import { SegTabs } from './Widgets';
+import { t } from '../common/I18n';
 
-/** 后端表单（对应 Kotlin 版 BackendForm），首次设置页与“添加/编辑后端”共用 */
+/** Backend form (Kotlin BackendForm), shared by first-run setup and Add/Edit Backend */
 @ComponentV2
 export struct BackendForm {
   private store: Store = Store.get();
@@ -84,14 +85,14 @@ export struct BackendForm {
       })
       Row({ space: 8 }) {
         Column() {
-          this.field('地址', this.host, '127.0.0.1', 0, (v: string) => {
+          this.field(t('f_host'), this.host, '127.0.0.1', 0, (v: string) => {
             this.host = v;
           })
         }
         .layoutWeight(1)
 
         Column() {
-          this.field('端口', this.port, '9090', 1, (v: string) => {
+          this.field(t('f_port'), this.port, '9090', 1, (v: string) => {
             this.port = v.replace(new RegExp('[^0-9]', 'g'), '').substring(0, 5);
           })
         }
@@ -99,13 +100,13 @@ export struct BackendForm {
       }
       .width('100%')
 
-      this.field('二级路径', this.path, '可选', 0, (v: string) => {
+      this.field(t('f_path'), this.path, t('optional'), 0, (v: string) => {
         this.path = v;
       })
-      this.field('密钥', this.secret, '可选', 2, (v: string) => {
+      this.field(t('f_secret'), this.secret, t('optional'), 2, (v: string) => {
         this.secret = v;
       })
-      this.field('备注名', this.label, '可选', 0, (v: string) => {
+      this.field(t('f_label'), this.label, t('optional'), 0, (v: string) => {
         this.label = v;
       })
 
@@ -120,7 +121,7 @@ export struct BackendForm {
           if (this.busy) {
             LoadingProgress().width(18).height(18).color(this.store.palette().text).margin({ right: 8 })
           }
-          Text('测试连接').fontSize(15).fontColor(this.store.palette().text).maxLines(1)
+          Text(t('test_conn')).fontSize(15).fontColor(this.store.palette().text).maxLines(1)
         }
       }
       .width('100%')
@@ -131,7 +132,7 @@ export struct BackendForm {
         this.busy = true;
         this.status = '';
         this.store.probe(this.buildBackend()).then((v: string) => {
-          this.status = '✓ 连接成功，内核 ' + v;
+          this.status = t('test_ok', v);
           this.statusOk = true;
         }).catch((e: Object) => {
           this.status = '✗ ' + errMsg(e);
@@ -143,7 +144,7 @@ export struct BackendForm {
 
       Row({ space: 8 }) {
         if (this.showCancel) {
-          Button('取消', { type: ButtonType.Capsule })
+          Button(t('cancel'), { type: ButtonType.Capsule })
             .layoutWeight(1)
             .height(44)
             .fontColor(this.store.palette().text)
@@ -152,7 +153,7 @@ export struct BackendForm {
               this.onCancel();
             })
         }
-        Button('保存并连接', { type: ButtonType.Capsule })
+        Button(t('save_connect'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .height(44)
           .fontColor(this.store.palette().onPrimary)

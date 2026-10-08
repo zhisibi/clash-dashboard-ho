@@ -3,8 +3,9 @@ import { common } from '@kit.AbilityKit';
 import { pasteboard, BusinessError } from '@kit.BasicServicesKit';
 import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
+import { t } from './I18n';
 
-/** 文件、剪贴板、分享等工具 */
+/** File, clipboard and share helpers */
 export class FileUtil {
   static exists(path: string): boolean {
     try {
@@ -59,7 +60,7 @@ export class FileUtil {
     }
   }
 
-  /** 从系统选择器返回的 uri 复制到沙箱路径 */
+  /** Copies a uri returned by a system picker into the sandbox */
   static copyUriTo(uri: string, dest: string): void {
     const src = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY);
     try {
@@ -69,11 +70,11 @@ export class FileUtil {
     }
   }
 
-  /** 通过系统文件选择器“另存为”，返回保存的文件名；用户取消返回空串 */
+  /** "Save as" through the system picker; returns the saved file name, or '' when cancelled */
   static async saveTextAs(ctx: common.Context, name: string, text: string): Promise<string> {
     const opts = new picker.DocumentSaveOptions();
     opts.newFileNames = [name];
-    opts.fileSuffixChoices = ['文本文件|.txt'];
+    opts.fileSuffixChoices = [t('file_txt_filter')];
     const p = new picker.DocumentViewPicker(ctx);
     const uris = await p.save(opts);
     if (uris === undefined || uris.length === 0) {

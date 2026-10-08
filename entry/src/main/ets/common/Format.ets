@@ -1,4 +1,6 @@
-/** 格式化工具（对应 Kotlin 版 ui/Common.kt 顶部函数） */
+import { t } from './I18n';
+
+/** Formatting helpers (Kotlin ui/Common.kt top-level functions) */
 
 const UNITS: string[] = ['KB', 'MB', 'GB', 'TB', 'PB'];
 
@@ -23,15 +25,15 @@ export function fmtSpeed(b: number): string {
 export function fmtDuration(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   if (s < 60) {
-    return s + '秒';
+    return t('dur_s', s);
   }
   if (s < 3600) {
-    return Math.floor(s / 60) + '分' + (s % 60) + '秒';
+    return t('dur_ms', Math.floor(s / 60), s % 60);
   }
   if (s < 86400) {
-    return Math.floor(s / 3600) + '时' + Math.floor((s % 3600) / 60) + '分';
+    return t('dur_hm', Math.floor(s / 3600), Math.floor((s % 3600) / 60));
   }
-  return Math.floor(s / 86400) + '天' + Math.floor((s % 86400) / 3600) + '时';
+  return t('dur_dh', Math.floor(s / 86400), Math.floor((s % 86400) / 3600));
 }
 
 export function fmtAgo(ms: number): string {
@@ -40,15 +42,15 @@ export function fmtAgo(ms: number): string {
   }
   const d = Date.now() - ms;
   if (d < 60000) {
-    return '刚刚';
+    return t('ago_now');
   }
   if (d < 3600000) {
-    return Math.floor(d / 60000) + ' 分钟前';
+    return t('ago_min', Math.floor(d / 60000));
   }
   if (d < 86400000) {
-    return Math.floor(d / 3600000) + ' 小时前';
+    return t('ago_hour', Math.floor(d / 3600000));
   }
-  return Math.floor(d / 86400000) + ' 天前';
+  return t('ago_day', Math.floor(d / 86400000));
 }
 
 export function pad2(n: number): string {
@@ -69,7 +71,7 @@ export function fmtDateTime(ms: number): string {
   return fmtDate(ms) + ' ' + fmtClock(ms);
 }
 
-/** yyyyMMdd-HHmmss，用于文件名 */
+/** yyyyMMdd-HHmmss, for file names */
 export function fmtStamp(ms: number): string {
   const d = new Date(ms);
   return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' +
@@ -78,18 +80,18 @@ export function fmtStamp(ms: number): string {
 
 export function modeName(m: string): string {
   if (m === 'rule') {
-    return '规则';
+    return t('mode_rule');
   }
   if (m === 'global') {
-    return '全局';
+    return t('mode_global');
   }
   if (m === 'direct') {
-    return '直连';
+    return t('mode_direct');
   }
   return m;
 }
 
-/** 安全构造正则：非法表达式返回 null，调用方回退为普通包含匹配 */
+/** Builds a RegExp safely: returns null for an invalid pattern so callers fall back to substring matching */
 export function safeRegex(q: string): RegExp | null {
   if (q.trim().length === 0) {
     return null;

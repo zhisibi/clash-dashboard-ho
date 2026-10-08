@@ -2,7 +2,7 @@ import { Store } from '../common/Store';
 import { Palette } from '../common/Theme';
 import { SectionTitle } from './Widgets';
 
-/** 设置分组：标题 + 卡片 */
+/** Settings group: title + card */
 @ComponentV2
 export struct Group {
   @Param pal: Palette = new Palette();
@@ -32,7 +32,7 @@ export struct Group {
   }
 }
 
-/** 一行设置：标题/描述 + 右侧控件 */
+/** A settings row: title/description + trailing control */
 @ComponentV2
 export struct RowItem {
   @Param pal: Palette = new Palette();
@@ -75,7 +75,7 @@ export struct RowItem {
   }
 }
 
-/** 开关行 */
+/** Switch row */
 @ComponentV2
 export struct SwitchRow {
   @Param pal: Palette = new Palette();
@@ -110,7 +110,7 @@ export struct SwitchRow {
   }
 }
 
-/** 数字输入行 */
+/** Number input row */
 @ComponentV2
 export struct NumberRow {
   @Param pal: Palette = new Palette();
@@ -119,7 +119,7 @@ export struct NumberRow {
   @Param suffix: string = '';
   @Param placeholder: string = '';
   @Param zeroAsEmpty: boolean = false;
-  /** true：输入即生效；false：显示“保存”按钮，点击后生效 */
+  /** true: applies while typing; false: shows a confirm button that applies on tap */
   @Param live: boolean = true;
   @Local text: string = '';
   @Event onValue: (v: number) => void = (v: number) => {
@@ -176,7 +176,7 @@ export struct NumberRow {
   }
 }
 
-/** 滑块行 */
+/** Slider row */
 @ComponentV2
 export struct SliderRow {
   @Param pal: Palette = new Palette();

@@ -4,6 +4,7 @@ import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ProxyItem, ProxyProvider, parseIsoMillis } from '../common/Models';
 import { fmtAgo, fmtBytes, fmtDate, safeRegex, textMatch } from '../common/Format';
 import { LatencyBadge, ProxyIcon, RoundIconButton, SearchBox, SegTabs, Tag, EmptyCard } from '../components/Widgets';
+import { t } from '../common/I18n';
 
 @ComponentV2
 struct GroupCard {
@@ -185,9 +186,9 @@ struct GroupDetail {
               .fontColor(this.store.palette().text)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text((this.store.proxies.get(this.name) as ProxyItem).type + ' · ' +
-            this.store.nodesOf(this.store.proxies.get(this.name) as ProxyItem).length + ' 个节点 · 当前 ' +
-              ((this.store.proxies.get(this.name) as ProxyItem).now || '-'))
+            Text(t('group_detail_sub', (this.store.proxies.get(this.name) as ProxyItem).type,
+              this.store.nodesOf(this.store.proxies.get(this.name) as ProxyItem).length,
+              (this.store.proxies.get(this.name) as ProxyItem).now || '-'))
               .fontSize(12)
               .fontColor(this.store.palette().subtle)
               .maxLines(1)
@@ -199,7 +200,7 @@ struct GroupDetail {
 
           if ((this.store.proxies.get(this.name) as ProxyItem).fixed.length > 0 &&
             (this.store.proxies.get(this.name) as ProxyItem).type.toLowerCase() !== 'selector') {
-            Button('取消固定', { type: ButtonType.Capsule })
+            Button(t('act_unfix'), { type: ButtonType.Capsule })
               .fontSize(13)
               .height(32)
               .fontColor(this.store.palette().text)
@@ -259,8 +260,9 @@ struct ProviderCard {
       Row() {
         Column() {
           Text(this.provider.name).fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
-          Text(this.provider.vehicleType + ' · ' + this.provider.proxies.length + ' 个节点 · 更新于 ' +
-          fmtAgo(parseIsoMillis(this.provider.updatedAt)))
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(t('provider_sub', this.provider.vehicleType, this.provider.proxies.length,
+            fmtAgo(parseIsoMillis(this.provider.updatedAt))))
             .fontSize(12)
             .fontColor(this.store.palette().subtle)
             .margin({ top: 2 })
@@ -302,7 +304,7 @@ struct ProviderCard {
           .width('100%')
           .margin({ top: 8 })
         Text(fmtBytes(this.provider.subUpload + this.provider.subDownload) + ' / ' + fmtBytes(this.provider.subTotal) +
-          (this.provider.subExpire > 0 ? ' · 到期 ' + fmtDate(this.provider.subExpire * 1000) : ''))
+          (this.provider.subExpire > 0 ? t('sub_expire', fmtDate(this.provider.subExpire * 1000)) : ''))
           .fontSize(12)
           .fontColor(this.store.palette().subtle)
           .margin({ top: 4 })
@@ -349,7 +351,7 @@ struct ProviderCard {
   }
 }
 
-// 不在当前页时冻结界面刷新（Tabs 中不可见的 TabContent），切回来时再应用最新数据；页面状态保留
+// Frozen while not the current page (hidden TabContent); latest data applies on return, page state is kept
 @ComponentV2({ freezeWhenInactive: true })
 export struct ProxiesView {
   private store: Store = Store.get();
@@ -397,61 +399,61 @@ export struct ProxiesView {
   @Builder
   optionsMenu() {
     Menu() {
-      MenuItemGroup({ header: '节点排序' }) {
-        MenuItem({ content: '默认' }).selected(this.store.sortProxies === 'default').selectIcon(true)
+      MenuItemGroup({ header: t('menu_node_sort') }) {
+        MenuItem({ content: t('sort_default') }).selected(this.store.sortProxies === 'default').selectIcon(true)
           .onClick(() => {
             this.store.sortProxies = 'default';
             this.store.savePrefs();
           })
-        MenuItem({ content: '按延迟' }).selected(this.store.sortProxies === 'latency').selectIcon(true)
+        MenuItem({ content: t('sort_by_latency') }).selected(this.store.sortProxies === 'latency').selectIcon(true)
           .onClick(() => {
             this.store.sortProxies = 'latency';
             this.store.savePrefs();
           })
-        MenuItem({ content: '按名称' }).selected(this.store.sortProxies === 'name').selectIcon(true)
+        MenuItem({ content: t('sort_by_name') }).selected(this.store.sortProxies === 'name').selectIcon(true)
           .onClick(() => {
             this.store.sortProxies = 'name';
             this.store.savePrefs();
           })
       }
 
-      MenuItemGroup({ header: '显示' }) {
-        MenuItem({ content: '隐藏不可用节点' }).selected(this.store.hideUnavailable).selectIcon(true)
+      MenuItemGroup({ header: t('menu_display') }) {
+        MenuItem({ content: t('hide_unavailable') }).selected(this.store.hideUnavailable).selectIcon(true)
           .onClick(() => {
             this.store.hideUnavailable = !this.store.hideUnavailable;
             this.store.savePrefs();
           })
-        MenuItem({ content: '显示 GLOBAL' }).selected(this.store.showGlobal).selectIcon(true)
+        MenuItem({ content: t('show_global_short') }).selected(this.store.showGlobal).selectIcon(true)
           .onClick(() => {
             this.store.showGlobal = !this.store.showGlobal;
             this.store.savePrefs();
           })
-        MenuItem({ content: '显示隐藏的代理组' }).selected(this.store.showHiddenGroups).selectIcon(true)
+        MenuItem({ content: t('show_hidden_groups') }).selected(this.store.showHiddenGroups).selectIcon(true)
           .onClick(() => {
             this.store.showHiddenGroups = !this.store.showHiddenGroups;
             this.store.savePrefs();
           })
       }
 
-      MenuItemGroup({ header: '每行卡片数' }) {
-        MenuItem({ content: '1 列' }).selected(this.store.proxyCols === 1).selectIcon(true)
+      MenuItemGroup({ header: t('cards_per_row') }) {
+        MenuItem({ content: t('n_cols', 1) }).selected(this.store.proxyCols === 1).selectIcon(true)
           .onClick(() => {
             this.store.proxyCols = 1;
             this.store.savePrefs();
           })
-        MenuItem({ content: '2 列' }).selected(this.store.proxyCols === 2).selectIcon(true)
+        MenuItem({ content: t('n_cols', 2) }).selected(this.store.proxyCols === 2).selectIcon(true)
           .onClick(() => {
             this.store.proxyCols = 2;
             this.store.savePrefs();
           })
-        MenuItem({ content: '3 列' }).selected(this.store.proxyCols === 3).selectIcon(true)
+        MenuItem({ content: t('n_cols', 3) }).selected(this.store.proxyCols === 3).selectIcon(true)
           .onClick(() => {
             this.store.proxyCols = 3;
             this.store.savePrefs();
           })
       }
 
-      MenuItem({ content: '刷新' }).onClick(() => {
+      MenuItem({ content: t('act_refresh') }).onClick(() => {
         this.store.refreshProxies();
       })
     }
@@ -479,7 +481,7 @@ export struct ProxiesView {
         if (this.tab === 0 || this.store.providers.length === 0) {
           if (this.shownGroups().length === 0) {
             Column() {
-              EmptyCard({ pal: this.store.palette(), text: this.store.proxiesLoading ? '加载中…' : '暂无数据' })
+              EmptyCard({ pal: this.store.palette(), text: this.store.proxiesLoading ? t('loading') : t('no_data') })
             }
             .padding({ left: 16, right: 16, top: this.headerH + 16 })
           } else {
@@ -537,7 +539,7 @@ export struct ProxiesView {
           if (this.store.providers.length > 0) {
             SegTabs({
               pal: this.store.palette(), dense: true,
-              items: ['代理组 ' + this.store.groups().length, '代理提供商 ' + this.store.providers.length],
+              items: [t('seg_groups', this.store.groups().length), t('seg_providers', this.store.providers.length)],
               selected: this.tab,
               onSelect: (i: number) => {
                 this.tab = i;
@@ -549,7 +551,7 @@ export struct ProxiesView {
             SearchBox({
               pal: this.store.palette(), dense: true,
               value: this.query,
-              placeholder: this.tab === 0 ? '搜索代理组 | Regex' : '搜索提供商 | Regex',
+              placeholder: this.tab === 0 ? t('search_groups') : t('search_providers'),
               onChange: (v: string) => {
                 this.query = v;
               }

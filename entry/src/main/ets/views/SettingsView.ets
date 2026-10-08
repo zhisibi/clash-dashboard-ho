@@ -12,6 +12,7 @@ import { modeName } from '../common/Format';
 import { DropdownChip, HeaderStatus, SearchBox, SegTabs } from '../components/Widgets';
 import { Group, NumberRow, RowItem, SliderRow, SwitchRow } from '../components/SettingRows';
 import { BackendForm } from '../components/BackendForm';
+import { bothLangs, isEn, langOptionLabel, LANG_KEYS, systemLang, t } from '../common/I18n';
 
 class Section {
   key: string = '';
@@ -29,26 +30,28 @@ class Section {
   }
 }
 
+/** title / desc / keywords are i18n keys; search matches the keywords in both languages */
 const SECTIONS: Section[] = [
-  new Section('backend', '后端', '当前后端、内核运维与网络监听', $r('sys.symbol.externaldrive'),
-    '后端 内核 模式 tun 局域网 端口 重启 更新 geo dns fakeip 重载 配置 密钥'),
-  new Section('panel', '面板', '主题、主题色、导航栏、毛玻璃、沉浸光感、壁纸', $r('sys.symbol.house'),
-    '导航栏 底栏 自动收起 隐藏 主题 主题色 颜色 配色 深色 浅色 壁纸 背景 毛玻璃 玻璃 模糊 磨砂 透明 材质 光感 沉浸 沉浸光感 光效 高光 流光 光晕 重力 陀螺仪 倾斜'),
-  new Section('proxy', '代理', '测速、代理组展示', $r('sys.symbol.paperplane'), '测速 延迟 url 超时 排序 隐藏 卡片 global'),
-  new Section('conn', '连接', '连接与日志保留数量', $r('sys.symbol.arrow_left_arrow_right'), '连接 日志 保留 数量 规则 命中'),
-  new Section('crash', '闪退日志', '查看、复制、分享应用崩溃记录', $r('sys.symbol.exclamationmark_magnifyingglass'),
-    '闪退 崩溃 crash 日志 反馈 bug'),
-  new Section('about', '关于', '版本、开发者、隐私政策与用户协议', $r('sys.symbol.info_circle'),
-    '关于 版本 开发者 隐私 隐私政策 用户协议 协议 撤回 同意')
+  new Section('lang', 'lang_title', 'lang_desc', $r('sys.symbol.translate'), 'lang_keywords'),
+  new Section('backend', 'sec_backend', 'sec_backend_desc', $r('sys.symbol.externaldrive'), 'sec_backend_kw'),
+  new Section('panel', 'sec_panel', 'sec_panel_desc', $r('sys.symbol.house'), 'sec_panel_kw'),
+  new Section('proxy', 'sec_proxy', 'sec_proxy_desc', $r('sys.symbol.paperplane'), 'sec_proxy_kw'),
+  new Section('conn', 'sec_conn', 'sec_conn_desc', $r('sys.symbol.arrow_left_arrow_right'), 'sec_conn_kw'),
+  new Section('crash', 'sec_crash', 'sec_crash_desc', $r('sys.symbol.exclamationmark_magnifyingglass'), 'sec_crash_kw'),
+  new Section('about', 'sec_about', 'sec_about_desc', $r('sys.symbol.info_circle'), 'sec_about_kw')
 ];
 
 const LOG_LEVELS: string[] = ['debug', 'info', 'warning', 'error', 'silent'];
 const THEME_KEYS: string[] = ['system', 'light', 'dark'];
-const THEME_LABELS: string[] = ['跟随系统', '浅色', '深色'];
+const THEME_LABELS: string[] = ['theme_system', 'theme_light', 'theme_dark'];
 const GLASS_KEYS: string[] = ['custom', 'thin', 'regular', 'thick'];
-const GLASS_LABELS: string[] = ['自定义', '薄', '常规', '厚'];
+const GLASS_LABELS: string[] = ['glass_custom', 'glass_thin', 'glass_regular', 'glass_thick'];
 const SORT_KEYS: string[] = ['default', 'latency', 'name'];
-const SORT_LABELS: string[] = ['默认', '延迟', '名称'];
+const SORT_LABELS: string[] = ['psort_default', 'psort_latency', 'psort_name'];
+
+function tr(keys: string[]): string[] {
+  return keys.map((k: string) => t(k));
+}
 
 class OpDef {
   title: string = '';
@@ -66,33 +69,34 @@ class OpDef {
   }
 }
 
+/** title and confirm are i18n keys; key identifies the op (Store.coreAction) */
 const OPS: OpDef[] = [
-  new OpDef('重载配置文件', '重载配置', $r('sys.symbol.arrow_counterclockwise'), false, ''),
-  new OpDef('更新 GEO 数据库', '更新 GEO', $r('sys.symbol.paperplane'), false, ''),
-  new OpDef('清空 FakeIP 缓存', '清空 FakeIP', $r('sys.symbol.trash'), false, ''),
-  new OpDef('清空 DNS 缓存', '清空 DNS 缓存', $r('sys.symbol.trash'), false, ''),
-  new OpDef('更新内核', '更新内核', $r('sys.symbol.square_and_arrow_down'), false, '确定升级内核？升级后内核会自动重启。'),
-  new OpDef('重启内核', '重启内核', $r('sys.symbol.power'), true, '确定重启内核？')
+  new OpDef('op_reload', 'reload', $r('sys.symbol.arrow_counterclockwise'), false, ''),
+  new OpDef('op_geo', 'geo', $r('sys.symbol.paperplane'), false, ''),
+  new OpDef('op_fakeip', 'fakeip', $r('sys.symbol.trash'), false, ''),
+  new OpDef('op_dns', 'dns', $r('sys.symbol.trash'), false, ''),
+  new OpDef('op_upgrade', 'upgrade', $r('sys.symbol.square_and_arrow_down'), false, 'op_upgrade_confirm'),
+  new OpDef('op_restart', 'restart', $r('sys.symbol.power'), true, 'op_restart_confirm')
 ];
 
 function runOp(store: Store, key: string): void {
   switch (key) {
-    case '重载配置':
+    case 'reload':
       store.coreAction(key, (a: CoreApi) => a.reloadConfigs());
       break;
-    case '更新 GEO':
+    case 'geo':
       store.coreAction(key, (a: CoreApi) => a.upgradeGeo());
       break;
-    case '清空 FakeIP':
+    case 'fakeip':
       store.coreAction(key, (a: CoreApi) => a.flushFakeIp());
       break;
-    case '清空 DNS 缓存':
+    case 'dns':
       store.coreAction(key, (a: CoreApi) => a.flushDns());
       break;
-    case '更新内核':
+    case 'upgrade':
       store.coreAction(key, (a: CoreApi) => a.upgradeCore());
       break;
-    case '重启内核':
+    case 'restart':
       store.coreAction(key, (a: CoreApi) => a.restart());
       break;
     default:
@@ -100,7 +104,51 @@ function runOp(store: Store, key: string): void {
   }
 }
 
-// ---------------- 后端页 ----------------
+// ---------------- Language (1.2.0) ----------------
+@ComponentV2
+struct LanguagePage {
+  private store: Store = Store.get();
+
+  desc(key: string): string {
+    if (key === 'system') {
+      return t('lang_current_system', langOptionLabel(systemLang()));
+    }
+    return '';
+  }
+
+  build() {
+    Column() {
+      Group({ pal: this.store.palette(), title: t('lang_title') }) {
+        ForEach(LANG_KEYS, (k: string) => {
+          RowItem({
+            pal: this.store.palette(),
+            title: langOptionLabel(k),
+            desc: this.desc(k),
+            clickable: true,
+            onTap: () => {
+              if (this.store.langPref() !== k) {
+                this.store.setLanguage(k);
+              }
+            }
+          }) {
+            if (this.store.langPref() === k) {
+              SymbolGlyph($r('sys.symbol.checkmark')).fontSize(20).fontColor([this.store.palette().accent])
+            }
+          }
+        }, (k: string) => k)
+      }
+
+      Text(t('lang_note'))
+        .fontSize(13)
+        .fontColor(this.store.palette().subtle)
+        .width('100%')
+        .padding({ left: 6, right: 6, top: 10 })
+    }
+    .width('100%')
+  }
+}
+
+// ---------------- Backend page ----------------
 @ComponentV2
 struct BackendPage {
   private store: Store = Store.get();
@@ -115,11 +163,11 @@ struct BackendPage {
       message: '',
       autoCancel: true,
       primaryButton: {
-        value: '取消', action: () => {
+        value: t('cancel'), action: () => {
         }
       },
       secondaryButton: {
-        value: '确定', fontColor: this.store.palette().bad, action: () => {
+        value: t('ok'), fontColor: this.store.palette().bad, action: () => {
           action();
         }
       }
@@ -136,7 +184,7 @@ struct BackendPage {
   @Builder
   editorSheet() {
     Column() {
-      Text(this.editingNew ? '添加后端' : '编辑后端')
+      Text(this.editingNew ? t('add_backend') : t('edit_backend'))
         .fontSize(20)
         .fontWeight(FontWeight.Medium)
         .fontColor(this.store.palette().text)
@@ -187,7 +235,7 @@ struct BackendPage {
 
   build() {
     Column() {
-      Group({ pal: this.store.palette(), title: '后端列表' }) {
+      Group({ pal: this.store.palette(), title: t('backend_list') }) {
         ForEach(this.store.backends, (b: Backend) => {
           Row() {
             Radio({ value: b.id, group: 'backends' })
@@ -200,6 +248,7 @@ struct BackendPage {
               })
             Column() {
               Text(b.display()).fontSize(16).fontColor(this.store.palette().text)
+                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               Text(b.baseUrl() + (b.secret.length > 0 ? ' · 🔑' : ''))
                 .fontSize(12)
                 .fontColor(this.store.palette().subtle)
@@ -221,7 +270,7 @@ struct BackendPage {
               .fontSize(20)
               .fontColor([this.store.palette().text])
               .onClick(() => {
-                this.confirm('删除后端 ' + b.display() + '？', () => {
+                this.confirm(t('delete_backend_q', b.display()), () => {
                   this.store.deleteBackend(b);
                 });
               })
@@ -235,7 +284,7 @@ struct BackendPage {
           })
         }, (b: Backend) => b.id + '_' + b.baseUrl() + '_' + b.label + '_' + b.secret.length)
         RowItem({
-          pal: this.store.palette(), title: '添加后端', clickable: true, onTap: () => {
+          pal: this.store.palette(), title: t('add_backend'), clickable: true, onTap: () => {
             this.openEditor(new Backend(''), true);
           }
         }) {
@@ -246,12 +295,12 @@ struct BackendPage {
       if (this.store.connState === 'failed') {
         Row() {
           SymbolGlyph($r('sys.symbol.exclamationmark')).fontSize(20).fontColor([this.store.palette().bad])
-          Text('连接失败：' + this.store.connError)
+          Text(t('conn_failed', this.store.connError))
             .fontSize(14)
             .fontColor(this.store.palette().bad)
             .layoutWeight(1)
             .margin({ left: 10 })
-          Button('重试', { type: ButtonType.Capsule })
+          Button(t('retry'), { type: ButtonType.Capsule })
             .fontSize(14)
             .height(32)
             .fontColor(this.store.palette().text)
@@ -268,16 +317,17 @@ struct BackendPage {
       }
 
       if (this.store.connState === 'connected') {
-        Group({ pal: this.store.palette(), title: '内核' }) {
+        Group({ pal: this.store.palette(), title: t('core') }) {
           RowItem({
             pal: this.store.palette(),
-            title: '版本',
-            desc: (this.store.version.length > 0 ? this.store.version : '未知（客户端未提供版本号）') +
+            title: t('version'),
+            desc: (this.store.version.length > 0 ? this.store.version : t('version_unknown')) +
               (this.store.isMeta ? ' · Meta' : '')
           })
-          RowItem({ pal: this.store.palette(), title: '代理模式' }) {
+          RowItem({ pal: this.store.palette(), title: t('proxy_mode') }) {
             SegTabs({
               pal: this.store.palette(),
+              dense: isEn(),
               items: this.store.config.modes.map((m: string) => modeName(m)),
               selected: Math.max(0, this.store.config.modes.indexOf(this.store.config.mode)),
               onSelect: (i: number) => {
@@ -285,7 +335,7 @@ struct BackendPage {
               }
             })
           }
-          RowItem({ pal: this.store.palette(), title: '内核日志级别' }) {
+          RowItem({ pal: this.store.palette(), title: t('core_log_level') }) {
             DropdownChip({
               pal: this.store.palette(),
               label: this.store.config.logLevel,
@@ -298,25 +348,24 @@ struct BackendPage {
           }
         }
 
-        Group({ pal: this.store.palette(), title: '网络' }) {
+        Group({ pal: this.store.palette(), title: t('network') }) {
           if (this.store.unsupported.has('patch')) {
-            Text('当前后端不允许修改配置 (HTTP ' + this.store.unsupported.get('patch') +
-              ')。模式、TUN、端口等需要在代理客户端 App 里修改。')
+            Text(t('patch_unsupported', this.store.unsupported.get('patch') ?? 0))
               .fontSize(13)
               .fontColor(this.store.palette().bad)
               .padding({ left: 16, right: 16, top: 8, bottom: 8 })
           }
           SwitchRow({
             pal: this.store.palette(),
-            title: 'TUN 模式',
-            desc: this.store.config.tunStack.length > 0 ? '栈：' + this.store.config.tunStack : '',
+            title: t('tun_mode'),
+            desc: this.store.config.tunStack.length > 0 ? t('tun_stack', this.store.config.tunStack) : '',
             checked: this.store.config.tunEnable,
             onChange: (v: boolean) => {
               this.store.setTun(v);
             }
           })
           SwitchRow({
-            pal: this.store.palette(), title: '允许局域网连接', checked: this.store.config.allowLan,
+            pal: this.store.palette(), title: t('allow_lan'), checked: this.store.config.allowLan,
             onChange: (v: boolean) => {
               this.store.setAllowLan(v);
             }
@@ -327,15 +376,15 @@ struct BackendPage {
             }
           })
           if (this.store.config.bindAddress.length > 0) {
-            RowItem({ pal: this.store.palette(), title: '绑定地址', desc: this.store.config.bindAddress })
+            RowItem({ pal: this.store.palette(), title: t('bind_address'), desc: this.store.config.bindAddress })
           }
           ForEach(['mixed-port', 'port', 'socks-port', 'redir-port', 'tproxy-port'], (k: string) => {
             NumberRow({
               pal: this.store.palette(),
-              title: k === 'mixed-port' ? '混合端口' : (k === 'port' ? 'HTTP 端口' : (k === 'socks-port' ? 'SOCKS 端口' :
-                (k === 'redir-port' ? '透明代理 Redir' : 'TProxy 端口'))),
+              title: k === 'mixed-port' ? t('port_mixed') : (k === 'port' ? t('port_http') :
+                (k === 'socks-port' ? t('port_socks') : (k === 'redir-port' ? t('port_redir') : t('port_tproxy')))),
               value: this.portValue(k),
-              placeholder: '关闭',
+              placeholder: t('off'),
               zeroAsEmpty: true,
               live: false,
               onValue: (v: number) => {
@@ -345,17 +394,17 @@ struct BackendPage {
           }, (k: string) => k)
         }
 
-        Group({ pal: this.store.palette(), title: '运维' }) {
+        Group({ pal: this.store.palette(), title: t('maintenance') }) {
           ForEach(OPS, (op: OpDef) => {
             RowItem({
               pal: this.store.palette(),
-              title: op.title,
-              desc: this.store.unsupported.has(op.key) ? '当前后端不支持 (HTTP ' + this.store.unsupported.get(op.key) + ')' :
+              title: t(op.title),
+              desc: this.store.unsupported.has(op.key) ? t('unsupported_http', this.store.unsupported.get(op.key) ?? 0) :
                 '',
               clickable: true,
               onTap: () => {
                 if (op.confirm.length > 0) {
-                  this.confirm(op.confirm, () => {
+                  this.confirm(t(op.confirm), () => {
                     runOp(this.store, op.key);
                   });
                 } else {
@@ -385,17 +434,17 @@ struct BackendPage {
   }
 }
 
-// ---------------- 面板页 ----------------
+// ---------------- Panel page ----------------
 @ComponentV2
 struct PanelPage {
   private store: Store = Store.get();
   @Local showAccent: boolean = false;
 
-  /** 主题色弹出菜单 */
+  /** Accent color popup menu */
   @Builder
   accentMenu() {
     Column() {
-      Text('主题色')
+      Text(t('accent_color'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .fontColor(this.store.palette().text)
@@ -408,8 +457,9 @@ struct PanelPage {
             .height(20)
             .borderRadius(10)
             .backgroundColor(this.store.isDark() ? a.dark : a.light)
-          Text(a.name)
+          Text(t(a.nameKey))
             .fontSize(16)
+            .maxLines(1)
             .fontColor(this.store.accent === a.key ? this.store.palette().accent : this.store.palette().text)
             .fontWeight(this.store.accent === a.key ? FontWeight.Medium : FontWeight.Normal)
             .layoutWeight(1)
@@ -427,23 +477,23 @@ struct PanelPage {
         })
       }, (a: AccentDef) => a.key)
     }
-    .width(220)
+    .width(isEn() ? 240 : 220)
     .padding({ bottom: 8 })
   }
 
-  /** 颜色预览卡片 */
+  /** Color preview card */
   @Builder
   accentPreview() {
     Column({ space: 10 }) {
-      Text('颜色预览').fontSize(13).fontColor(this.store.palette().subtle)
+      Text(t('color_preview')).fontSize(13).fontColor(this.store.palette().subtle)
       Row({ space: 8 }) {
-        Text('按钮')
+        Text(t('preview_button'))
           .fontSize(14)
           .fontColor(this.store.palette().onAccent)
           .padding({ left: 16, right: 16, top: 7, bottom: 7 })
           .borderRadius(16)
           .backgroundColor(this.store.palette().accent)
-        Text('标签')
+        Text(t('preview_tag'))
           .fontSize(14)
           .fontColor(this.store.palette().accent)
           .padding({ left: 12, right: 12, top: 7, bottom: 7 })
@@ -478,7 +528,7 @@ struct PanelPage {
   }
 
   glassLabels(): string[] {
-    return this.store.sysMaterialSupported ? GLASS_LABELS.concat(['系统']) : GLASS_LABELS;
+    return tr(this.store.sysMaterialSupported ? GLASS_LABELS.concat(['glass_system']) : GLASS_LABELS);
   }
 
   async pickWallpaper(): Promise<void> {
@@ -492,17 +542,18 @@ struct PanelPage {
         this.store.setWallpaperFromUri(res.photoUris[0]);
       }
     } catch (e) {
-      this.store.toast('选择图片失败');
+      this.store.toast(t('pick_image_failed'));
     }
   }
 
   build() {
     Column() {
-      Group({ pal: this.store.palette(), title: '外观' }) {
-        RowItem({ pal: this.store.palette(), title: '主题' }) {
+      Group({ pal: this.store.palette(), title: t('appearance') }) {
+        RowItem({ pal: this.store.palette(), title: t('theme') }) {
           SegTabs({
             pal: this.store.palette(),
-            items: THEME_LABELS,
+            dense: isEn(),
+            items: tr(THEME_LABELS),
             selected: Math.max(0, THEME_KEYS.indexOf(this.store.theme)),
             onSelect: (i: number) => {
               this.store.setTheme(THEME_KEYS[i]);
@@ -511,7 +562,7 @@ struct PanelPage {
         }
         RowItem({
           pal: this.store.palette(),
-          title: '主题色',
+          title: t('accent_color'),
           clickable: true,
           onTap: () => {
             this.showAccent = !this.showAccent;
@@ -523,8 +574,9 @@ struct PanelPage {
               .height(14)
               .borderRadius(7)
               .backgroundColor(this.store.palette().accent)
-            Text(this.store.accentDef().name)
+            Text(t(this.store.accentDef().nameKey))
               .fontSize(15)
+              .maxLines(1)
               .fontColor(this.store.palette().accent)
               .margin({ left: 8 })
             SymbolGlyph($r('sys.symbol.chevron_down'))
@@ -548,11 +600,11 @@ struct PanelPage {
         this.accentPreview()
       }
 
-      Group({ pal: this.store.palette(), title: '导航栏' }) {
+      Group({ pal: this.store.palette(), title: t('nav_bar') }) {
         SwitchRow({
           pal: this.store.palette(),
-          title: '自动收起导航栏',
-          desc: '向下浏览时底部导航栏收起为左下角的圆形按钮，往回滑动或点按圆形按钮即可展开',
+          title: t('auto_hide_nav'),
+          desc: t('auto_hide_nav_desc'),
           checked: this.store.autoHideNav,
           onChange: (v: boolean) => {
             this.store.setAutoHideNav(v);
@@ -560,20 +612,23 @@ struct PanelPage {
         })
       }
 
-      Group({ pal: this.store.palette(), title: '毛玻璃效果' }) {
+      Group({ pal: this.store.palette(), title: t('glass') }) {
         SwitchRow({
           pal: this.store.palette(),
-          title: '毛玻璃效果',
-          desc: '卡片、顶栏、悬浮底栏与弹窗使用半透明模糊材质；无壁纸时自动铺一层柔和渐变背景',
+          title: t('glass'),
+          desc: t('glass_desc'),
           checked: this.store.glassOn,
           onChange: (v: boolean) => {
             this.store.setGlass(v);
           }
         })
         if (this.store.glassOn) {
-          RowItem({ pal: this.store.palette(), title: '材质' }) {
+          // title above the segments: up to five options (longer in English) don't fit beside the title
+          Column({ space: 8 }) {
+            Text(t('material')).fontSize(16).fontColor(this.store.palette().text)
             SegTabs({
               pal: this.store.palette(),
+              dense: isEn() || this.store.sysMaterialSupported,
               items: this.glassLabels(),
               selected: Math.max(0, this.glassKeys().indexOf(this.store.glassStyle)),
               onSelect: (i: number) => {
@@ -582,9 +637,12 @@ struct PanelPage {
               }
             })
           }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .padding({ left: 16, right: 16, top: 10, bottom: 10 })
           SliderRow({
             pal: this.store.palette(),
-            title: '模糊强度',
+            title: t('blur_strength'),
             value: this.store.glassBlur,
             min: 0,
             max: 100,
@@ -597,7 +655,7 @@ struct PanelPage {
           })
           SliderRow({
             pal: this.store.palette(),
-            title: '卡片不透明度',
+            title: t('card_opacity'),
             value: this.store.glassAlpha,
             min: 0.1,
             max: 0.95,
@@ -610,8 +668,8 @@ struct PanelPage {
           })
           SwitchRow({
             pal: this.store.palette(),
-            title: '列表项也模糊',
-            desc: '连接、日志、规则等长列表逐项模糊，更通透但更耗电；关闭时列表项仅半透明',
+            title: t('glass_rows'),
+            desc: t('glass_rows_desc'),
             checked: this.store.glassRows,
             onChange: (v: boolean) => {
               this.store.glassRows = v;
@@ -621,11 +679,11 @@ struct PanelPage {
         }
       }
 
-      Group({ pal: this.store.palette(), title: '沉浸光感' }) {
+      Group({ pal: this.store.palette(), title: t('light') }) {
         SwitchRow({
           pal: this.store.palette(),
-          title: '沉浸光感',
-          desc: '玻璃边缘高光、斜向柔光与主题色光晕，与毛玻璃搭配效果最佳',
+          title: t('light'),
+          desc: t('light_desc'),
           checked: this.store.lightOn,
           onChange: (v: boolean) => {
             this.store.setLight(v);
@@ -634,7 +692,7 @@ struct PanelPage {
         if (this.store.lightOn) {
           SliderRow({
             pal: this.store.palette(),
-            title: '光感强度',
+            title: t('light_intensity'),
             value: this.store.lightIntensity,
             min: 0,
             max: 1,
@@ -647,8 +705,8 @@ struct PanelPage {
           })
           SwitchRow({
             pal: this.store.palette(),
-            title: '跟随重力感应',
-            desc: '倾斜手机时高光方向随之变化（低频采样，退到后台自动停止）',
+            title: t('light_tilt'),
+            desc: t('light_tilt_desc'),
             checked: this.store.lightTilt,
             onChange: (v: boolean) => {
               this.store.setLightTilt(v);
@@ -656,8 +714,8 @@ struct PanelPage {
           })
           SwitchRow({
             pal: this.store.palette(),
-            title: '主题色光晕',
-            desc: '卡片与底栏周围一圈柔和的主题色光',
+            title: t('light_glow'),
+            desc: t('light_glow_desc'),
             checked: this.store.lightGlow,
             onChange: (v: boolean) => {
               this.store.lightGlow = v;
@@ -666,8 +724,8 @@ struct PanelPage {
           })
           SwitchRow({
             pal: this.store.palette(),
-            title: '流光扫过',
-            desc: '切换底部页签时，一道光从底栏上扫过',
+            title: t('light_sweep'),
+            desc: t('light_sweep_desc'),
             checked: this.store.lightSweep,
             onChange: (v: boolean) => {
               this.store.lightSweep = v;
@@ -677,14 +735,12 @@ struct PanelPage {
         }
         RowItem({
           pal: this.store.palette(),
-          title: '系统沉浸光感材质',
-          desc: this.store.sysMaterialSupported ?
-            '本机支持（API 26+）。在毛玻璃“材质”中选择“系统”即可使用系统原生材质与光感反馈' :
-            '本机不支持（需 HarmonyOS API 26 且设备支持），已使用应用内自绘光感效果'
+          title: t('sys_material'),
+          desc: this.store.sysMaterialSupported ? t('sys_material_yes') : t('sys_material_no')
         })
       }
 
-      Group({ pal: this.store.palette(), title: '壁纸' }) {
+      Group({ pal: this.store.palette(), title: t('wallpaper') }) {
         if (this.store.wallpaperPath.length > 0) {
           Image(fileUri.getUriFromPath(this.store.wallpaperPath))
             .width('100%')
@@ -695,8 +751,8 @@ struct PanelPage {
         }
         RowItem({
           pal: this.store.palette(),
-          title: this.store.wallpaperPath.length === 0 ? '上传壁纸' : '更换壁纸',
-          desc: '从相册选择一张图片作为面板背景',
+          title: this.store.wallpaperPath.length === 0 ? t('wallpaper_upload') : t('wallpaper_change'),
+          desc: t('wallpaper_desc'),
           clickable: true,
           onTap: () => {
             this.pickWallpaper();
@@ -707,7 +763,7 @@ struct PanelPage {
         if (this.store.wallpaperPath.length > 0 && !this.store.glassOn) {
           SliderRow({
             pal: this.store.palette(),
-            title: '卡片不透明度',
+            title: t('card_opacity'),
             value: this.store.cardAlpha,
             min: 0.2,
             max: 1,
@@ -722,7 +778,7 @@ struct PanelPage {
         if (this.store.wallpaperPath.length > 0) {
           SliderRow({
             pal: this.store.palette(),
-            title: '壁纸暗化',
+            title: t('wallpaper_dim'),
             value: this.store.wallpaperDim,
             min: 0,
             max: 0.7,
@@ -735,7 +791,7 @@ struct PanelPage {
           })
           SliderRow({
             pal: this.store.palette(),
-            title: '壁纸模糊',
+            title: t('wallpaper_blur'),
             value: this.store.wallpaperBlur,
             min: 0,
             max: 30,
@@ -747,7 +803,7 @@ struct PanelPage {
             }
           })
           RowItem({
-            pal: this.store.palette(), title: '移除壁纸', clickable: true, onTap: () => {
+            pal: this.store.palette(), title: t('wallpaper_remove'), clickable: true, onTap: () => {
               this.store.clearWallpaper();
             }
           }) {
@@ -761,7 +817,7 @@ struct PanelPage {
   }
 }
 
-// ---------------- 代理设置页 ----------------
+// ---------------- Proxy settings ----------------
 @ComponentV2
 struct ProxyPrefsPage {
   private store: Store = Store.get();
@@ -773,9 +829,9 @@ struct ProxyPrefsPage {
 
   build() {
     Column() {
-      Group({ pal: this.store.palette(), title: '测速' }) {
+      Group({ pal: this.store.palette(), title: t('latency_test') }) {
         Column() {
-          Text('测速 URL').fontSize(12).fontColor(this.store.palette().subtle).margin({ bottom: 4 })
+          Text(t('test_url')).fontSize(12).fontColor(this.store.palette().subtle).margin({ bottom: 4 })
           TextInput({ text: this.url, placeholder: 'https://www.gstatic.com/generate_204' })
             .width('100%')
             .height(44)
@@ -794,14 +850,14 @@ struct ProxyPrefsPage {
         .padding({ left: 16, right: 16, top: 8, bottom: 8 })
 
         NumberRow({
-          pal: this.store.palette(), title: '超时', value: this.store.testTimeout, suffix: 'ms', onValue: (v: number) => {
+          pal: this.store.palette(), title: t('test_timeout'), value: this.store.testTimeout, suffix: 'ms', onValue: (v: number) => {
             this.store.testTimeout = Math.max(100, v);
             this.store.savePrefs();
           }
         })
         SwitchRow({
           pal: this.store.palette(),
-          title: '优先使用代理组自带的测速 URL',
+          title: t('group_url_first'),
           checked: this.store.groupTestUrlFirst,
           onChange: (v: boolean) => {
             this.store.groupTestUrlFirst = v;
@@ -809,14 +865,14 @@ struct ProxyPrefsPage {
           }
         })
         NumberRow({
-          pal: this.store.palette(), title: '低延迟阈值（绿色）', value: this.store.lowLatency, suffix: 'ms',
+          pal: this.store.palette(), title: t('low_latency'), value: this.store.lowLatency, suffix: 'ms',
           onValue: (v: number) => {
             this.store.lowLatency = v;
             this.store.savePrefs();
           }
         })
         NumberRow({
-          pal: this.store.palette(), title: '中延迟阈值（黄色）', value: this.store.mediumLatency, suffix: 'ms',
+          pal: this.store.palette(), title: t('medium_latency'), value: this.store.mediumLatency, suffix: 'ms',
           onValue: (v: number) => {
             this.store.mediumLatency = v;
             this.store.savePrefs();
@@ -824,11 +880,12 @@ struct ProxyPrefsPage {
         })
       }
 
-      Group({ pal: this.store.palette(), title: '代理组展示' }) {
-        RowItem({ pal: this.store.palette(), title: '节点排序' }) {
+      Group({ pal: this.store.palette(), title: t('group_display') }) {
+        RowItem({ pal: this.store.palette(), title: t('node_sort') }) {
           SegTabs({
             pal: this.store.palette(),
-            items: SORT_LABELS,
+            dense: isEn(),
+            items: tr(SORT_LABELS),
             selected: Math.max(0, SORT_KEYS.indexOf(this.store.sortProxies)),
             onSelect: (i: number) => {
               this.store.sortProxies = SORT_KEYS[i];
@@ -836,7 +893,7 @@ struct ProxyPrefsPage {
             }
           })
         }
-        RowItem({ pal: this.store.palette(), title: '每行卡片数' }) {
+        RowItem({ pal: this.store.palette(), title: t('cards_per_row') }) {
           SegTabs({
             pal: this.store.palette(),
             items: ['1', '2', '3'],
@@ -848,21 +905,21 @@ struct ProxyPrefsPage {
           })
         }
         SwitchRow({
-          pal: this.store.palette(), title: '隐藏不可用节点', checked: this.store.hideUnavailable,
+          pal: this.store.palette(), title: t('hide_unavailable'), checked: this.store.hideUnavailable,
           onChange: (v: boolean) => {
             this.store.hideUnavailable = v;
             this.store.savePrefs();
           }
         })
         SwitchRow({
-          pal: this.store.palette(), title: '显示 GLOBAL 代理组', checked: this.store.showGlobal,
+          pal: this.store.palette(), title: t('show_global'), checked: this.store.showGlobal,
           onChange: (v: boolean) => {
             this.store.showGlobal = v;
             this.store.savePrefs();
           }
         })
         SwitchRow({
-          pal: this.store.palette(), title: '显示隐藏的代理组', desc: '配置中 hidden: true 的代理组',
+          pal: this.store.palette(), title: t('show_hidden_groups'), desc: t('show_hidden_desc'),
           checked: this.store.showHiddenGroups, onChange: (v: boolean) => {
             this.store.showHiddenGroups = v;
             this.store.savePrefs();
@@ -874,32 +931,32 @@ struct ProxyPrefsPage {
   }
 }
 
-// ---------------- 连接设置页 ----------------
+// ---------------- Connection settings ----------------
 @ComponentV2
 struct ConnPrefsPage {
   private store: Store = Store.get();
 
   build() {
     Column() {
-      Group({ pal: this.store.palette(), title: '保留数量' }) {
+      Group({ pal: this.store.palette(), title: t('keep_counts') }) {
         NumberRow({
-          pal: this.store.palette(), title: '已关闭连接保留', value: this.store.closedConnMax, suffix: '条',
+          pal: this.store.palette(), title: t('closed_keep'), value: this.store.closedConnMax, suffix: t('unit_items'),
           onValue: (v: number) => {
             this.store.closedConnMax = Math.max(10, v);
             this.store.savePrefs();
           }
         })
         NumberRow({
-          pal: this.store.palette(), title: '日志保留', value: this.store.logMax, suffix: '条', onValue: (v: number) => {
+          pal: this.store.palette(), title: t('logs_keep'), value: this.store.logMax, suffix: t('unit_items'), onValue: (v: number) => {
             this.store.logMax = Math.max(50, v);
             this.store.savePrefs();
           }
         })
       }
 
-      Group({ pal: this.store.palette(), title: '规则' }) {
+      Group({ pal: this.store.palette(), title: t('rules') }) {
         SwitchRow({
-          pal: this.store.palette(), title: '显示规则命中次数', desc: '需要内核支持', checked: this.store.showRuleHits,
+          pal: this.store.palette(), title: t('show_rule_hits'), desc: t('needs_core_support'), checked: this.store.showRuleHits,
           onChange: (v: boolean) => {
             this.store.showRuleHits = v;
             this.store.savePrefs();
@@ -911,7 +968,7 @@ struct ConnPrefsPage {
   }
 }
 
-// ---------------- 闪退日志 ----------------
+// ---------------- Crash logs ----------------
 @ComponentV2
 export struct CrashDetail {
   private store: Store = Store.get();
@@ -921,7 +978,7 @@ export struct CrashDetail {
 
   build() {
     Column() {
-      Text('闪退日志').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
+      Text(t('crash_log')).fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
         .margin({ bottom: 10 })
       Scroll() {
         Scroll() {
@@ -943,27 +1000,27 @@ export struct CrashDetail {
       .backgroundColor(this.store.palette().chip)
 
       Row({ space: 8 }) {
-        Button('复制', { type: ButtonType.Capsule })
+        Button(t('copy'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .fontColor(this.store.palette().text)
           .backgroundColor(this.store.palette().chip)
           .onClick(() => {
             FileUtil.copyText(CrashLog.read(this.name));
-            this.store.toast('已复制');
+            this.store.toast(t('copied'));
           })
-        Button('分享', { type: ButtonType.Capsule })
+        Button(t('share'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .fontColor(this.store.palette().text)
           .backgroundColor(this.store.palette().chip)
           .onClick(() => {
             const ctx = this.store.ctx;
             if (ctx !== null) {
-              FileUtil.shareText(ctx, '咪咪面板 闪退日志', CrashLog.read(this.name)).catch(() => {
-                this.store.toast('分享失败');
+              FileUtil.shareText(ctx, t('crash_share_title'), CrashLog.read(this.name)).catch(() => {
+                this.store.toast(t('share_failed'));
               });
             }
           })
-        Button('保存', { type: ButtonType.Capsule })
+        Button(t('save'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .fontColor(this.store.palette().text)
           .backgroundColor(this.store.palette().chip)
@@ -974,17 +1031,17 @@ export struct CrashDetail {
             }
             FileUtil.saveTextAs(ctx, 'mimipanel-' + this.name, CrashLog.read(this.name)).then((n: string) => {
               if (n.length > 0) {
-                this.store.toast('已保存 ' + n);
+                this.store.toast(t('saved_file', n));
               }
             }).catch(() => {
-              this.store.toast('保存失败');
+              this.store.toast(t('save_failed'));
             });
           })
       }
       .width('100%')
       .margin({ top: 10 })
 
-      Button('关闭', { type: ButtonType.Normal })
+      Button(t('close_btn'), { type: ButtonType.Normal })
         .fontColor(this.store.palette().text)
         .backgroundColor(Color.Transparent)
         .onClick(() => {
@@ -1023,7 +1080,7 @@ struct CrashLogPage {
 
   build() {
     Column() {
-      Text('应用闪退时会自动记录错误堆栈。打开一条日志后可以复制、分享或保存，发给开发者排查。')
+      Text(t('crash_intro'))
         .fontSize(14)
         .fontColor(this.store.palette().subtle)
         .width('100%')
@@ -1034,7 +1091,7 @@ struct CrashLogPage {
 
       Column() {
         if (this.files.length === 0) {
-          Text('暂无闪退记录').fontSize(15).fontColor(this.store.palette().subtle).padding(20)
+          Text(t('no_crash')).fontSize(15).fontColor(this.store.palette().subtle).padding(20)
         } else {
           ForEach(this.files, (f: string, i: number) => {
             Row() {
@@ -1070,7 +1127,7 @@ struct CrashLogPage {
       .margin({ top: 12 })
 
       if (this.files.length > 0) {
-        Button('清空闪退日志', { type: ButtonType.Capsule })
+        Button(t('clear_crash'), { type: ButtonType.Capsule })
           .width('100%')
           .margin({ top: 12 })
           .fontColor(this.store.palette().bad)
@@ -1078,7 +1135,7 @@ struct CrashLogPage {
           .onClick(() => {
             CrashLog.clear();
             this.files = [];
-            this.store.toast('已清空');
+            this.store.toast(t('cleared'));
           })
       }
     }
@@ -1095,22 +1152,22 @@ struct CrashLogPage {
   }
 }
 
-// ---------------- 关于 ----------------
+// ---------------- About ----------------
 @ComponentV2
 struct AboutPage {
   private store: Store = Store.get();
 
   withdraw(): void {
     this.getUIContext().showAlertDialog({
-      title: '撤回隐私政策同意',
-      message: '撤回后将断开后端并退出应用，下次打开需要重新同意才能使用。已保存的后端与设置仍保留在本机，如需删除请卸载应用。',
+      title: t('withdraw_title'),
+      message: t('withdraw_msg'),
       autoCancel: true,
       primaryButton: {
-        value: '取消', action: () => {
+        value: t('cancel'), action: () => {
         }
       },
       secondaryButton: {
-        value: '撤回并退出', fontColor: this.store.palette().bad, action: () => {
+        value: t('withdraw_exit'), fontColor: this.store.palette().bad, action: () => {
           this.store.declinePrivacy();
         }
       }
@@ -1125,26 +1182,26 @@ struct AboutPage {
   build() {
     Column() {
       Group({ pal: this.store.palette(), title: '' }) {
-        RowItem({ pal: this.store.palette(), title: '应用名称', desc: '咪咪面板' })
-        RowItem({ pal: this.store.palette(), title: '版本', desc: CrashLog.versionName() })
-        RowItem({ pal: this.store.palette(), title: '开发者', desc: LEGAL_DEVELOPER + ' · ' + LEGAL_CONTACT })
+        RowItem({ pal: this.store.palette(), title: t('app_name_label'), desc: t('app_name') })
+        RowItem({ pal: this.store.palette(), title: t('version'), desc: CrashLog.versionName() })
+        RowItem({ pal: this.store.palette(), title: t('developer'), desc: LEGAL_DEVELOPER + ' · ' + LEGAL_CONTACT })
         RowItem({
           pal: this.store.palette(),
-          title: '兼容接口',
-          desc: '与 mihomo 兼容的外部控制器（external-controller）RESTful API。本应用不包含代理内核，也不提供代理服务。'
+          title: t('compat_api'),
+          desc: t('compat_api_desc')
         })
       }
 
-      Group({ pal: this.store.palette(), title: '协议' }) {
+      Group({ pal: this.store.palette(), title: t('legal') }) {
         RowItem({
-          pal: this.store.palette(), title: '隐私政策', clickable: true, onTap: () => {
+          pal: this.store.palette(), title: t('privacy_policy'), clickable: true, onTap: () => {
             this.store.legalDoc = 'privacy';
           }
         }) {
           this.chevron()
         }
         RowItem({
-          pal: this.store.palette(), title: '用户协议', clickable: true, onTap: () => {
+          pal: this.store.palette(), title: t('user_agreement'), clickable: true, onTap: () => {
             this.store.legalDoc = 'agreement';
           }
         }) {
@@ -1152,8 +1209,8 @@ struct AboutPage {
         }
         RowItem({
           pal: this.store.palette(),
-          title: '撤回隐私政策同意',
-          desc: '撤回后应用将退出',
+          title: t('withdraw'),
+          desc: t('withdraw_desc'),
           descColor: this.store.palette().subtle,
           clickable: true,
           onTap: () => {
@@ -1168,7 +1225,7 @@ struct AboutPage {
   }
 }
 
-// ---------------- 设置主页 ----------------
+// ---------------- Settings home ----------------
 @ComponentV2
 export struct SettingsView {
   private store: Store = Store.get();
@@ -1179,16 +1236,17 @@ export struct SettingsView {
 
   shown(): Section[] {
     const q = this.query.trim().toLowerCase();
-    return SECTIONS.filter((s: Section) => q.length === 0 || (s.title + s.desc + s.keywords).toLowerCase().indexOf(q) >= 0);
+    return SECTIONS.filter((s: Section) => q.length === 0 ||
+      (bothLangs(s.title) + ' ' + bothLangs(s.desc) + ' ' + bothLangs(s.keywords)).toLowerCase().indexOf(q) >= 0);
   }
 
   pageTitle(): string {
     for (const s of SECTIONS) {
       if (s.key === this.store.settingsPage) {
-        return s.title;
+        return t(s.title);
       }
     }
-    return '设置';
+    return t('settings');
   }
 
   build() {
@@ -1196,7 +1254,7 @@ export struct SettingsView {
       Scroll(this.sc) {
         Column() {
           if (this.store.settingsPage.length === 0) {
-            // 标题已在顶栏（与搜索框同一行），这里不再重复大标题
+            // The title is in the header (same row as search), so no large title here
             Blank().height(14)
             Column() {
               ForEach(this.shown(), (s: Section, i: number) => {
@@ -1210,8 +1268,10 @@ export struct SettingsView {
                   .backgroundColor(this.store.palette().chip)
 
                   Column() {
-                    Text(s.title).fontSize(18).fontColor(this.store.palette().text)
-                    Text(s.desc).fontSize(14).fontColor(this.store.palette().subtle).margin({ top: 4 })
+                    Text(t(s.title)).fontSize(18).fontColor(this.store.palette().text)
+                      .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    Text(s.key === 'lang' ? langOptionLabel(this.store.langPref()) : t(s.desc))
+                      .fontSize(14).fontColor(this.store.palette().subtle).margin({ top: 4 })
                   }
                   .layoutWeight(1)
                   .alignItems(HorizontalAlign.Start)
@@ -1237,6 +1297,8 @@ export struct SettingsView {
             .width('100%')
             .borderRadius(18)
             .attributeModifier(Store.get().glass('card'))
+          } else if (this.store.settingsPage === 'lang') {
+            LanguagePage()
           } else if (this.store.settingsPage === 'backend') {
             BackendPage()
           } else if (this.store.settingsPage === 'panel') {
@@ -1281,21 +1343,21 @@ export struct SettingsView {
               pal: this.store.palette(),
               title: this.pageTitle(),
               connState: this.store.connState,
-              address: this.store.active !== null ? this.store.active.host + ':' + this.store.active.port : '未连接',
+              address: this.store.active !== null ? this.store.active.host + ':' + this.store.active.port : t('not_connected'),
               tag: ''
             })
               .layoutWeight(1)
           }
           .width('100%')
         } else {
-          // 设置主页：标题与搜索框放在同一行，顶栏只占一行
+          // Settings home: title and search share one header row
           Row() {
-            Text('设置').fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
+            Text(t('settings')).fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
             SearchBox({
               pal: this.store.palette(),
               dense: true,
               value: this.query,
-              placeholder: '搜索设置',
+              placeholder: t('search_settings'),
               onChange: (v: string) => {
                 this.query = v;
               }

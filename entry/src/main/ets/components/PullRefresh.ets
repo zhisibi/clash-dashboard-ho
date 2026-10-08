@@ -1,29 +1,29 @@
 import { Store } from '../common/Store';
 
-/** 下拉多少 vp 松手后触发刷新（也是刷新中内容停留的位置） */
+/** Pull distance (vp) that triggers a refresh on release (also where content rests while refreshing) */
 const PULL_OFFSET: number = 64;
-/** 刷新指示器尺寸 */
+/** Refresh indicator size */
 const IND_SIZE: number = 26;
-/** 刷新动画至少显示多久，避免一闪而过 */
+/** Minimum time the indicator stays visible, so it doesn't just flash */
 const MIN_SHOW_MS: number = 400;
 
 /**
- * 页面下拉刷新（1.1.9）：基于 ArkUI Refresh 组件。
+ * Pull to refresh (1.1.9), based on the ArkUI Refresh component.
  *
- * 页面顶栏 GlassHeader 是叠放在内容之上的毛玻璃层，Refresh 自带的指示器会出现在组件顶部、被顶栏挡住，
- * 所以这里用一个透明的占位 builder 关掉自带指示器，再在顶栏下方（topInset 处）自绘一个主题色的
- * LoadingProgress，位置随下拉距离（onOffsetChange）移动，始终处在顶栏和内容之间的空隙里。
+ * GlassHeader overlays the content, so Refresh's own indicator would sit at the top hidden behind it;
+ * a transparent placeholder builder disables it, and an accent-colored LoadingProgress is drawn below
+ * the header (at topInset), following the pull distance (onOffsetChange) in the gap between header and content.
  *
- * 用法（放在页面 Stack 里、GlassHeader 之前）：
+ * Usage (inside the page Stack, before GlassHeader):
  *   PullRefresh({ topInset: this.headerH, page: 'rules' }) { List(...) ... }
- * 列表需设置 .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })，内容不满一屏时也能下拉。
+ * Lists need .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) so short content can still be pulled.
  */
 @ComponentV2
 export struct PullRefresh {
   private store: Store = Store.get();
-  /** 顶栏高度（含状态栏），指示器显示在它下面 */
+  /** Header height (incl. status bar); the indicator shows below it */
   @Param topInset: number = 0;
-  /** 页面标识，交给 Store.pullRefresh 决定刷新哪些数据 */
+  /** Page id; Store.pullRefresh decides what to reload */
   @Param page: string = '';
   @Local refreshing: boolean = false;
   @Local pull: number = 0;
@@ -34,7 +34,7 @@ export struct PullRefresh {
 
   @BuilderParam content: () => void = this.emptyContent;
 
-  /** 自带指示器的占位：固定 1vp 高、全透明 */
+  /** Placeholder for the built-in indicator: 1 vp tall, fully transparent */
   @Builder
   hiddenIndicator() {
     Column().width('100%').height(1).opacity(0)
@@ -54,7 +54,7 @@ export struct PullRefresh {
 
   indicatorY(): number {
     const p = this.refreshing ? Math.max(this.pull, PULL_OFFSET) : this.pull;
-    // 顶栏下沿与内容上沿之间空隙的中间（内容自身还有约 14vp 上边距）
+    // Middle of the gap between header bottom and content top (content has ~14 vp top padding)
     return this.topInset + (Math.min(p, PULL_OFFSET * 1.6) + 14 - IND_SIZE) / 2;
   }
 

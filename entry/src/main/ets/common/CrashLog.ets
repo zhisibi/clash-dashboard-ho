@@ -2,8 +2,9 @@ import { common, errorManager, bundleManager } from '@kit.AbilityKit';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import { FileUtil } from './FileUtil';
 import { fmtStamp, fmtDateTime } from './Format';
+import { t } from './I18n';
 
-/** 闪退日志（对应 Kotlin 版 CrashLog.kt）。JS 未捕获异常写入 filesDir/crash/*.txt，下次启动提示 */
+/** Crash log (Kotlin CrashLog.kt). Uncaught JS exceptions go to filesDir/crash/*.txt and are offered on next launch */
 export class CrashLog {
   private static dirPath: string = '';
   private static observerId: number = -1;
@@ -19,11 +20,11 @@ export class CrashLog {
       const observer: errorManager.ErrorObserver = {
         onUnhandledException: (msg: string) => {
           try {
-            CrashLog.write('JS 未捕获异常', msg);
+            CrashLog.write(t('crash_kind_js'), msg);
           } catch (e) {
             // ignore
           }
-          // 注册观察者后应用不会自动退出，按官方建议主动退出，与安卓版闪退行为一致
+          // With an observer registered the app no longer exits by itself; exit as the docs recommend (same as Android)
           appCtx.killAllProcesses().catch(() => {
           });
         }
@@ -39,7 +40,7 @@ export class CrashLog {
       const bi = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
       return bi.versionName + ' (' + bi.versionCode + ')';
     } catch (e) {
-      return '1.1.7';
+      return '1.2.0';
     }
   }
 
@@ -48,12 +49,12 @@ export class CrashLog {
       return;
     }
     const now = Date.now();
-    let text = '咪咪面板 闪退日志\n';
-    text += '时间: ' + fmtDateTime(now) + '\n';
-    text += '应用版本: ' + CrashLog.versionName() + '\n';
-    text += '设备: ' + deviceInfo.manufacture + ' ' + deviceInfo.marketName + ' (' + deviceInfo.productModel + ')\n';
-    text += '系统: ' + deviceInfo.osFullName + ' / ' + deviceInfo.displayVersion + ' / API ' + deviceInfo.sdkApiVersion + '\n';
-    text += '类型: ' + kind + '\n';
+    let text = t('crash_header') + '\n';
+    text += t('crash_time') + ': ' + fmtDateTime(now) + '\n';
+    text += t('crash_app_ver') + ': ' + CrashLog.versionName() + '\n';
+    text += t('crash_device') + ': ' + deviceInfo.manufacture + ' ' + deviceInfo.marketName + ' (' + deviceInfo.productModel + ')\n';
+    text += t('crash_os') + ': ' + deviceInfo.osFullName + ' / ' + deviceInfo.displayVersion + ' / API ' + deviceInfo.sdkApiVersion + '\n';
+    text += t('crash_kind') + ': ' + kind + '\n';
     text += '\n';
     text += detail;
     FileUtil.writeText(CrashLog.dirPath + '/crash-' + fmtStamp(now) + '.txt', text);
@@ -64,7 +65,7 @@ export class CrashLog {
     FileUtil.writeText(CrashLog.dirPath + '/.unseen', '1');
   }
 
-  /** 文件名列表，新的在前 */
+  /** File names, newest first */
   static list(): string[] {
     const names = FileUtil.list(CrashLog.dirPath).filter((n: string) => n.endsWith('.txt'));
     names.sort((a: string, b: string) => b.localeCompare(a));

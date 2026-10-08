@@ -1,6 +1,6 @@
 /**
- * 数据模型与 JSON 解析工具（对应 Kotlin 版 data/Models.kt）
- * ArkTS 不允许 any/unknown，这里统一用 Record<string, Object> 表示 JSON 对象。
+ * Data models and JSON helpers (Kotlin data/Models.kt)
+ * ArkTS has no any/unknown, so JSON objects are Record<string, Object>.
  */
 
 export type JObj = Record<string, Object>;
@@ -486,7 +486,7 @@ export class CoreConfig {
 
 const ISO_RE: RegExp = new RegExp('(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?');
 
-/** 解析 mihomo 返回的 RFC3339 时间（可能带纳秒），返回毫秒时间戳；失败返回 0 */
+/** Parses mihomo's RFC3339 time (may include nanoseconds) to epoch millis; 0 on failure */
 export function parseIsoMillis(s: string): number {
   if (s === undefined || s === null || s.trim().length === 0) {
     return 0;

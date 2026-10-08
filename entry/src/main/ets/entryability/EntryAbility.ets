@@ -3,6 +3,7 @@ import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Store } from '../common/Store';
 import { CrashLog } from '../common/CrashLog';
+import { onSystemLangChanged } from '../common/I18n';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -15,6 +16,7 @@ export default class EntryAbility extends UIAbility {
   onConfigurationUpdate(newConfig: Configuration): void {
     Store.get().systemDark = newConfig.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     Store.get().applySystemBar();
+    onSystemLangChanged();
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {

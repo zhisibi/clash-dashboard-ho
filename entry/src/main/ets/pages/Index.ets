@@ -10,8 +10,10 @@ import { RulesView } from '../views/RulesView';
 import { SettingsView, CrashDetail } from '../views/SettingsView';
 import { mixColor, withAlpha } from '../common/Theme';
 import { LegalView } from '../components/LegalView';
+import { I18N, t } from '../common/I18n';
 
 class TabDef {
+  /** i18n key of the tab label */
   title: string = '';
   icon: Resource;
 
@@ -22,17 +24,17 @@ class TabDef {
 }
 
 const TABS: TabDef[] = [
-  new TabDef('概览', $r('sys.symbol.house')),
-  new TabDef('代理', $r('sys.symbol.paperplane')),
-  new TabDef('连接', $r('sys.symbol.arrow_left_arrow_right')),
-  new TabDef('日志', $r('sys.symbol.doc_text')),
-  new TabDef('规则', $r('sys.symbol.list_bullet')),
-  new TabDef('设置', $r('sys.symbol.gearshape'))
+  new TabDef('tab_overview', $r('sys.symbol.house')),
+  new TabDef('tab_proxies', $r('sys.symbol.paperplane')),
+  new TabDef('tab_conns', $r('sys.symbol.arrow_left_arrow_right')),
+  new TabDef('tab_logs', $r('sys.symbol.doc_text')),
+  new TabDef('tab_rules', $r('sys.symbol.list_bullet')),
+  new TabDef('tab_settings', $r('sys.symbol.gearshape'))
 ];
 
-/** 展开状态的底栏高度 */
+/** Height of the expanded bottom bar */
 const BAR_H: number = 64;
-/** 收起后圆形按钮的直径 */
+/** Diameter of the collapsed round button */
 const DOT: number = 56;
 
 @Entry
@@ -41,13 +43,13 @@ struct Index {
   private store: Store = Store.get();
   @Local showCrash: boolean = false;
   @Local crashName: string = '';
-  /** 流光扫过：-1 在左侧外，1 在右侧外 */
+  /** Light sweep position: -1 off the left edge, 1 off the right edge */
   @Local sweepPos: number = -1;
   @Local sweepShow: boolean = false;
   @Local barWidth: number = 360;
-  /** 根布局宽度，用于底栏 展开 ↔ 圆形按钮 的宽度形变动画 */
+  /** Root width, for the bar <-> round button width animation */
   @Local rootW: number = 0;
-  /** 页面切换动画进行中的目标页（-1 表示没有动画），让底栏高亮在动画开始时就跟上 */
+  /** Target page of a running page animation (-1 = none), so the bar highlight follows right away */
   @Local navTarget: number = -1;
   private tabsCtl: TabsController = new TabsController();
 
@@ -59,23 +61,23 @@ struct Index {
     }
   }
 
-  /** 底栏距离屏幕底边：贴近手势指示条，留出约 8vp 的间隙 */
+  /** Bar distance from the bottom edge: close to the gesture indicator with ~8 vp gap */
   navBottom(): number {
     const b = this.store.safeBottom;
     return b > 0 ? Math.max(8, b - 6) : 10;
   }
 
-  /** 各页面滚动内容底部留白：让最后一项可以滚到底栏上方（第 i 页） */
+  /** Bottom padding of page i's content so the last item can scroll above the bar */
   bottomPad(i: number): number {
     return this.navBottom() + BAR_H + 16 + (this.store.connState === 'failed' && i !== 5 ? 52 : 0);
   }
 
-  /** 底栏当前高亮的页：切换动画进行中时取目标页 */
+  /** Highlighted tab: the target page while an animation runs */
   selTab(): number {
     return this.navTarget >= 0 ? this.navTarget : this.store.tab;
   }
 
-  /** 点击底栏页签：动画切换到该页（index 与 Store.tab 由 Tabs.onChange 回写，双向同步） */
+  /** Tab tapped: animate to that page (index and Store.tab are synced back through Tabs.onChange) */
   selectTab(i: number): void {
     if (i < 0 || i >= TABS.length) {
       return;
@@ -89,7 +91,7 @@ struct Index {
     } catch (e) {
       // ignore
     }
-    // 兜底：万一 onChange 没有回调（例如控制器尚未绑定），直接写入 Store.tab，Tabs 的 index 参数会跟随
+    // Fallback: if onChange never fires (e.g. controller not bound yet), write Store.tab; the Tabs index follows
     setTimeout(() => {
       if (this.store.tab !== i && this.navTarget === i) {
         this.store.tab = i;
@@ -98,14 +100,14 @@ struct Index {
     }, 650);
   }
 
-  /** Tabs 页面已切换（点击或左右滑动） */
+  /** Tabs page changed (tap or swipe) */
   onPageChanged(i: number): void {
     this.navTarget = -1;
     if (this.store.tab !== i) {
       this.store.tab = i;
       this.sweep();
     }
-    // 滑动切页时，自动收起的底栏重新展开
+    // Swiping to another page expands an auto-hidden bar again
     this.store.expandNav();
   }
 
@@ -128,7 +130,7 @@ struct Index {
     return false;
   }
 
-  /** 底栏流光扫过一次（一次性动画，结束后移除图层，不常驻刷新） */
+  /** One light sweep across the bar (one-shot; the layer is removed afterwards) */
   sweep(): void {
     if (!this.store.lightOn || !this.store.lightSweep) {
       return;
@@ -147,7 +149,7 @@ struct Index {
     });
   }
 
-  /** 毛玻璃开启且没有壁纸时，绘制一层柔和的主题色渐变背景，让玻璃的模糊与光感可见 */
+  /** With glass on and no wallpaper, draw a soft accent gradient so the blur and light are visible */
   @Builder
   glassBackdrop() {
     Stack() {
@@ -187,18 +189,18 @@ struct Index {
 
   promptCrash(): void {
     this.getUIContext().showAlertDialog({
-      title: '上次运行发生了闪退',
-      message: '已自动保存错误日志。可以查看后复制或分享给开发者。',
+      title: t('crash_prompt_title'),
+      message: t('crash_prompt_msg'),
       autoCancel: true,
       primaryButton: {
-        value: '忽略',
+        value: t('ignore'),
         action: () => {
           CrashLog.markSeen();
           this.store.crashPrompt = false;
         }
       },
       secondaryButton: {
-        value: '查看日志',
+        value: t('view_log'),
         action: () => {
           CrashLog.markSeen();
           this.store.crashPrompt = false;
@@ -225,28 +227,28 @@ struct Index {
     })
   }
 
-  /** 首次启动：同意隐私政策与用户协议之前不发起任何网络请求；不同意则退出 */
+  /** First launch: no network requests before consent; declining exits the app */
   @Builder
   consentScreen() {
     Column() {
       Scroll() {
         Column() {
           Image($r('app.media.layered_image')).width(72).height(72).borderRadius(18)
-          Text('欢迎使用咪咪面板')
+          Text(t('consent_welcome'))
             .fontSize(24)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.store.palette().text)
             .margin({ top: 16 })
-          Text('咪咪面板用于管理你自行部署、与 mihomo 兼容的代理内核的外部控制器（external-controller）。本应用不包含代理内核，也不提供代理服务。')
+          Text(t('consent_intro'))
             .fontSize(14)
             .lineHeight(22)
             .fontColor(this.store.palette().subtle)
             .margin({ top: 10 })
           Column() {
-            this.consentPoint('无账号、不收集个人信息、不含第三方 SDK')
-            this.consentPoint('后端地址、密钥与设置只保存在本机')
-            this.consentPoint('网络请求只发往你自己配置的后端')
-            this.consentPoint('闪退日志只保存在本机，仅在你点击分享/复制/另存为时导出')
+            this.consentPoint(t('consent_p1'))
+            this.consentPoint(t('consent_p2'))
+            this.consentPoint(t('consent_p3'))
+            this.consentPoint(t('consent_p4'))
           }
           .width('100%')
           .alignItems(HorizontalAlign.Start)
@@ -256,19 +258,19 @@ struct Index {
           .backgroundColor(this.store.palette().chip)
 
           Text() {
-            Span('请阅读并同意')
-            Span('《隐私政策》')
+            Span(t('consent_read'))
+            Span(t('privacy_policy_q'))
               .fontColor(this.store.palette().accent)
               .onClick(() => {
                 this.store.legalDoc = 'privacy';
               })
-            Span('和')
-            Span('《用户协议》')
+            Span(t('consent_and'))
+            Span(t('user_agreement_q'))
               .fontColor(this.store.palette().accent)
               .onClick(() => {
                 this.store.legalDoc = 'agreement';
               })
-            Span('。点击“同意”即表示你已阅读并同意上述内容；点击“不同意”将退出应用。')
+            Span(t('consent_tail'))
           }
           .fontSize(14)
           .lineHeight(22)
@@ -285,7 +287,7 @@ struct Index {
       .scrollBar(BarState.Off)
 
       Row() {
-        Button('不同意', { type: ButtonType.Capsule })
+        Button(t('disagree'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .height(44)
           .fontColor(this.store.palette().text)
@@ -294,7 +296,7 @@ struct Index {
             this.store.declinePrivacy();
           })
         Blank().width(12)
-        Button('同意', { type: ButtonType.Capsule })
+        Button(t('agree'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .height(44)
           .fontColor(this.store.palette().onAccent)
@@ -328,12 +330,12 @@ struct Index {
       Column() {
         Blank().height(40)
         SymbolGlyph($r('sys.symbol.paperplane')).fontSize(56).fontColor([this.store.palette().primary])
-        Text('连接后端')
+        Text(t('setup_title'))
           .fontSize(26)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.store.palette().text)
           .margin({ top: 16 })
-        Text('填写 external-controller 的地址与密钥。本机内核一般是 127.0.0.1:9090。')
+        Text(t('setup_desc'))
           .fontSize(14)
           .fontColor(this.store.palette().subtle)
           .margin({ top: 6, bottom: 24 })
@@ -356,20 +358,20 @@ struct Index {
   }
 
   /**
-   * 悬浮底栏。
-   * 1.1.6 修复“底栏按钮点不动”：
-   *  - 底栏外层容器是全宽、HitTestMode.Transparent 的 Column，叠在全屏页面之上；Transparent 会让触摸同时
-   *    命中下方的页面（List/Scroll 的拖动手势、卡片的 onClick 等），页签的点击要和它们一起参与手势竞争，
-   *    在真机上经常被下层吞掉。现在底栏本体使用 HitTestMode.BLOCK_HIERARCHY：落在底栏上的触摸只交给底栏。
-   *  - 去掉外层 Stack 上与页签 onClick 嵌套竞争的 onClick（收起的圆形按钮自己处理点击）。
-   *  - 流光层不再用 .overlay() 叠在底栏上，而是作为底栏内部的最上层子节点并设为 HitTestMode.None。
+   * Floating bottom bar.
+   * 1.1.6 fix for "bar buttons don't respond":
+   *  - The bar's outer container is a full-width HitTestMode.Transparent Column over the full-screen page; Transparent lets
+   *    touches also hit the page below (List/Scroll drags, card onClick, ...), so tab taps competed with them
+   *    and were often swallowed on real devices. The bar now uses HitTestMode.BLOCK_HIERARCHY: touches on it go only to it.
+   *  - Removed the outer Stack onClick that competed with the tabs (the round button handles its own tap).
+   *  - The sweep layer is no longer an .overlay(); it is the bar's top child with HitTestMode.None.
    */
   @Builder
   bottomBar() {
     Stack() {
       Stack({ alignContent: Alignment.Center }) {
         if (this.collapsed()) {
-          // 收起：左下角的圆形玻璃按钮，显示当前页图标，点击展开
+          // Collapsed: round glass button at the bottom left with the current page icon; tap to expand
           Stack() {
             SymbolGlyph(TABS[Math.min(this.selTab(), TABS.length - 1)].icon)
               .fontSize(24)
@@ -383,13 +385,16 @@ struct Index {
           .transition(TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.6, y: 0.6 })))
         } else {
           Row() {
-            ForEach(TABS, (t: TabDef, i: number) => {
+            ForEach(TABS, (tab: TabDef, i: number) => {
               Column() {
-                SymbolGlyph(t.icon).fontSize(22)
+                SymbolGlyph(tab.icon).fontSize(22)
                   .fontColor([i === this.selTab() ? this.store.palette().accent : this.store.palette().text])
-                Text(t.title)
+                Text(t(tab.title))
                   .fontSize(11)
+                  .maxFontSize(11)
+                  .minFontSize(8)
                   .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
                   .fontColor(i === this.selTab() ? this.store.palette().accent : this.store.palette().text)
                   .fontWeight(i === this.selTab() ? FontWeight.Bold : FontWeight.Normal)
                   .margin({ top: 2 })
@@ -402,7 +407,7 @@ struct Index {
               .onClick(() => {
                 this.selectTab(i);
               })
-            }, (t: TabDef) => t.title)
+            }, (tab: TabDef) => tab.title)
           }
           .width(this.rootW > 0 ? this.rootW - 28 : '100%')
           .height('100%')
@@ -429,20 +434,21 @@ struct Index {
     })
   }
 
-  /** 后端连接失败的提示条（悬浮在底栏上方） */
+  /** Backend connection failure banner (floats above the bar) */
   @Builder
   failBanner() {
     Row() {
       SymbolGlyph($r('sys.symbol.exclamationmark')).fontSize(18).fontColor([this.store.palette().bad])
-      Text('后端连接失败：' + this.store.connError)
+      Text(t('backend_failed_banner', this.store.connError))
         .fontSize(13)
         .fontColor(this.store.palette().bad)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
         .margin({ left: 8 })
-      Text('重试')
+      Text(t('retry'))
         .fontSize(14)
+        .maxLines(1)
         .fontColor(this.store.palette().text)
         .padding({ left: 10, right: 10, top: 4, bottom: 4 })
         .onClick(() => {
@@ -464,7 +470,7 @@ struct Index {
     })
   }
 
-  /** 流光层：纯装饰，不参与触摸测试 */
+  /** Sweep layer: decoration only, no hit testing */
   @Builder
   sweepLayer() {
     if (this.sweepShow) {
@@ -488,7 +494,9 @@ struct Index {
     }
   }
 
-  build() {
+  /** Everything on screen. Re-created when the UI language changes so every string switches at once. */
+  @Builder
+  rootContent() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column()
         .width('100%')
@@ -520,9 +528,9 @@ struct Index {
           }
         }
 
-        // 1.1.6：Tabs（隐藏自带页签栏）承载六个页面，支持左右滑动切页；页面切换后保留状态（不重建），
-        // index 与 Store.tab 双向同步：点底栏 → changeIndex 动画切页；滑动 → onChange 回写 Store.tab。
-        // 页面内的横向滚动（如闪退日志）、滑块等子组件的手势优先于 Tabs 的翻页手势。
+        // 1.1.6: Tabs (own tab bar hidden) hold the six pages and support swiping; pages keep their state,
+        // index <-> Store.tab: tapping the bar -> changeIndex animation; swiping -> onChange writes Store.tab.
+        // Horizontal scrolls (e.g. crash log), sliders etc. inside a page win over the Tabs swipe.
         Tabs({ index: this.store.tab, controller: this.tabsCtl }) {
           TabContent() {
             OverviewView({ bottomPad: this.bottomPad(0) })
@@ -593,7 +601,19 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    // 全屏沉浸：根布局铺满整个窗口（含状态栏与底部手势指示条区域），各页面自行按避让区高度留白
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      // 1.2.0: keyed by the UI language; switching language rebuilds the tree (tab/sub-page live in Store and are kept)
+      ForEach([I18N.lang], (lang: string) => {
+        this.rootContent()
+      }, (lang: string) => 'lang_' + lang)
+    }
+    .width('100%')
+    .height('100%')
+    // Full-screen immersive: the root fills the whole window (incl. status bar and gesture area); pages pad by the avoid areas
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onAreaChange((o: Area, n: Area) => {
       this.rootW = Number(n.width);

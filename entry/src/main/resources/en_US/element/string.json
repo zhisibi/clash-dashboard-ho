@@ -1,8 +1,8 @@
 {
   "string": [
-    { "name": "module_desc", "value": "External controller panel for proxy cores" },
+    { "name": "module_desc", "value": "Control panel for mihomo-compatible proxy cores" },
     { "name": "EntryAbility_desc", "value": "Mimi Panel" },
     { "name": "EntryAbility_label", "value": "Mimi Panel" },
-    { "name": "perm_internet", "value": "Connect to the proxy core's external controller (backend)" }
+    { "name": "perm_internet", "value": "Connect to the external controller (backend) of your proxy core" }
   ]
 }
