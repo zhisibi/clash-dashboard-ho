@@ -23,6 +23,8 @@ export struct BackendForm {
   @Local status: string = '';
   @Local statusOk: boolean = false;
   @Local busy: boolean = false;
+  /** Field that failed validation ('host' | 'port'), highlighted in red */
+  @Local errField: string = '';
 
   aboutToAppear(): void {
     this.protocol = this.initial.protocol;
@@ -47,14 +49,46 @@ export struct BackendForm {
     return b;
   }
 
-  valid(): boolean {
-    return this.host.trim().length > 0 && this.port.trim().length > 0;
+  /**
+   * 1.2.1: buttons stay enabled (a disabled button's 40% opacity failed the AppGallery contrast check);
+   * validate on tap instead: toast the missing field and highlight it.
+   */
+  validate(): boolean {
+    let key = '';
+    let msg = '';
+    const port = Number(this.port.trim());
+    if (this.host.trim().length === 0) {
+      key = 'host';
+      msg = t('err_host_required');
+    } else if (this.port.trim().length === 0) {
+      key = 'port';
+      msg = t('err_port_required');
+    } else if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      key = 'port';
+      msg = t('err_port_invalid');
+    }
+    this.errField = key;
+    if (key.length > 0) {
+      this.status = '✗ ' + msg;
+      this.statusOk = false;
+      this.store.toast(msg);
+      return false;
+    }
+    return true;
+  }
+
+  clearErr(key: string): void {
+    if (this.errField === key) {
+      this.errField = '';
+      this.status = '';
+    }
   }
 
   @Builder
-  field(label: string, value: string, placeholder: string, kind: number, onChange: (v: string) => void) {
+  field(label: string, value: string, placeholder: string, kind: number, err: boolean, onChange: (v: string) => void) {
     Column() {
-      Text(label).fontSize(12).fontColor(this.store.palette().subtle).margin({ left: 4, bottom: 4 })
+      Text(label).fontSize(12).fontColor(err ? this.store.palette().bad : this.store.palette().subtle)
+        .margin({ left: 4, bottom: 4 })
       TextInput({ text: value, placeholder: placeholder })
         .type(kind === 1 ? InputType.Number : (kind === 2 ? InputType.Password : InputType.Normal))
         .width('100%')
@@ -65,6 +99,7 @@ export struct BackendForm {
         .caretColor(this.store.palette().accent)
         .backgroundColor(this.store.palette().chip)
         .borderRadius(12)
+        .border({ width: err ? 1.5 : 0, color: this.store.palette().bad, radius: 12 })
         .onChange((v: string) => {
           onChange(v);
         })
@@ -85,28 +120,30 @@ export struct BackendForm {
       })
       Row({ space: 8 }) {
         Column() {
-          this.field(t('f_host'), this.host, '127.0.0.1', 0, (v: string) => {
+          this.field(t('f_host'), this.host, '127.0.0.1', 0, this.errField === 'host', (v: string) => {
             this.host = v;
+            this.clearErr('host');
           })
         }
         .layoutWeight(1)
 
         Column() {
-          this.field(t('f_port'), this.port, '9090', 1, (v: string) => {
+          this.field(t('f_port'), this.port, '9090', 1, this.errField === 'port', (v: string) => {
             this.port = v.replace(new RegExp('[^0-9]', 'g'), '').substring(0, 5);
+            this.clearErr('port');
           })
         }
         .width(110)
       }
       .width('100%')
 
-      this.field(t('f_path'), this.path, t('optional'), 0, (v: string) => {
+      this.field(t('f_path'), this.path, t('optional'), 0, false, (v: string) => {
         this.path = v;
       })
-      this.field(t('f_secret'), this.secret, t('optional'), 2, (v: string) => {
+      this.field(t('f_secret'), this.secret, t('optional'), 2, false, (v: string) => {
         this.secret = v;
       })
-      this.field(t('f_label'), this.label, t('optional'), 0, (v: string) => {
+      this.field(t('f_label'), this.label, t('optional'), 0, false, (v: string) => {
         this.label = v;
       })
 
@@ -127,8 +164,10 @@ export struct BackendForm {
       .width('100%')
       .height(44)
       .backgroundColor(this.store.palette().chip)
-      .enabled(!this.busy && this.valid())
       .onClick(() => {
+        if (this.busy || !this.validate()) {
+          return;
+        }
         this.busy = true;
         this.status = '';
         this.store.probe(this.buildBackend()).then((v: string) => {
@@ -158,8 +197,10 @@ export struct BackendForm {
           .height(44)
           .fontColor(this.store.palette().onPrimary)
           .backgroundColor(this.store.palette().primary)
-          .enabled(this.valid())
           .onClick(() => {
+            if (!this.validate()) {
+              return;
+            }
             this.store.saveBackend(this.buildBackend(), true);
             this.onSaved();
           })

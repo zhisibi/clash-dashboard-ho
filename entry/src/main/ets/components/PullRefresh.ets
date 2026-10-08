@@ -83,7 +83,7 @@ export struct PullRefresh {
         LoadingProgress()
           .width(IND_SIZE)
           .height(IND_SIZE)
-          .color(this.store.palette().primary)
+          .color(this.store.palette().accentUi)
           .opacity(this.refreshing ? 1 : Math.min(1, this.pull / PULL_OFFSET))
           .offset({ y: this.indicatorY() })
           .hitTestBehavior(HitTestMode.Transparent)

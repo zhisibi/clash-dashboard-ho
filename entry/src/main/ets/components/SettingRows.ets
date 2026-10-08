@@ -97,7 +97,7 @@ export struct SwitchRow {
       .alignItems(HorizontalAlign.Start)
 
       Toggle({ type: ToggleType.Switch, isOn: this.checked })
-        .selectedColor(this.pal.accent)
+        .selectedColor(this.pal.accentUi)
         .onChange((on: boolean) => {
           if (on !== this.checked) {
             this.onChange(on);
@@ -199,7 +199,7 @@ export struct SliderRow {
 
       Slider({ value: this.value, min: this.min, max: this.max, step: this.step })
         .width('100%')
-        .selectedColor(this.pal.accent)
+        .selectedColor(this.pal.accentUi)
         .onChange((v: number, mode: SliderChangeMode) => {
           this.onValue(v);
         })

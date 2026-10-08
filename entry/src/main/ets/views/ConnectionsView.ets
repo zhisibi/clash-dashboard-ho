@@ -116,11 +116,11 @@ struct ConnCard {
           Text('↑ ' + fmtBytes(this.conn.upload) +
             (this.conn.uploadSpeed > 0 ? ' (' + fmtSpeed(this.conn.uploadSpeed) + ')' : ''))
             .fontSize(12)
-            .fontColor(this.store.palette().up)
+            .fontColor(this.store.palette().upText)
           Text('↓ ' + fmtBytes(this.conn.download) +
             (this.conn.downloadSpeed > 0 ? ' (' + fmtSpeed(this.conn.downloadSpeed) + ')' : ''))
             .fontSize(12)
-            .fontColor(this.store.palette().down)
+            .fontColor(this.store.palette().downText)
             .margin({ left: 10 })
           Blank()
           Text(fmtDuration((this.conn.closedAt > 0 ? this.conn.closedAt : Date.now()) - this.conn.startMillis))
@@ -386,11 +386,11 @@ export struct ConnectionsView {
               Text('↑ ' + fmtBytes(this.store.connTotalUp))
                 .fontSize(11)
                 .maxLines(1)
-                .fontColor(this.store.palette().up)
+                .fontColor(this.store.palette().upText)
               Text('↓ ' + fmtBytes(this.store.connTotalDown))
                 .fontSize(11)
                 .maxLines(1)
-                .fontColor(this.store.palette().down)
+                .fontColor(this.store.palette().downText)
             }
             .alignItems(HorizontalAlign.End)
             .flexShrink(1)

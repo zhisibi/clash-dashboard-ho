@@ -152,7 +152,7 @@ struct NodeCard {
     .attributeModifier(Store.get().glass('plain'))
     .border({
       width: 2,
-      color: this.store.proxies.get(this.groupName)?.now === this.node ? this.store.palette().primary : Color.Transparent,
+      color: this.store.proxies.get(this.groupName)?.now === this.node ? this.store.palette().accentUi : Color.Transparent,
       radius: 18
     })
     .onClick(() => {
@@ -299,7 +299,7 @@ struct ProviderCard {
           type: ProgressType.Linear
         })
           .style({ strokeWidth: 6 })
-          .color(this.store.palette().primary)
+          .color(this.store.palette().accentUi)
           .backgroundColor(this.store.palette().chip)
           .width('100%')
           .margin({ top: 8 })

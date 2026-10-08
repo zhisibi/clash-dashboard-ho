@@ -132,7 +132,7 @@ struct LanguagePage {
             }
           }) {
             if (this.store.langPref() === k) {
-              SymbolGlyph($r('sys.symbol.checkmark')).fontSize(20).fontColor([this.store.palette().accent])
+              SymbolGlyph($r('sys.symbol.checkmark')).fontSize(20).fontColor([this.store.palette().accentUi])
             }
           }
         }, (k: string) => k)
@@ -240,7 +240,7 @@ struct BackendPage {
           Row() {
             Radio({ value: b.id, group: 'backends' })
               .checked(this.store.active !== null && this.store.active.id === b.id)
-              .radioStyle({ checkedBackgroundColor: this.store.palette().accent })
+              .radioStyle({ checkedBackgroundColor: this.store.palette().accentUi })
               .onChange((on: boolean) => {
                 if (on && (this.store.active === null || this.store.active.id !== b.id)) {
                   this.store.connect(b);
@@ -465,7 +465,7 @@ struct PanelPage {
             .layoutWeight(1)
             .margin({ left: 12 })
           if (this.store.accent === a.key) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([this.store.palette().accent])
+            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([this.store.palette().accentUi])
           }
         }
         .width('100%')
@@ -489,10 +489,10 @@ struct PanelPage {
       Row({ space: 8 }) {
         Text(t('preview_button'))
           .fontSize(14)
-          .fontColor(this.store.palette().onAccent)
+          .fontColor(this.store.palette().onPrimary)
           .padding({ left: 16, right: 16, top: 7, bottom: 7 })
           .borderRadius(16)
-          .backgroundColor(this.store.palette().accent)
+          .backgroundColor(this.store.palette().primary)
         Text(t('preview_tag'))
           .fontSize(14)
           .fontColor(this.store.palette().accent)
@@ -501,7 +501,7 @@ struct PanelPage {
           .backgroundColor(this.store.palette().accentSoft)
         Blank()
         Toggle({ type: ToggleType.Switch, isOn: true })
-          .selectedColor(this.store.palette().accent)
+          .selectedColor(this.store.palette().accentUi)
           .hitTestBehavior(HitTestMode.None)
       }
       .width('100%')
@@ -511,7 +511,7 @@ struct PanelPage {
           .width('62%')
           .height(6)
           .borderRadius(3)
-          .backgroundColor(this.store.palette().accent)
+          .backgroundColor(this.store.palette().accentUi)
       }
       .width('100%')
       .height(6)
@@ -573,7 +573,7 @@ struct PanelPage {
               .width(14)
               .height(14)
               .borderRadius(7)
-              .backgroundColor(this.store.palette().accent)
+              .backgroundColor(this.store.palette().accentFill)
             Text(t(this.store.accentDef().nameKey))
               .fontSize(15)
               .maxLines(1)

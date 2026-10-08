@@ -181,7 +181,7 @@ export struct OverviewView {
 
               LineChart({
                 series: [this.store.memoryHistory.slice()],
-                colors: [this.store.palette().primary],
+                colors: [this.store.palette().accentUi],
                 grid: this.store.palette().outlineVariant,
                 chartHeight: 110
               })

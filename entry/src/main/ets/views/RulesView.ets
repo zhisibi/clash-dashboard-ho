@@ -145,7 +145,7 @@ export struct RulesView {
                       Row() {
                         if (this.store.rulesDisableSupported) {
                           Toggle({ type: ToggleType.Switch, isOn: !ri.item.disabled })
-                            .selectedColor(this.store.palette().accent)
+                            .selectedColor(this.store.palette().accentUi)
                             .onChange((on: boolean) => {
                               if (on === ri.item.disabled) {
                                 this.store.toggleRule(ri.item);

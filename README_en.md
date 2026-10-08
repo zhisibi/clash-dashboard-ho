@@ -10,11 +10,16 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.2.0 (versionCode 1020000) |
+| Version | 1.2.1 (versionCode 1020100) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.2.1
+
+- Fixes the AppGallery pre-listing color-contrast check: **Save & Connect** and **Test Connection** are never shown in a faded disabled state; they validate on tap, show a toast and highlight the missing field.
+- Secondary text, labels, placeholders, status colors and all 7 accent presets (light and dark) now meet WCAG contrast (text 4.5:1, icons 3:1), checked by `scripts/check-contrast.py`.
 
 ## What's new in 1.2.0
 

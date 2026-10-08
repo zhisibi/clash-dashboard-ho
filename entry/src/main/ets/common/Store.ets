@@ -364,7 +364,7 @@ export class Store {
     const p = this.palette();
     c.dark = p.dark;
     c.card = p.card;
-    c.accent = p.accent;
+    c.accent = p.accentFill;
     c.glassOn = this.glassOn;
     c.glassStyle = this.glassStyle;
     c.glassBlur = Math.round(this.glassBlur);

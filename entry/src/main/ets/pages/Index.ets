@@ -159,8 +159,8 @@ struct Index {
         .linearGradient({
           angle: 160,
           colors: this.store.isDark() ?
-            [['#15171C', 0], [mixColor('#111316', this.store.palette().accent, 0.18), 0.55], ['#0E1013', 1]] :
-            [['#F7F8FB', 0], [mixColor('#F4F4F6', this.store.palette().accent, 0.16), 0.55], ['#EEF0F4', 1]]
+            [['#15171C', 0], [mixColor('#111316', this.store.palette().accentFill, 0.18), 0.55], ['#0E1013', 1]] :
+            [['#F7F8FB', 0], [mixColor('#F4F4F6', this.store.palette().accentFill, 0.16), 0.55], ['#EEF0F4', 1]]
         })
       Column()
         .width('100%')
@@ -168,8 +168,8 @@ struct Index {
         .radialGradient({
           center: [(this.store.lightOn ? 30 + Math.sin(this.store.lightDeg * Math.PI / 180) * 18 : 22) + '%', '18%'],
           radius: '75%',
-          colors: [[withAlpha(this.store.palette().accent, this.store.isDark() ? 0.38 : 0.30), 0],
-            [withAlpha(this.store.palette().accent, 0), 1]]
+          colors: [[withAlpha(this.store.palette().accentFill, this.store.isDark() ? 0.38 : 0.30), 0],
+            [withAlpha(this.store.palette().accentFill, 0), 1]]
         })
       Column()
         .width('100%')
@@ -299,8 +299,8 @@ struct Index {
         Button(t('agree'), { type: ButtonType.Capsule })
           .layoutWeight(1)
           .height(44)
-          .fontColor(this.store.palette().onAccent)
-          .backgroundColor(this.store.palette().accent)
+          .fontColor(this.store.palette().onPrimary)
+          .backgroundColor(this.store.palette().primary)
           .onClick(() => {
             this.store.agreePrivacy();
           })
@@ -316,7 +316,7 @@ struct Index {
   @Builder
   consentPoint(t: string) {
     Row() {
-      Text('•').fontSize(14).fontColor(this.store.palette().accent).width(14)
+      Text('•').fontSize(14).fontColor(this.store.palette().accentUi).width(14)
       Text(t).fontSize(14).lineHeight(22).fontColor(this.store.palette().text).layoutWeight(1)
     }
     .width('100%')
@@ -329,7 +329,7 @@ struct Index {
     Scroll() {
       Column() {
         Blank().height(40)
-        SymbolGlyph($r('sys.symbol.paperplane')).fontSize(56).fontColor([this.store.palette().primary])
+        SymbolGlyph($r('sys.symbol.paperplane')).fontSize(56).fontColor([this.store.palette().accentUi])
         Text(t('setup_title'))
           .fontSize(26)
           .fontWeight(FontWeight.Medium)
@@ -375,7 +375,7 @@ struct Index {
           Stack() {
             SymbolGlyph(TABS[Math.min(this.selTab(), TABS.length - 1)].icon)
               .fontSize(24)
-              .fontColor([this.store.palette().accent])
+              .fontColor([this.store.palette().accentUi])
           }
           .width(DOT)
           .height(DOT)
@@ -388,7 +388,7 @@ struct Index {
             ForEach(TABS, (tab: TabDef, i: number) => {
               Column() {
                 SymbolGlyph(tab.icon).fontSize(22)
-                  .fontColor([i === this.selTab() ? this.store.palette().accent : this.store.palette().text])
+                  .fontColor([i === this.selTab() ? this.store.palette().accentUi : this.store.palette().text])
                 Text(t(tab.title))
                   .fontSize(11)
                   .maxFontSize(11)
