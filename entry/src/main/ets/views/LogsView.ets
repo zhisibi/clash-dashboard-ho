@@ -54,7 +54,7 @@ export struct LogsView {
     }
     try {
       const text = this.list().map((l: LogEntry) => logLine(l)).join('\n');
-      const name = await FileUtil.saveTextAs(ctx, 'clash-logs-' + fmtStamp(Date.now()) + '.txt', text);
+      const name = await FileUtil.saveTextAs(ctx, 'mimi-logs-' + fmtStamp(Date.now()) + '.txt', text);
       if (name.length > 0) {
         this.store.toast('已保存: ' + name);
       }

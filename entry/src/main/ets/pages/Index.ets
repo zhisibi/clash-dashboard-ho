@@ -9,6 +9,7 @@ import { LogsView } from '../views/LogsView';
 import { RulesView } from '../views/RulesView';
 import { SettingsView, CrashDetail } from '../views/SettingsView';
 import { mixColor, withAlpha } from '../common/Theme';
+import { LegalView } from '../components/LegalView';
 
 class TabDef {
   title: string = '';
@@ -113,6 +114,10 @@ struct Index {
   }
 
   onBackPress(): boolean | void {
+    if (this.store.legalDoc.length > 0) {
+      this.store.legalDoc = '';
+      return true;
+    }
     if (this.collapsed()) {
       this.store.expandNav();
     }
@@ -220,13 +225,110 @@ struct Index {
     })
   }
 
+  /** 首次启动：同意隐私政策与用户协议之前不发起任何网络请求；不同意则退出 */
+  @Builder
+  consentScreen() {
+    Column() {
+      Scroll() {
+        Column() {
+          Image($r('app.media.layered_image')).width(72).height(72).borderRadius(18)
+          Text('欢迎使用咪咪面板')
+            .fontSize(24)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.store.palette().text)
+            .margin({ top: 16 })
+          Text('咪咪面板用于管理你自行部署、与 mihomo 兼容的代理内核的外部控制器（external-controller）。本应用不包含代理内核，也不提供代理服务。')
+            .fontSize(14)
+            .lineHeight(22)
+            .fontColor(this.store.palette().subtle)
+            .margin({ top: 10 })
+          Column() {
+            this.consentPoint('无账号、不收集个人信息、不含第三方 SDK')
+            this.consentPoint('后端地址、密钥与设置只保存在本机')
+            this.consentPoint('网络请求只发往你自己配置的后端')
+            this.consentPoint('闪退日志只保存在本机，仅在你点击分享/复制/另存为时导出')
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .margin({ top: 16 })
+          .padding(16)
+          .borderRadius(16)
+          .backgroundColor(this.store.palette().chip)
+
+          Text() {
+            Span('请阅读并同意')
+            Span('《隐私政策》')
+              .fontColor(this.store.palette().accent)
+              .onClick(() => {
+                this.store.legalDoc = 'privacy';
+              })
+            Span('和')
+            Span('《用户协议》')
+              .fontColor(this.store.palette().accent)
+              .onClick(() => {
+                this.store.legalDoc = 'agreement';
+              })
+            Span('。点击“同意”即表示你已阅读并同意上述内容；点击“不同意”将退出应用。')
+          }
+          .fontSize(14)
+          .lineHeight(22)
+          .fontColor(this.store.palette().text)
+          .margin({ top: 16 })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 24, right: 24, top: this.store.safeTop + 40, bottom: 16 })
+      }
+      .layoutWeight(1)
+      .width('100%')
+      .align(Alignment.Top)
+      .scrollBar(BarState.Off)
+
+      Row() {
+        Button('不同意', { type: ButtonType.Capsule })
+          .layoutWeight(1)
+          .height(44)
+          .fontColor(this.store.palette().text)
+          .backgroundColor(this.store.palette().chip)
+          .onClick(() => {
+            this.store.declinePrivacy();
+          })
+        Blank().width(12)
+        Button('同意', { type: ButtonType.Capsule })
+          .layoutWeight(1)
+          .height(44)
+          .fontColor(this.store.palette().onAccent)
+          .backgroundColor(this.store.palette().accent)
+          .onClick(() => {
+            this.store.agreePrivacy();
+          })
+      }
+      .width('100%')
+      .padding({ left: 24, right: 24, top: 8, bottom: this.store.safeBottom + 16 })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(this.store.palette().bg)
+  }
+
+  @Builder
+  consentPoint(t: string) {
+    Row() {
+      Text('•').fontSize(14).fontColor(this.store.palette().accent).width(14)
+      Text(t).fontSize(14).lineHeight(22).fontColor(this.store.palette().text).layoutWeight(1)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Top)
+    .margin({ top: 2, bottom: 2 })
+  }
+
   @Builder
   setupScreen() {
     Scroll() {
       Column() {
         Blank().height(40)
         SymbolGlyph($r('sys.symbol.paperplane')).fontSize(56).fontColor([this.store.palette().primary])
-        Text('连接 Clash 后端')
+        Text('连接后端')
           .fontSize(26)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.store.palette().text)
@@ -397,7 +499,9 @@ struct Index {
       if (this.store.glassOn && (this.store.wallpaperPath.length === 0 || this.store.backends.length === 0)) {
         this.glassBackdrop()
       }
-      if (this.store.backends.length === 0) {
+      if (!this.store.privacyAgreed) {
+        this.consentScreen()
+      } else if (this.store.backends.length === 0) {
         this.setupScreen()
       } else {
         if (this.store.wallpaperPath.length > 0) {
@@ -476,6 +580,15 @@ struct Index {
         .alignItems(HorizontalAlign.Start)
         .padding({ left: 14, right: 14, bottom: this.navBottom() })
         .hitTestBehavior(HitTestMode.Transparent)
+      }
+
+      if (this.store.legalDoc.length > 0) {
+        LegalView({
+          doc: this.store.legalDoc,
+          onClose: () => {
+            this.store.legalDoc = '';
+          }
+        })
       }
     }
     .width('100%')

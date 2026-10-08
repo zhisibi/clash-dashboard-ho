@@ -4,8 +4,9 @@ import { Store } from '../common/Store';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ACCENTS, AccentDef } from '../common/Theme';
 import { Backend } from '../common/Models';
-import { ClashApi } from '../common/ClashApi';
+import { CoreApi } from '../common/CoreApi';
 import { CrashLog } from '../common/CrashLog';
+import { LEGAL_CONTACT, LEGAL_DEVELOPER } from '../common/Legal';
 import { FileUtil } from '../common/FileUtil';
 import { modeName } from '../common/Format';
 import { DropdownChip, HeaderStatus, SearchBox, SegTabs } from '../components/Widgets';
@@ -32,11 +33,13 @@ const SECTIONS: Section[] = [
   new Section('backend', '后端', '当前后端、内核运维与网络监听', $r('sys.symbol.externaldrive'),
     '后端 内核 模式 tun 局域网 端口 重启 更新 geo dns fakeip 重载 配置 密钥'),
   new Section('panel', '面板', '主题、主题色、导航栏、毛玻璃、沉浸光感、壁纸', $r('sys.symbol.house'),
-    '导航栏 底栏 自动收起 隐藏 主题 主题色 颜色 配色 深色 浅色 壁纸 背景 版本 关于 毛玻璃 玻璃 模糊 磨砂 透明 材质 光感 沉浸 沉浸光感 光效 高光 流光 光晕 重力 陀螺仪 倾斜'),
+    '导航栏 底栏 自动收起 隐藏 主题 主题色 颜色 配色 深色 浅色 壁纸 背景 毛玻璃 玻璃 模糊 磨砂 透明 材质 光感 沉浸 沉浸光感 光效 高光 流光 光晕 重力 陀螺仪 倾斜'),
   new Section('proxy', '代理', '测速、代理组展示', $r('sys.symbol.paperplane'), '测速 延迟 url 超时 排序 隐藏 卡片 global'),
   new Section('conn', '连接', '连接与日志保留数量', $r('sys.symbol.arrow_left_arrow_right'), '连接 日志 保留 数量 规则 命中'),
   new Section('crash', '闪退日志', '查看、复制、分享应用崩溃记录', $r('sys.symbol.exclamationmark_magnifyingglass'),
-    '闪退 崩溃 crash 日志 反馈 bug')
+    '闪退 崩溃 crash 日志 反馈 bug'),
+  new Section('about', '关于', '版本、开发者、隐私政策与用户协议', $r('sys.symbol.info_circle'),
+    '关于 版本 开发者 隐私 隐私政策 用户协议 协议 撤回 同意')
 ];
 
 const LOG_LEVELS: string[] = ['debug', 'info', 'warning', 'error', 'silent'];
@@ -75,22 +78,22 @@ const OPS: OpDef[] = [
 function runOp(store: Store, key: string): void {
   switch (key) {
     case '重载配置':
-      store.coreAction(key, (a: ClashApi) => a.reloadConfigs());
+      store.coreAction(key, (a: CoreApi) => a.reloadConfigs());
       break;
     case '更新 GEO':
-      store.coreAction(key, (a: ClashApi) => a.upgradeGeo());
+      store.coreAction(key, (a: CoreApi) => a.upgradeGeo());
       break;
     case '清空 FakeIP':
-      store.coreAction(key, (a: ClashApi) => a.flushFakeIp());
+      store.coreAction(key, (a: CoreApi) => a.flushFakeIp());
       break;
     case '清空 DNS 缓存':
-      store.coreAction(key, (a: ClashApi) => a.flushDns());
+      store.coreAction(key, (a: CoreApi) => a.flushDns());
       break;
     case '更新内核':
-      store.coreAction(key, (a: ClashApi) => a.upgradeCore());
+      store.coreAction(key, (a: CoreApi) => a.upgradeCore());
       break;
     case '重启内核':
-      store.coreAction(key, (a: ClashApi) => a.restart());
+      store.coreAction(key, (a: CoreApi) => a.restart());
       break;
     default:
       break;
@@ -753,14 +756,6 @@ struct PanelPage {
         }
       }
 
-      Group({ pal: this.store.palette(), title: '关于' }) {
-        RowItem({
-          pal: this.store.palette(),
-          title: 'Clash 面板',
-          desc: '版本 ' + CrashLog.versionName() + ' · ArkTS + ArkUI 原生实现（HarmonyOS）'
-        })
-        RowItem({ pal: this.store.palette(), title: '兼容内核', desc: 'mihomo (Clash.Meta) RESTful API，部分功能兼容原版 Clash' })
-      }
     }
     .width('100%')
   }
@@ -963,7 +958,7 @@ export struct CrashDetail {
           .onClick(() => {
             const ctx = this.store.ctx;
             if (ctx !== null) {
-              FileUtil.shareText(ctx, 'Clash 面板 闪退日志', CrashLog.read(this.name)).catch(() => {
+              FileUtil.shareText(ctx, '咪咪面板 闪退日志', CrashLog.read(this.name)).catch(() => {
                 this.store.toast('分享失败');
               });
             }
@@ -977,7 +972,7 @@ export struct CrashDetail {
             if (ctx === null) {
               return;
             }
-            FileUtil.saveTextAs(ctx, 'clashpanel-' + this.name, CrashLog.read(this.name)).then((n: string) => {
+            FileUtil.saveTextAs(ctx, 'mimipanel-' + this.name, CrashLog.read(this.name)).then((n: string) => {
               if (n.length > 0) {
                 this.store.toast('已保存 ' + n);
               }
@@ -1100,6 +1095,79 @@ struct CrashLogPage {
   }
 }
 
+// ---------------- 关于 ----------------
+@ComponentV2
+struct AboutPage {
+  private store: Store = Store.get();
+
+  withdraw(): void {
+    this.getUIContext().showAlertDialog({
+      title: '撤回隐私政策同意',
+      message: '撤回后将断开后端并退出应用，下次打开需要重新同意才能使用。已保存的后端与设置仍保留在本机，如需删除请卸载应用。',
+      autoCancel: true,
+      primaryButton: {
+        value: '取消', action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '撤回并退出', fontColor: this.store.palette().bad, action: () => {
+          this.store.declinePrivacy();
+        }
+      }
+    });
+  }
+
+  @Builder
+  chevron() {
+    SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16).fontColor([this.store.palette().subtle])
+  }
+
+  build() {
+    Column() {
+      Group({ pal: this.store.palette(), title: '' }) {
+        RowItem({ pal: this.store.palette(), title: '应用名称', desc: '咪咪面板' })
+        RowItem({ pal: this.store.palette(), title: '版本', desc: CrashLog.versionName() })
+        RowItem({ pal: this.store.palette(), title: '开发者', desc: LEGAL_DEVELOPER + ' · ' + LEGAL_CONTACT })
+        RowItem({
+          pal: this.store.palette(),
+          title: '兼容接口',
+          desc: '与 mihomo 兼容的外部控制器（external-controller）RESTful API。本应用不包含代理内核，也不提供代理服务。'
+        })
+      }
+
+      Group({ pal: this.store.palette(), title: '协议' }) {
+        RowItem({
+          pal: this.store.palette(), title: '隐私政策', clickable: true, onTap: () => {
+            this.store.legalDoc = 'privacy';
+          }
+        }) {
+          this.chevron()
+        }
+        RowItem({
+          pal: this.store.palette(), title: '用户协议', clickable: true, onTap: () => {
+            this.store.legalDoc = 'agreement';
+          }
+        }) {
+          this.chevron()
+        }
+        RowItem({
+          pal: this.store.palette(),
+          title: '撤回隐私政策同意',
+          desc: '撤回后应用将退出',
+          descColor: this.store.palette().subtle,
+          clickable: true,
+          onTap: () => {
+            this.withdraw();
+          }
+        }) {
+          this.chevron()
+        }
+      }
+    }
+    .width('100%')
+  }
+}
+
 // ---------------- 设置主页 ----------------
 @ComponentV2
 export struct SettingsView {
@@ -1179,6 +1247,8 @@ export struct SettingsView {
             ConnPrefsPage()
           } else if (this.store.settingsPage === 'crash') {
             CrashLogPage()
+          } else if (this.store.settingsPage === 'about') {
+            AboutPage()
           }
         }
         .padding({ left: 14, right: 14, top: this.headerH, bottom: this.bottomPad + 14 })

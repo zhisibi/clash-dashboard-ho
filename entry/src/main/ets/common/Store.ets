@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { util } from '@kit.ArkTS';
 import { fileUri } from '@kit.CoreFileKit';
-import { ApiError, ClashApi, VersionInfo, WsStream, errMsg } from './ClashApi';
+import { ApiError, CoreApi, VersionInfo, WsStream, errMsg } from './CoreApi';
 import {
   Backend, ConnItem, CoreConfig, JObj, LogEntry, ProxyItem, ProxyProvider, RuleItem, RuleProvider, Traffic,
   asObj, jArr, jNum, jStr, parseConnection, parseJsonObj
@@ -11,6 +11,7 @@ import { Prefs } from './Prefs';
 import { AccentDef, Palette, applyAccent, darkPalette, findAccent, lightPalette, withAlpha } from './Theme';
 import { FileUtil } from './FileUtil';
 import { CrashLog } from './CrashLog';
+import { PRIVACY_VERSION } from './Legal';
 import { sensor } from '@kit.SensorServiceKit';
 import { GlassCfg, GlassKind, GlassModifier, detectSysMaterial, sheetBlurStyle } from './Glass';
 
@@ -63,7 +64,7 @@ export class Store {
   uiCtx: UIContext | null = null;
   win: window.Window | null = null;
   prefs: Prefs | null = null;
-  private api: ClashApi | null = null;
+  private api: CoreApi | null = null;
   private streams: WsStream[] = [];
   private logStream: WsStream | null = null;
   private prevConns: Map<string, ConnItem> = new Map<string, ConnItem>();
@@ -158,7 +159,7 @@ export class Store {
   @Trace ruleProviders: RuleProvider[] = [];
   @Trace updatingRuleProviders: Map<string, boolean> = new Map<string, boolean>();
   @Trace rulesDisableSupported: boolean = true;
-  /** 当前后端以 404/405/501 拒绝的操作（例如 FlClash 限制了外部控制） */
+  /** 当前后端以 404/405/501 拒绝的操作（例如部分客户端限制了外部控制） */
   @Trace unsupported: Map<string, number> = new Map<string, number>();
 
   // ----- connections -----
@@ -181,6 +182,14 @@ export class Store {
 
   // ----- crash -----
   @Trace crashPrompt: boolean = false;
+
+  // ----- privacy -----
+  /** 用户是否已同意当前版本的隐私政策与用户协议；同意前不发起任何网络请求 */
+  @Trace privacyAgreed: boolean = false;
+  /** 正在查看的协议全文：'' | 'privacy' | 'agreement' */
+  @Trace legalDoc: string = '';
+  /** 同意前暂不连接的后端，同意后再连接 */
+  private pendingBackend: Backend | null = null;
 
   // ----- navigation -----
   @Trace tab: number = 0;
@@ -247,8 +256,38 @@ export class Store {
     }
     this.updateTilt();
     this.crashPrompt = CrashLog.hasUnseen();
+    this.privacyAgreed = p.num('privacy_agreed', 0) >= PRIVACY_VERSION;
     if (act !== null) {
-      this.connect(act);
+      if (this.privacyAgreed) {
+        this.connect(act);
+      } else {
+        this.pendingBackend = act;
+      }
+    }
+  }
+
+  /** 首次启动同意隐私政策与用户协议：记录同意的版本，然后才开始连接后端 */
+  agreePrivacy(): void {
+    this.prefs?.put('privacy_agreed', PRIVACY_VERSION);
+    this.privacyAgreed = true;
+    const b = this.pendingBackend;
+    this.pendingBackend = null;
+    if (b !== null && this.active === null) {
+      this.connect(b);
+    }
+  }
+
+  /** 不同意 / 撤回同意：清除同意记录、断开后端并退出应用 */
+  declinePrivacy(): void {
+    this.prefs?.remove('privacy_agreed');
+    this.privacyAgreed = false;
+    this.stopStreams();
+    this.api = null;
+    try {
+      this.ctx?.terminateSelf().catch(() => {
+      });
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -679,7 +718,7 @@ export class Store {
     this.stopStreams();
     this.active = b;
     this.prefs?.put('active_backend', b.id);
-    const a = new ClashApi(b);
+    const a = new CoreApi(b);
     this.api = a;
     this.connState = 'connecting';
     this.connError = '';
@@ -719,7 +758,7 @@ export class Store {
 
   /** 测试后端但不切换 */
   async probe(b: Backend): Promise<string> {
-    const v = await new ClashApi(b).version();
+    const v = await new CoreApi(b).version();
     return v.version.length > 0 ? v.version : '（未提供版本号）';
   }
 
@@ -753,7 +792,7 @@ export class Store {
     this.logBuf = [];
   }
 
-  private startStreams(a: ClashApi): void {
+  private startStreams(a: CoreApi): void {
     this.streams.push(a.openStream('/traffic', (t: string) => {
       if (this.api !== a) {
         return;
@@ -784,7 +823,7 @@ export class Store {
     this.restartLogs(a);
   }
 
-  private restartLogs(a: ClashApi): void {
+  private restartLogs(a: CoreApi): void {
     if (this.logStream !== null) {
       this.logStream.stop();
       this.logStream = null;
@@ -944,7 +983,7 @@ export class Store {
   }
 
   /** 运维操作：label 同时作为“不支持”标记的 key */
-  coreAction(label: string, fn: (a: ClashApi) => Promise<void>): void {
+  coreAction(label: string, fn: (a: CoreApi) => Promise<void>): void {
     const a = this.api;
     if (a === null) {
       return;

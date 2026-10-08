@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '发布的标签（如 v1.1.6）'
+        description: '发布的标签（如 v1.1.7）'
         required: true
 
 permissions:
@@ -97,10 +97,10 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           [ "v$VERSION" = "$TAG" ] || echo "::warning::标签 $TAG 与 versionName $VERSION 不一致"
           mkdir -p dist
-          cp entry/build/default/outputs/default/entry-default-unsigned.hap "dist/ClashPanel-HarmonyOS-$VERSION-unsigned.hap"
+          cp entry/build/default/outputs/default/entry-default-unsigned.hap "dist/MimiPanel-HarmonyOS-$VERSION-unsigned.hap"
           ls -la dist
 
-      - name: 签名 HAP（可选）
+      - name: 签名 HAP 并构建 APP（可选）
         env:
           HAP_SIGN_P12_BASE64: ${{ secrets.HAP_SIGN_P12_BASE64 }}
           HAP_SIGN_CER_BASE64: ${{ secrets.HAP_SIGN_CER_BASE64 }}
@@ -113,26 +113,34 @@ jobs:
           # 去掉 Secrets 里可能误带的空格/换行
           trim() { printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
           P12=$(trim "$HAP_SIGN_P12_BASE64"); CER=$(trim "$HAP_SIGN_CER_BASE64"); P7B=$(trim "$HAP_SIGN_P7B_BASE64")
-          ALIAS=$(trim "$HAP_KEY_ALIAS"); KEYPW=$(trim "$HAP_KEY_PASSWORD"); STOREPW=$(trim "$HAP_STORE_PASSWORD")
-          if [ -z "$P12" ] || [ -z "$CER" ] || [ -z "$P7B" ] || [ -z "$ALIAS" ] || [ -z "$KEYPW" ] || [ -z "$STOREPW" ]; then
-            echo "::notice::未配置完整的 HAP 签名 Secrets，只发布未签名 HAP"
+          export HAP_KEY_ALIAS=$(trim "$HAP_KEY_ALIAS") HAP_KEY_PASSWORD=$(trim "$HAP_KEY_PASSWORD") HAP_STORE_PASSWORD=$(trim "$HAP_STORE_PASSWORD")
+          if [ -z "$P12" ] || [ -z "$CER" ] || [ -z "$P7B" ] || [ -z "$HAP_KEY_ALIAS" ] || [ -z "$HAP_KEY_PASSWORD" ] || [ -z "$HAP_STORE_PASSWORD" ]; then
+            echo "::notice::未配置完整的签名 Secrets，只发布未签名 HAP"
             exit 0
           fi
           d="$RUNNER_TEMP/sign"; mkdir -p "$d"
           printf '%s' "$P12" | tr -d ' \t' | base64 -d > "$d/key.p12"
           printf '%s' "$CER" | tr -d ' \t' | base64 -d > "$d/app.cer"
           printf '%s' "$P7B" | tr -d ' \t' | base64 -d > "$d/app.p7b"
-          echo "::notice::p12 $(wc -c < "$d/key.p12") B, cer $(wc -c < "$d/app.cer") B, p7b $(wc -c < "$d/app.p7b") B, aliasLen=${#ALIAS}"
-          if ! java -jar "$CLT_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar" sign-app \
-                 -mode localSign -keyAlias "$ALIAS" -keyPwd "$KEYPW" -signAlg SHA256withECDSA \
-                 -appCertFile "$d/app.cer" -profileFile "$d/app.p7b" \
-                 -keystoreFile "$d/key.p12" -keystorePwd "$STOREPW" \
-                 -inFile "dist/ClashPanel-HarmonyOS-$VERSION-unsigned.hap" \
-                 -outFile "dist/ClashPanel-HarmonyOS-$VERSION-signed.hap" -signCode 1 > sign.log 2>&1; then
-            echo "::error::签名失败：$(grep -v '^$' sign.log | tail -5 | head -c 400 | tr '\n' ' ')"
+          echo "::notice::p12 $(wc -c < "$d/key.p12") B, cer $(wc -c < "$d/app.cer") B, p7b $(wc -c < "$d/app.p7b") B, aliasLen=${#HAP_KEY_ALIAS}"
+          # 生成 hvigor 的 signingConfig（只改 CI 工作区里的 build-profile.json5，不会提交）
+          node scripts/ci-signing.js "$d"
+          export DEVECO_SDK_HOME="$CLT_HOME/sdk"
+          export DEVECO_NODE_HOME="$(dirname "$(dirname "$(command -v node)")")"
+          export PATH="$CLT_HOME/bin:$CLT_HOME/ohpm/bin:$PATH"
+          # assembleApp 会先签名 HAP，再打包并签名 .app（上传 AppGallery Connect 用）
+          if ! hvigorw --mode project -p product=default -p buildMode=release -p debuggable=false \
+               assembleApp --no-daemon --no-parallel > sign.log 2>&1; then
+            grep -E "ERROR|Error|error:|FAILED|Failed" sign.log | head -20 | while IFS= read -r l; do echo "::error::$l"; done
+            tail -40 sign.log
+            rm -rf "$d"
             exit 1
           fi
           rm -rf "$d"
+          tail -5 sign.log
+          cp entry/build/default/outputs/default/entry-default-signed.hap "dist/MimiPanel-HarmonyOS-$VERSION-signed.hap"
+          app=$(ls build/outputs/default/*-default-signed.app | head -1)
+          cp "$app" "dist/MimiPanel-HarmonyOS-$VERSION-signed.app"
           echo "SIGNED=1" >> "$GITHUB_ENV"
           ls -la dist
 
@@ -140,21 +148,22 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "## Clash 面板 HarmonyOS 版 $VERSION"
+            echo "## 咪咪面板 HarmonyOS 版 $VERSION"
             echo
             awk -v v="### $VERSION" '$0==v{f=1;next} f&&/^##/{exit} f' README.md
             echo
             echo "## 安装说明"
             echo
-            echo "- \`ClashPanel-HarmonyOS-$VERSION-unsigned.hap\`：**未签名**，只能安装到 DevEco Studio 的模拟器上。"
+            echo "- \`MimiPanel-HarmonyOS-$VERSION-unsigned.hap\`：**未签名**，只能安装到 DevEco Studio 的模拟器上。"
             if [ "${SIGNED:-}" = "1" ]; then
-              echo "- \`ClashPanel-HarmonyOS-$VERSION-signed.hap\`：已用仓库配置的证书签名，只能安装到该证书/Profile 授权的设备上（\`hdc install\`）。"
+              echo "- \`MimiPanel-HarmonyOS-$VERSION-signed.hap\`：已用仓库配置的证书签名，只能安装到该证书/Profile 授权的设备上（\`hdc install\`）。"
+              echo "- \`MimiPanel-HarmonyOS-$VERSION-signed.app\`：已签名的 APP 包，用于上传 AppGallery Connect（需使用发布证书与发布 Profile 签名）。"
             fi
             echo "- 真机需要用自己的华为开发者账号签名：在 DevEco Studio 中打开项目，\`File → Project Structure → Signing Configs\` 勾选自动签名后运行，或按 README 的“签名与安装到真机”手动签名。"
             echo
             echo "SHA-256："
             echo '```'
-            (cd dist && sha256sum *.hap)
+            (cd dist && sha256sum *.hap *.app 2>/dev/null || true)
             echo '```'
           } > release-notes.md
           cat release-notes.md
@@ -163,6 +172,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          name: Clash 面板 HarmonyOS ${{ env.TAG }}
+          name: 咪咪面板 HarmonyOS ${{ env.TAG }}
           body_path: release-notes.md
-          files: dist/*.hap
+          files: |
+            dist/*.hap
+            dist/*.app

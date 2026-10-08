@@ -87,7 +87,7 @@ export function errMsg(e: Object): string {
   return String(e);
 }
 
-export class ClashApi {
+export class CoreApi {
   backend: Backend;
 
   constructor(backend: Backend) {
@@ -138,7 +138,7 @@ export class ClashApi {
       const text = typeof resp.result === 'string' ? resp.result as string : '';
       const code = resp.responseCode as number;
       if (code < 200 || code >= 300) {
-        throw ClashApi.failure(code, text);
+        throw CoreApi.failure(code, text);
       }
       return text;
     } catch (e) {
@@ -175,7 +175,7 @@ export class ClashApi {
       const t = resp.toString();
       const text = t !== null ? t : '';
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw ClashApi.failure(resp.statusCode, text);
+        throw CoreApi.failure(resp.statusCode, text);
       }
       return text;
     } catch (e) {

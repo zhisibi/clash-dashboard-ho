@@ -1,8 +1,8 @@
 {
   "string": [
-    { "name": "module_desc", "value": "mihomo / Clash 外部控制面板" },
-    { "name": "EntryAbility_desc", "value": "Clash 面板" },
-    { "name": "EntryAbility_label", "value": "Clash 面板" },
-    { "name": "perm_internet", "value": "连接 mihomo / Clash 外部控制器" }
+    { "name": "module_desc", "value": "代理内核外部控制面板" },
+    { "name": "EntryAbility_desc", "value": "咪咪面板" },
+    { "name": "EntryAbility_label", "value": "咪咪面板" },
+    { "name": "perm_internet", "value": "连接代理内核的外部控制器（后端）" }
   ]
 }

@@ -1,6 +1,6 @@
 import { Store } from '../common/Store';
 import { Backend } from '../common/Models';
-import { errMsg } from '../common/ClashApi';
+import { errMsg } from '../common/CoreApi';
 import { SegTabs } from './Widgets';
 
 /** 后端表单（对应 Kotlin 版 BackendForm），首次设置页与“添加/编辑后端”共用 */

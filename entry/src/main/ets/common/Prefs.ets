@@ -7,7 +7,7 @@ export class Prefs {
   private sp: preferences.Preferences;
 
   constructor(ctx: common.Context) {
-    const opts: preferences.Options = { name: 'clash_panel' };
+    const opts: preferences.Options = { name: 'mimi_panel' };
     this.sp = preferences.getPreferencesSync(ctx, opts);
   }
 

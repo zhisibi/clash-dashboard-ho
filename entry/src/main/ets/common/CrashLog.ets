@@ -39,7 +39,7 @@ export class CrashLog {
       const bi = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
       return bi.versionName + ' (' + bi.versionCode + ')';
     } catch (e) {
-      return '1.1.6';
+      return '1.1.7';
     }
   }
 
@@ -48,7 +48,7 @@ export class CrashLog {
       return;
     }
     const now = Date.now();
-    let text = 'Clash 面板 闪退日志\n';
+    let text = '咪咪面板 闪退日志\n';
     text += '时间: ' + fmtDateTime(now) + '\n';
     text += '应用版本: ' + CrashLog.versionName() + '\n';
     text += '设备: ' + deviceInfo.manufacture + ' ' + deviceInfo.marketName + ' (' + deviceInfo.productModel + ')\n';

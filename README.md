@@ -1,20 +1,31 @@
-# Clash 面板（HarmonyOS 版）
+# 咪咪面板（HarmonyOS 版）
 
-用 **ArkTS + ArkUI（Stage 模型）** 编写的 HarmonyOS 原生面板，管理 **mihomo / Clash** 的 `external-controller` RESTful API。
-功能与安卓 Kotlin/Compose 版 v1.1.2（包名 `net.zash.clashpanel`）对齐，界面参照 Zashboard。
+用 **ArkTS + ArkUI（Stage 模型）** 编写的 HarmonyOS 原生管理面板，适用于与 mihomo 兼容的代理内核所提供的 `external-controller` RESTful API。
+功能与安卓 Kotlin/Compose 版 v1.1.2 对齐，界面参照 Zashboard。
 
-> App 本身**不包含 mihomo 内核**，也不会启动代理服务，需要配合已运行的 mihomo / Clash（路由器上的 OpenClash、局域网电脑上的 mihomo，或手机上的代理客户端）使用。
+> App 本身**不包含代理内核**，也不会启动代理服务，需要配合已在运行的后端使用（例如路由器或局域网电脑上的内核，或手机上的代理客户端开放的外部控制器）。
 
 | 项目 | 值 |
 | --- | --- |
-| bundleName | `net.zash.clashpanel` |
-| 版本 | 1.1.6（versionCode 1010600） |
+| 应用名 | 咪咪面板（英文 Mimi Panel） |
+| bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
+| 版本 | 1.1.7（versionCode 1010700） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
 | 状态管理 | ArkUI 状态管理 V2（`@ObservedV2` / `@Trace` / `@ComponentV2`） |
 
 ## 更新日志
+
+### 1.1.7
+
+- 改名为 **咪咪面板**（英文 Mimi Panel），去掉界面、代码与文档中的第三方品牌字样；内部 API 客户端改名为 `CoreApi`
+- bundleName 改为 `com.zhisibi.mimipanel`，为上架华为应用市场做准备。**这是一个新应用**：与旧包名的版本互不覆盖，旧版里的后端与设置不会自动带过来，需要重新添加
+- 新增首次启动的《隐私政策》《用户协议》同意弹窗：同意前不发起任何网络请求，不同意则退出；正文见 `docs/privacy.md`、`docs/agreement.md`
+- 新增 **设置 → 关于**：应用名称、版本、开发者、隐私政策、用户协议、撤回隐私政策同意
+- 应用内本地设置存储改名为 `mimi_panel`，导出日志文件名改为 `mimi-logs-*.txt`
+- 增加英文（en_US）应用名称资源
+- 自动发布：附件改名为 `MimiPanel-HarmonyOS-<版本>-unsigned.hap`；配置签名 Secrets 后还会构建并附上已签名的 `.hap` 和用于上传 AppGallery Connect 的已签名 `.app`
 
 ### 1.1.6
 
@@ -43,7 +54,7 @@
 - 所有新设置保存在本地，修改即时生效、无需重启，并适配深色模式；设置搜索支持“毛玻璃 / 模糊 / 光感 / 沉浸”等关键词
 
 ### 1.1.3
-- 新图标：原创扁平风“小猫咪”头像（致敬 Clash 吉祥物），蓝紫渐变背景，HarmonyOS 分层图标（前景/背景 1024×1024，主体在安全区内，圆形/圆角方形遮罩都不会裁切）
+- 新图标：原创扁平风“小猫咪”头像，蓝紫渐变背景，HarmonyOS 分层图标（前景/背景 1024×1024，主体在安全区内，圆形/圆角方形遮罩都不会裁切）
 - 新增 **设置 → 面板 → 外观 → 主题色**：星河蓝（默认）、橘黄黄、猫咪蓝、华为红、优雅紫、哔哩粉、小草绿
   - 点击“主题色”弹出菜单，彩色圆点 + 名称，当前项带 ✓；下方有“颜色预览”卡片
   - 全局生效、即时切换无需重启：按钮、分段选项卡、开关、滑块、单选框、输入光标、流量/内存曲线、选中节点描边、订阅进度条、底部悬浮导航栏选中项
@@ -61,10 +72,10 @@
 | 连接 | 活跃/已关闭/全部、搜索与正则过滤、来源 IP 筛选、11 种字段排序、紧凑模式、单条/全部/筛选结果断开、连接详情（可复制）、暂停刷新 |
 | 日志 | 日志级别切换、类型过滤、正则搜索、暂停、清空、正序/倒序、复制、另存为文本文件 |
 | 规则 | 规则列表（虚拟滚动，规则多也不卡）、单条规则启用/禁用、规则集更新、命中次数、代理链与延迟 |
-| 设置 | 多后端管理与连接测试、代理模式、内核日志级别、TUN、局域网、IPv6、各类端口、重载配置、更新 GEO、清空 DNS/FakeIP 缓存、更新/重启内核、主题（跟随系统/浅色/深色）、主题色（7 种预设）、毛玻璃效果、沉浸光感、自定义壁纸（卡片不透明度/暗化/模糊）、测速参数、保留数量、闪退日志 |
+| 设置 | 关于（版本、开发者、隐私政策、用户协议）、多后端管理与连接测试、代理模式、内核日志级别、TUN、局域网、IPv6、各类端口、重载配置、更新 GEO、清空 DNS/FakeIP 缓存、更新/重启内核、主题（跟随系统/浅色/深色）、主题色（7 种预设）、毛玻璃效果、沉浸光感、自定义壁纸（卡片不透明度/暗化/模糊）、测速参数、保留数量、闪退日志 |
 
 - 实时数据通过 WebSocket 获取：`/traffic`、`/memory`、`/connections`、`/logs`，断线指数退避自动重连（1s → 10s）
-- 后端返回 404/405/501 的接口（例如 FlClash 限制了外部控制）会被标记为“当前后端不支持”，并在设置里说明
+- 后端返回 404/405/501 的接口（例如部分客户端限制了外部控制）会被标记为“当前后端不支持”，并在设置里说明
 - 更新 GEO 时 `/configs/geo` 不可用会自动改用 `/upgrade/geo`
 - 闪退（JS 未捕获异常）时自动保存错误日志，下次启动弹窗提示；可在 **设置 → 闪退日志** 中复制、分享或另存为
 
@@ -118,13 +129,13 @@ hvigorw --mode module -p module=entry@default -p product=default -p buildMode=re
 
 ### 自动发布（GitHub Actions）
 
-`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.1.6 && git push origin v1.1.6`）或在 Actions 页手动运行（填写标签）时触发。
+`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.1.7 && git push origin v1.1.7`）或在 Actions 页手动运行（填写标签）时触发。
 
 - 在 `ubuntu-latest` 上从 [ErBWs/ohos-sdk](https://github.com/ErBWs/ohos-sdk) 镜像下载 Command Line Tools 26.0.0.821（linux-x64，校验 sha256），裁掉用不到的 NDK 后用 `actions/cache` 缓存，之后的运行不再重复下载
 - `ohpm install` 后执行 `hvigorw assembleHap`（release 模式），版本号取自 `AppScope/app.json5`
-- 创建与标签同名的 Release，说明取自本文“更新日志”中对应版本，附件为 `ClashPanel-HarmonyOS-<版本>-unsigned.hap`（**未签名，只能装到模拟器**）
+- 创建与标签同名的 Release，说明取自本文“更新日志”中对应版本，附件为 `MimiPanel-HarmonyOS-<版本>-unsigned.hap`（**未签名，只能装到模拟器**）
 
-可选签名：在仓库 `Settings → Secrets and variables → Actions` 中配置以下 Secrets 后，会再用 SDK 自带的 `hap-sign-tool.jar` 签名并附上 `ClashPanel-HarmonyOS-<版本>-signed.hap`；不配置则只发布未签名包。Secrets 首尾的空格/换行会被自动去掉。
+可选签名：在仓库 `Settings → Secrets and variables → Actions` 中配置以下 Secrets 后，会用 `scripts/ci-signing.js` 生成 hvigor 的 signingConfig，再执行 `hvigorw assembleApp`，附上已签名的 `MimiPanel-HarmonyOS-<版本>-signed.hap` 与 `MimiPanel-HarmonyOS-<版本>-signed.app`；不配置则只发布未签名包。Secrets 首尾的空格/换行会被自动去掉。
 
 | Secret | 内容 |
 | --- | --- |
@@ -152,7 +163,7 @@ HarmonyOS 真机**只能安装签过名的 HAP**；未签名 HAP 只能装到 De
 
 ### 方式二：手动签名（AppGallery Connect 证书）
 
-1. 在 [AppGallery Connect](https://developer.huawei.com/consumer/cn/service/josp/agc/index.html) 创建应用，包名填 `net.zash.clashpanel`
+1. 在 [AppGallery Connect](https://developer.huawei.com/consumer/cn/service/josp/agc/index.html) 创建应用，包名填 `com.zhisibi.mimipanel`
 2. 生成密钥库（`.p12`）和证书请求文件（`.csr`）：DevEco Studio `Build → Generate Key and CSR`
 3. 在 AGC 申请**调试证书（.cer）**并注册手机 UDID，再申请**调试 Profile（.p7b）**
 4. `File → Project Structure → Signing Configs` 取消自动签名，填入 `.p12`、`.cer`、`.p7b` 与密码；或直接写进 `build-profile.json5` 的 `signingConfigs`
@@ -163,14 +174,14 @@ HarmonyOS 真机**只能安装签过名的 HAP**；未签名 HAP 只能装到 De
 ```bash
 java -jar hap-sign-tool.jar sign-app -keyAlias "你的别名" -signAlg SHA256withECDSA -mode localSign \
   -appCertFile debug.cer -profileFile debug.p7b -inFile entry-default-unsigned.hap \
-  -keystoreFile key.p12 -keystorePwd 密码 -keyPwd 密码 -outFile ClashPanel-signed.hap -signCode 1
+  -keystoreFile key.p12 -keystorePwd 密码 -keyPwd 密码 -outFile MimiPanel-signed.hap -signCode 1
 ```
 
 ### 安装
 
 ```bash
-hdc install ClashPanel-signed.hap        # hdc 在 sdk/default/openharmony/toolchains/
-hdc shell aa start -a EntryAbility -b net.zash.clashpanel
+hdc install MimiPanel-signed.hap        # hdc 在 sdk/default/openharmony/toolchains/
+hdc shell aa start -a EntryAbility -b com.zhisibi.mimipanel
 ```
 
 > 升级安装必须使用同一套签名证书，否则需要先卸载旧版。
@@ -179,6 +190,7 @@ hdc shell aa start -a EntryAbility -b net.zash.clashpanel
 
 ```
 AppScope/                       # 应用级配置（bundleName、版本、图标）
+docs/                           # privacy.md 隐私政策、agreement.md 用户协议（可用 GitHub Pages 托管）
 icon-src/                       # 图标源文件（SVG：前景小猫 + 渐变背景）
 entry/src/main/
 ├── module.json5                # 模块配置、INTERNET 权限
@@ -190,7 +202,8 @@ entry/src/main/
     ├── pages/Index.ets                 # 首次设置、底部导航、壁纸、连接失败横幅
     ├── common/
     │   ├── Models.ets          # 数据模型与 JSON 解析
-    │   ├── ClashApi.ets        # REST + WebSocket 客户端
+    │   ├── CoreApi.ets         # REST + WebSocket 客户端
+    │   ├── Legal.ets           # 隐私政策/用户协议正文（scripts/gen-legal.py 由 docs/*.md 生成）
     │   ├── Store.ets           # 全局状态与业务逻辑（对应 MainViewModel）
     │   ├── Prefs.ets           # preferences 设置存储
     │   ├── CrashLog.ets        # 闪退日志
@@ -211,6 +224,29 @@ entry/src/main/
 
 ## 兼容性
 
-- mihomo (Clash.Meta) RESTful API，部分功能兼容原版 Clash
+- 与 mihomo 兼容的外部控制器 RESTful API
 - 规则禁用（`PATCH /rules/disable`）需要 mihomo 1.19.x 以上；不支持时自动隐藏开关
-- FlClash 等客户端的受限控制器：会拒绝 `PATCH /configs`（405）、`PUT /configs`、`/configs/geo`、`/restart`（404），App 会标记并提示在客户端里修改
+- 部分客户端提供的受限控制器：会拒绝 `PATCH /configs`（405）、`PUT /configs`、`/configs/geo`、`/restart`（404），App 会标记并提示在客户端里修改
+
+## 上架华为应用市场
+
+以下步骤需要你本人用华为开发者账号完成（涉及实名认证与证书私钥，CI 和本仓库无法代办）：
+
+1. **开发者账号与实名**：在 [华为开发者联盟](https://developer.huawei.com/consumer/cn/) 注册并完成个人或企业实名认证。
+2. **创建应用**：在 [AppGallery Connect](https://developer.huawei.com/consumer/cn/service/josp/agc/index.html) →“我的项目”创建项目，再添加 HarmonyOS 应用，包名填 `com.zhisibi.mimipanel`。如果要换包名，只需改 `AppScope/app.json5` 的 `bundleName`，并与 AGC 中保持一致。
+3. **发布证书**：DevEco Studio `Build → Generate Key and CSR` 生成密钥库 `.p12` 与证书请求 `.csr`；在 AGC“证书、APP ID 和 Profile”中上传 `.csr` 申请**发布证书**，下载 `.cer`。妥善保存 `.p12` 和密码，丢失后无法再用同一证书更新应用。
+4. **发布 Profile**：在 AGC 为该应用申请**发布 Profile**（选择上一步的发布证书），下载 `.p7b`。
+5. **签名**：在 DevEco Studio `File → Project Structure → Signing Configs` 取消自动签名，填入 `.p12`、`.cer`、`.p7b`、别名与密码；或者把这 3 个文件的 base64 与别名/密码配置成仓库 Secrets（见“自动发布”），由 GitHub Actions 签名。不要把这些文件或密码提交到仓库。
+6. **APP 备案**：在中国大陆上架需要先完成 APP 备案（ICP）。在 AGC 或接入商的备案系统中提交，需要填写应用包名 `com.zhisibi.mimipanel` 以及**发布证书的公钥 / 证书 MD5 指纹**（AGC 的证书详情页可查看；本地也可用 `keytool -printcert -file 发布证书.cer` 查看）。备案通过后在 AGC 提交备案号。
+7. **隐私政策网址**：AGC 的“应用信息 → 隐私政策网址”需要一个公开可访问的链接。本仓库的 `docs/privacy.md` 就是应用内同款政策：在仓库 `Settings → Pages` 选择 `main` 分支的 `/docs` 目录后，可使用 `https://zhisibi.github.io/<仓库名>/privacy.html`；未开 Pages 时也可直接使用该文件在 GitHub 上的链接。修改政策时先改 `docs/*.md`，再运行 `python3 scripts/gen-legal.py` 同步到应用内，有实质变更时递增 `scripts/gen-legal.py` 里的 `PRIVACY_VERSION`，用户会被要求重新同意。
+8. **构建 .app 并上传**：AGC 只接受 `.app` 包。DevEco Studio `Build → Build Hap(s)/APP(s) → Build APP(s)`，或命令行：
+
+   ```bash
+   hvigorw --mode project -p product=default -p buildMode=release assembleApp --no-daemon
+   # 输出：build/outputs/default/<项目目录名>-default-signed.app
+   ```
+
+   配置了签名 Secrets 时，Release 附件里的 `MimiPanel-HarmonyOS-<版本>-signed.app` 也可以直接上传。
+9. **填写上架信息**：应用名称、简介、分类、1024×1024 图标、截图、隐私政策网址、备案号等，提交审核。
+
+当前构建配置：`compatibleSdkVersion` 为 `6.0.0(20)`（HarmonyOS 6.0 及以上可安装），`targetSdkVersion` 为 `26.0.0`，使用 SDK 26.0.0.821（Release）构建；release 包的 `debug` 为 `false`，只申请 `ohos.permission.INTERNET`。
