@@ -9,13 +9,17 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.1.7（versionCode 1010700） |
+| 版本 | 1.1.8（versionCode 1010800） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
-| 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
+| 目标系统 | `targetSdkVersion: "6.1.1(24)"`（API 24，可用 DevEco Studio 正式版 SDK 构建） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
 | 状态管理 | ArkUI 状态管理 V2（`@ObservedV2` / `@Trace` / `@ComponentV2`） |
 
 ## 更新日志
+
+### 1.1.8
+- 修复：用 DevEco Studio 正式版 SDK（API 24）编译时报 `uiMaterial` / `systemMaterial` 不存在的问题。移除仅 API 26 才有的系统沉浸材质接口，统一使用自绘毛玻璃与光感效果
+- `targetSdkVersion` 改为 `6.1.1(24)`，`compatibleSdkVersion` 仍为 `6.0.0(20)`
 
 ### 1.1.7
 
@@ -44,13 +48,13 @@
 
 ### 1.1.4
 - 新增 **设置 → 面板 → 毛玻璃效果**（开关 + 可调参数）
-  - 材质：自定义（模糊 + 饱和度增强，`backgroundEffect`）、薄 / 常规 / 厚（系统组件材质 `backgroundBlurStyle(COMPONENT_THIN/REGULAR/THICK)`，按模糊强度调节程度）；API 26 且设备支持时额外提供“系统”（系统沉浸材质 `systemMaterial`）
+  - 材质：自定义（模糊 + 饱和度增强，`backgroundEffect`）、薄 / 常规 / 厚（系统组件材质 `backgroundBlurStyle(COMPONENT_THIN/REGULAR/THICK)`，按模糊强度调节程度）
   - 模糊强度、卡片不透明度滑块；“列表项也模糊”开关（长列表逐项模糊更通透但更耗电，默认关闭）
   - 作用于卡片、各页顶栏、悬浮底栏、半模态面板与弹出菜单；有壁纸时透出壁纸，无壁纸时自动铺一层柔和的主题色渐变背景，让玻璃效果可见
 - 新增 **设置 → 面板 → 沉浸光感**（开关 + 可调参数）
   - 玻璃边缘高光（朝向光源的边更亮，形成玻璃厚度感）、斜向柔光、主题色光晕
   - 光感强度滑块；“跟随重力感应”（倾斜手机时高光方向随之变化，100 ms 低频采样、按 6° 量化更新，退到后台自动停止）；“主题色光晕”与“流光扫过”（切换页签时一道光扫过底栏，一次性动画）开关
-  - 在 API 26 且支持沉浸材质的设备上，可在毛玻璃“材质”中选择“系统”，使用系统原生沉浸光感材质与光感交互反馈；其他设备（如 HarmonyOS 6.0 / API 20）使用应用内自绘效果
+  - 沉浸光感为应用内自绘效果，兼容 HarmonyOS 6.0（API 20）及以上
 - 所有新设置保存在本地，修改即时生效、无需重启，并适配深色模式；设置搜索支持“毛玻璃 / 模糊 / 光感 / 沉浸”等关键词
 
 ### 1.1.3
@@ -129,7 +133,7 @@ hvigorw --mode module -p module=entry@default -p product=default -p buildMode=re
 
 ### 自动发布（GitHub Actions）
 
-`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.1.7 && git push origin v1.1.7`）或在 Actions 页手动运行（填写标签）时触发。
+`.github/workflows/release.yml`：推送 `v*` 标签（如 `git tag v1.1.8 && git push origin v1.1.8`）或在 Actions 页手动运行（填写标签）时触发。
 
 - 在 `ubuntu-latest` 上从 [ErBWs/ohos-sdk](https://github.com/ErBWs/ohos-sdk) 镜像下载 Command Line Tools 26.0.0.821（linux-x64，校验 sha256），裁掉用不到的 NDK 后用 `actions/cache` 缓存，之后的运行不再重复下载
 - `ohpm install` 后执行 `hvigorw assembleHap`（release 模式），版本号取自 `AppScope/app.json5`
@@ -249,4 +253,4 @@ entry/src/main/
    配置了签名 Secrets 时，Release 附件里的 `MimiPanel-HarmonyOS-<版本>-signed.app` 也可以直接上传。
 9. **填写上架信息**：应用名称、简介、分类、1024×1024 图标、截图、隐私政策网址、备案号等，提交审核。
 
-当前构建配置：`compatibleSdkVersion` 为 `6.0.0(20)`（HarmonyOS 6.0 及以上可安装），`targetSdkVersion` 为 `26.0.0`，使用 SDK 26.0.0.821（Release）构建；release 包的 `debug` 为 `false`，只申请 `ohos.permission.INTERNET`。
+当前构建配置：`compatibleSdkVersion` 为 `6.0.0(20)`（HarmonyOS 6.0 及以上可安装），`targetSdkVersion` 为 `6.1.1(24)`，使用 SDK 26.0.0.821（Release）构建；release 包的 `debug` 为 `false`，只申请 `ohos.permission.INTERNET`。
