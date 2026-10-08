@@ -1,4 +1,5 @@
 import { Store } from '../common/Store';
+import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { LogEntry } from '../common/Models';
 import { fmtClock, fmtStamp, pad2, safeRegex, textMatch } from '../common/Format';
@@ -65,54 +66,57 @@ export struct LogsView {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      if (this.list().length === 0) {
-        Column() {
-          EmptyCard({ pal: this.store.palette(), text: this.store.logLevel === 'silent' ? '日志级别为 silent' : '等待日志…' })
-        }
-        .padding({ left: 14, right: 14, top: this.headerH + 14 })
-      } else {
-        List({ space: 10, scroller: this.sc }) {
-          Repeat<LogEntry>(this.list())
-            .each((ri: RepeatItem<LogEntry>) => {
-              ListItem() {
-                Column() {
-                  Row() {
-                    Text(pad2(ri.item.seq % 100)).fontSize(13).fontColor(this.store.palette().subtle)
-                    Text(ri.item.type.toUpperCase())
-                      .fontSize(13)
-                      .fontColor(levelColor(ri.item.type, this.store.palette()))
-                      .margin({ left: 16 })
-                    Blank()
-                    Text(fmtClock(ri.item.time)).fontSize(13).fontColor(this.store.palette().subtle)
+      PullRefresh({ topInset: this.headerH, page: 'logs' }) {
+        if (this.list().length === 0) {
+          Column() {
+            EmptyCard({ pal: this.store.palette(), text: this.store.logLevel === 'silent' ? '日志级别为 silent' : '等待日志…' })
+          }
+          .padding({ left: 14, right: 14, top: this.headerH + 14 })
+        } else {
+          List({ space: 10, scroller: this.sc }) {
+            Repeat<LogEntry>(this.list())
+              .each((ri: RepeatItem<LogEntry>) => {
+                ListItem() {
+                  Column() {
+                    Row() {
+                      Text(pad2(ri.item.seq % 100)).fontSize(13).fontColor(this.store.palette().subtle)
+                      Text(ri.item.type.toUpperCase())
+                        .fontSize(13)
+                        .fontColor(levelColor(ri.item.type, this.store.palette()))
+                        .margin({ left: 16 })
+                      Blank()
+                      Text(fmtClock(ri.item.time)).fontSize(13).fontColor(this.store.palette().subtle)
+                    }
+                    .width('100%')
+
+                    Text(ri.item.payload)
+                      .fontSize(15)
+                      .lineHeight(21)
+                      .fontColor(this.store.palette().text)
+                      .copyOption(CopyOptions.LocalDevice)
+                      .width('100%')
+                      .margin({ top: 4 })
                   }
                   .width('100%')
-
-                  Text(ri.item.payload)
-                    .fontSize(15)
-                    .lineHeight(21)
-                    .fontColor(this.store.palette().text)
-                    .copyOption(CopyOptions.LocalDevice)
-                    .width('100%')
-                    .margin({ top: 4 })
+                  .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+                  .borderRadius(18)
+                  .attributeModifier(Store.get().glass('row'))
                 }
-                .width('100%')
-                .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-                .borderRadius(18)
-                .attributeModifier(Store.get().glass('row'))
-              }
-            })
-            .key((l: LogEntry) => l.seq.toString())
-            .virtualScroll()
+              })
+              .key((l: LogEntry) => l.seq.toString())
+              .virtualScroll()
+          }
+          .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
+          .width('100%')
+          .height('100%')
+          .clipContent(ContentClipMode.BOUNDARY)
+          .onDidScroll((d: number, st: ScrollState) => {
+            this.store.navScroll(this.sc, d, st);
+          })
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+          .scrollBar(BarState.Off)
+          .cachedCount(4)
         }
-        .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
-        .width('100%')
-        .height('100%')
-        .clipContent(ContentClipMode.BOUNDARY)
-        .onDidScroll((d: number, st: ScrollState) => {
-          this.store.navScroll(this.sc, d, st);
-        })
-        .scrollBar(BarState.Off)
-        .cachedCount(4)
       }
 
       GlassHeader({

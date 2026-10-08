@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.zhisibi.mimipanel",
     "vendor": "zhisibi",
-    "versionCode": 1010800,
-    "versionName": "1.1.8",
+    "versionCode": 1010900,
+    "versionName": "1.1.9",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

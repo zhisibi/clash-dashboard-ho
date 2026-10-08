@@ -1,4 +1,5 @@
 import { deviceInfo } from '@kit.BasicServicesKit';
+import { uiMaterial } from '@kit.ArkUI';
 import { withAlpha } from './Theme';
 
 /**
@@ -82,23 +83,52 @@ export function sheetBlurStyle(cfg: GlassCfg): BlurStyle {
   return BlurStyle.COMPONENT_THICK;
 }
 
-/**
- * 系统沉浸材质（uiMaterial / systemMaterial）仅存在于 API 26 SDK。
- * 为了能用 DevEco Studio 当前正式版 SDK（API 20~24）编译、上架，1.1.8 起不再引用这些接口，
- * 一律使用自绘毛玻璃效果。
- */
+/** 系统沉浸材质是否可用：API 26+ 且设备支持（其他情况一律 false，不触碰新接口） */
 export function detectSysMaterial(): boolean {
+  try {
+    if (deviceInfo.sdkApiVersion >= 26) {
+      return uiMaterial.isImmersiveMaterialSupported();
+    }
+  } catch (e) {
+    // ignore
+  }
   return false;
 }
 
-function makeSysMaterial(cfg: GlassCfg, kind: GlassKind): Object | undefined {
+/** 生成系统沉浸材质对象（仅在 sysMaterial 为 true 时调用） */
+function makeSysMaterial(cfg: GlassCfg, kind: GlassKind): uiMaterial.Material | undefined {
+  try {
+    if (deviceInfo.sdkApiVersion >= 26) {
+      let st: uiMaterial.ImmersiveStyle = uiMaterial.ImmersiveStyle.REGULAR;
+      if (kind === 'bar' || kind === 'top') {
+        // 顶栏/底栏下方会有文字滚过，始终使用厚材质，避免透出的文字与标签打架
+        st = uiMaterial.ImmersiveStyle.THICK;
+      } else if (cfg.glassBlur < 34) {
+        st = uiMaterial.ImmersiveStyle.THIN;
+      } else if (cfg.glassBlur > 70) {
+        st = uiMaterial.ImmersiveStyle.THICK;
+      }
+      const tint = kind === 'bar' ? 0.50 : (kind === 'top' ? 0.42 : 0.12);
+      const opts: uiMaterial.ImmersiveOptions = {
+        style: st,
+        materialColor: withAlpha(cfg.dark ? '#1C1F24' : '#FFFFFF', tint),
+        applyShadow: kind === 'bar' || kind === 'card',
+        // 1.1.6：关闭底栏材质的“交互形变”，避免它在部分设备上参与底栏页签的触摸竞争
+        interactive: false,
+        lightEffect: cfg.lightOn ? { color: '#FFFFFF' } as uiMaterial.LightEffectOptions : null
+      };
+      return new uiMaterial.ImmersiveMaterial(opts);
+    }
+  } catch (e) {
+    // ignore
+  }
   return undefined;
 }
 
 export class GlassModifier implements AttributeModifier<CommonAttribute> {
   private cfg: GlassCfg;
   private kind: GlassKind;
-  private mat: Object | undefined = undefined;
+  private mat: uiMaterial.Material | undefined = undefined;
 
   constructor(cfg: GlassCfg, kind: GlassKind) {
     this.cfg = cfg;
@@ -122,8 +152,14 @@ export class GlassModifier implements AttributeModifier<CommonAttribute> {
     return true;
   }
 
-  private applySystemMaterial(instance: CommonAttribute, m: Object | undefined): void {
-    // API 26 系统材质已移除，保持空实现
+  private applySystemMaterial(instance: CommonAttribute, m: uiMaterial.Material | undefined): void {
+    try {
+      if (deviceInfo.sdkApiVersion >= 26 && this.cfg.sysMaterial) {
+        instance.systemMaterial(m);
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   applyNormalAttribute(instance: CommonAttribute): void {

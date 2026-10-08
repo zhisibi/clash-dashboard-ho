@@ -1,4 +1,5 @@
 import { Store } from '../common/Store';
+import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { RuleItem, RuleProvider, parseIsoMillis } from '../common/Models';
 import { fmtAgo, safeRegex, textMatch } from '../common/Format';
@@ -94,146 +95,150 @@ export struct RulesView {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      if (this.tab === 0) {
-        if (this.rulesList().length === 0) {
-          Column() {
-            EmptyCard({ pal: this.store.palette() })
-          }
-          .padding({ left: 14, right: 14, top: this.headerH + 14 })
-        } else {
-          List({ space: 10, scroller: this.sc }) {
-            Repeat<RuleItem>(this.rulesList())
-              .each((ri: RepeatItem<RuleItem>) => {
-                ListItem() {
-                  Column() {
-                    Row() {
-                      Text((ri.item.index + 1).toString()).fontSize(14).fontColor(this.store.palette().subtle)
-                      Text(ri.item.type + ' :').fontSize(14).fontColor(this.store.palette().subtle).margin({ left: 14 })
-                      Text(ri.item.payload.length > 0 ? ri.item.payload : '-')
-                        .fontSize(16)
-                        .fontColor(this.store.palette().text)
-                        .maxLines(2)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .flexShrink(1)
-                        .margin({ left: 10 })
-                      if ((this.providerCount(ri.item.payload) > 0 ? this.providerCount(ri.item.payload) : ri.item.size) > 0) {
-                        Text('(' + (this.providerCount(ri.item.payload) > 0 ? this.providerCount(ri.item.payload) :
-                        ri.item.size) + ')')
-                          .fontSize(13)
-                          .fontColor(this.store.palette().subtle)
-                          .margin({ left: 6 })
-                      }
-                      if (ri.item.type === 'RuleSet' && this.isProvider(ri.item.payload)) {
-                        if (this.store.updatingRuleProviders.get(ri.item.payload) === true) {
-                          LoadingProgress().width(18).height(18).color(this.store.palette().subtle).margin({ left: 6 })
-                        } else {
-                          SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-                            .fontSize(16)
-                            .fontColor([this.store.palette().subtle])
+      PullRefresh({ topInset: this.headerH, page: 'rules' }) {
+        if (this.tab === 0) {
+          if (this.rulesList().length === 0) {
+            Column() {
+              EmptyCard({ pal: this.store.palette() })
+            }
+            .padding({ left: 14, right: 14, top: this.headerH + 14 })
+          } else {
+            List({ space: 10, scroller: this.sc }) {
+              Repeat<RuleItem>(this.rulesList())
+                .each((ri: RepeatItem<RuleItem>) => {
+                  ListItem() {
+                    Column() {
+                      Row() {
+                        Text((ri.item.index + 1).toString()).fontSize(14).fontColor(this.store.palette().subtle)
+                        Text(ri.item.type + ' :').fontSize(14).fontColor(this.store.palette().subtle).margin({ left: 14 })
+                        Text(ri.item.payload.length > 0 ? ri.item.payload : '-')
+                          .fontSize(16)
+                          .fontColor(this.store.palette().text)
+                          .maxLines(2)
+                          .textOverflow({ overflow: TextOverflow.Ellipsis })
+                          .flexShrink(1)
+                          .margin({ left: 10 })
+                        if ((this.providerCount(ri.item.payload) > 0 ? this.providerCount(ri.item.payload) : ri.item.size) > 0) {
+                          Text('(' + (this.providerCount(ri.item.payload) > 0 ? this.providerCount(ri.item.payload) :
+                          ri.item.size) + ')')
+                            .fontSize(13)
+                            .fontColor(this.store.palette().subtle)
                             .margin({ left: 6 })
-                            .onClick(() => {
-                              this.store.updateRuleProvider(ri.item.payload);
-                            })
+                        }
+                        if (ri.item.type === 'RuleSet' && this.isProvider(ri.item.payload)) {
+                          if (this.store.updatingRuleProviders.get(ri.item.payload) === true) {
+                            LoadingProgress().width(18).height(18).color(this.store.palette().subtle).margin({ left: 6 })
+                          } else {
+                            SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+                              .fontSize(16)
+                              .fontColor([this.store.palette().subtle])
+                              .margin({ left: 6 })
+                              .onClick(() => {
+                                this.store.updateRuleProvider(ri.item.payload);
+                              })
+                          }
                         }
                       }
-                    }
-                    .width('100%')
+                      .width('100%')
 
-                    Row() {
-                      if (this.store.rulesDisableSupported) {
-                        Toggle({ type: ToggleType.Switch, isOn: !ri.item.disabled })
-                          .selectedColor(this.store.palette().accent)
-                          .onChange((on: boolean) => {
-                            if (on === ri.item.disabled) {
-                              this.store.toggleRule(ri.item);
-                            }
-                          })
-                          .margin({ right: 10 })
+                      Row() {
+                        if (this.store.rulesDisableSupported) {
+                          Toggle({ type: ToggleType.Switch, isOn: !ri.item.disabled })
+                            .selectedColor(this.store.palette().accent)
+                            .onChange((on: boolean) => {
+                              if (on === ri.item.disabled) {
+                                this.store.toggleRule(ri.item);
+                              }
+                            })
+                            .margin({ right: 10 })
+                        }
+                        ProxyChainChip({ proxy: ri.item.proxy })
+                        if (this.store.showRuleHits && ri.item.hitCount > 0) {
+                          Blank()
+                          Text('命中 ' + ri.item.hitCount).fontSize(12).fontColor(this.store.palette().subtle)
+                        }
                       }
-                      ProxyChainChip({ proxy: ri.item.proxy })
-                      if (this.store.showRuleHits && ri.item.hitCount > 0) {
-                        Blank()
-                        Text('命中 ' + ri.item.hitCount).fontSize(12).fontColor(this.store.palette().subtle)
-                      }
+                      .width('100%')
+                      .margin({ top: 8 })
                     }
                     .width('100%')
-                    .margin({ top: 8 })
+                    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+                    .borderRadius(18)
+                    .attributeModifier(Store.get().glass('row'))
+                  }
+                })
+                .key((r: RuleItem) => r.index + '_' + r.disabled + '_' + r.hitCount + '_' + r.proxy)
+                .virtualScroll()
+            }
+            .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
+            .width('100%')
+            .height('100%')
+            .clipContent(ContentClipMode.BOUNDARY)
+            .onDidScroll((d: number, st: ScrollState) => {
+              this.store.navScroll(this.sc, d, st);
+            })
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+            .scrollBar(BarState.Off)
+            .cachedCount(4)
+          }
+        } else {
+          if (this.providerList().length === 0) {
+            Column() {
+              EmptyCard({ pal: this.store.palette() })
+            }
+            .padding({ left: 14, right: 14, top: this.headerH + 14 })
+          } else {
+            List({ space: 10, scroller: this.sc2 }) {
+              ForEach(this.providerList(), (p: RuleProvider) => {
+                ListItem() {
+                  Row() {
+                    Column() {
+                      Row() {
+                        Text(p.name).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
+                        Text('(' + p.ruleCount + ')').fontSize(13).fontColor(this.store.palette().subtle).margin({ left: 6 })
+                      }
+
+                      Row({ space: 6 }) {
+                        Tag({ pal: this.store.palette(), text: p.behavior })
+                        Tag({ pal: this.store.palette(), text: p.vehicleType })
+                        if (p.format.length > 0) {
+                          Tag({ pal: this.store.palette(), text: p.format })
+                        }
+                        Text('更新于 ' + fmtAgo(parseIsoMillis(p.updatedAt))).fontSize(12).fontColor(this.store.palette().subtle)
+                      }
+                      .margin({ top: 4 })
+                    }
+                    .layoutWeight(1)
+                    .alignItems(HorizontalAlign.Start)
+
+                    if (this.store.updatingRuleProviders.get(p.name) === true) {
+                      LoadingProgress().width(22).height(22).color(this.store.palette().subtle)
+                    } else {
+                      SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+                        .fontSize(20)
+                        .fontColor([this.store.palette().text])
+                        .onClick(() => {
+                          this.store.updateRuleProvider(p.name);
+                        })
+                    }
                   }
                   .width('100%')
                   .padding({ left: 16, right: 16, top: 12, bottom: 12 })
                   .borderRadius(18)
                   .attributeModifier(Store.get().glass('row'))
                 }
-              })
-              .key((r: RuleItem) => r.index + '_' + r.disabled + '_' + r.hitCount + '_' + r.proxy)
-              .virtualScroll()
+              }, (p: RuleProvider) => p.name + '_' + p.updatedAt + '_' + p.ruleCount)
+            }
+            .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
+            .width('100%')
+            .height('100%')
+            .clipContent(ContentClipMode.BOUNDARY)
+            .onDidScroll((d: number, st: ScrollState) => {
+              this.store.navScroll(this.sc2, d, st);
+            })
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+            .scrollBar(BarState.Off)
           }
-          .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
-          .width('100%')
-          .height('100%')
-          .clipContent(ContentClipMode.BOUNDARY)
-          .onDidScroll((d: number, st: ScrollState) => {
-            this.store.navScroll(this.sc, d, st);
-          })
-          .scrollBar(BarState.Off)
-          .cachedCount(4)
-        }
-      } else {
-        if (this.providerList().length === 0) {
-          Column() {
-            EmptyCard({ pal: this.store.palette() })
-          }
-          .padding({ left: 14, right: 14, top: this.headerH + 14 })
-        } else {
-          List({ space: 10, scroller: this.sc2 }) {
-            ForEach(this.providerList(), (p: RuleProvider) => {
-              ListItem() {
-                Row() {
-                  Column() {
-                    Row() {
-                      Text(p.name).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
-                      Text('(' + p.ruleCount + ')').fontSize(13).fontColor(this.store.palette().subtle).margin({ left: 6 })
-                    }
-
-                    Row({ space: 6 }) {
-                      Tag({ pal: this.store.palette(), text: p.behavior })
-                      Tag({ pal: this.store.palette(), text: p.vehicleType })
-                      if (p.format.length > 0) {
-                        Tag({ pal: this.store.palette(), text: p.format })
-                      }
-                      Text('更新于 ' + fmtAgo(parseIsoMillis(p.updatedAt))).fontSize(12).fontColor(this.store.palette().subtle)
-                    }
-                    .margin({ top: 4 })
-                  }
-                  .layoutWeight(1)
-                  .alignItems(HorizontalAlign.Start)
-
-                  if (this.store.updatingRuleProviders.get(p.name) === true) {
-                    LoadingProgress().width(22).height(22).color(this.store.palette().subtle)
-                  } else {
-                    SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-                      .fontSize(20)
-                      .fontColor([this.store.palette().text])
-                      .onClick(() => {
-                        this.store.updateRuleProvider(p.name);
-                      })
-                  }
-                }
-                .width('100%')
-                .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-                .borderRadius(18)
-                .attributeModifier(Store.get().glass('row'))
-              }
-            }, (p: RuleProvider) => p.name + '_' + p.updatedAt + '_' + p.ruleCount)
-          }
-          .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
-          .width('100%')
-          .height('100%')
-          .clipContent(ContentClipMode.BOUNDARY)
-          .onDidScroll((d: number, st: ScrollState) => {
-            this.store.navScroll(this.sc2, d, st);
-          })
-          .scrollBar(BarState.Off)
         }
       }
 

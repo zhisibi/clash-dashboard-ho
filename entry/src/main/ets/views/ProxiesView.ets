@@ -1,4 +1,5 @@
 import { Store } from '../common/Store';
+import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ProxyItem, ProxyProvider, parseIsoMillis } from '../common/Models';
 import { fmtAgo, fmtBytes, fmtDate, safeRegex, textMatch } from '../common/Format';
@@ -474,53 +475,57 @@ export struct ProxiesView {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      if (this.tab === 0 || this.store.providers.length === 0) {
-        if (this.shownGroups().length === 0) {
-          Column() {
-            EmptyCard({ pal: this.store.palette(), text: this.store.proxiesLoading ? '加载中…' : '暂无数据' })
+      PullRefresh({ topInset: this.headerH, page: 'proxies' }) {
+        if (this.tab === 0 || this.store.providers.length === 0) {
+          if (this.shownGroups().length === 0) {
+            Column() {
+              EmptyCard({ pal: this.store.palette(), text: this.store.proxiesLoading ? '加载中…' : '暂无数据' })
+            }
+            .padding({ left: 16, right: 16, top: this.headerH + 16 })
+          } else {
+            Grid(this.sc) {
+              ForEach(this.shownGroups(), (g: ProxyItem) => {
+                GridItem() {
+                  GroupCard({
+                    name: g.name, onOpen: () => {
+                      this.openGroup = g.name;
+                      this.showSheet = true;
+                    }
+                  })
+                }
+              }, (g: ProxyItem) => g.name)
+            }
+            .columnsTemplate(this.colsTemplate())
+            .columnsGap(12)
+            .rowsGap(12)
+            .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
+            .width('100%')
+            .height('100%')
+            .clipContent(ContentClipMode.BOUNDARY)
+            .onDidScroll((d: number, st: ScrollState) => {
+              this.store.navScroll(this.sc, d, st);
+            })
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+            .scrollBar(BarState.Off)
           }
-          .padding({ left: 16, right: 16, top: this.headerH + 16 })
         } else {
-          Grid(this.sc) {
-            ForEach(this.shownGroups(), (g: ProxyItem) => {
-              GridItem() {
-                GroupCard({
-                  name: g.name, onOpen: () => {
-                    this.openGroup = g.name;
-                    this.showSheet = true;
-                  }
-                })
+          List({ space: 12, scroller: this.sc2 }) {
+            ForEach(this.shownProviders(), (p: ProxyProvider) => {
+              ListItem() {
+                ProviderCard({ provider: p })
               }
-            }, (g: ProxyItem) => g.name)
+            }, (p: ProxyProvider) => p.name + '_' + p.updatedAt + '_' + p.proxies.length)
           }
-          .columnsTemplate(this.colsTemplate())
-          .columnsGap(12)
-          .rowsGap(12)
           .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
           .width('100%')
           .height('100%')
           .clipContent(ContentClipMode.BOUNDARY)
           .onDidScroll((d: number, st: ScrollState) => {
-            this.store.navScroll(this.sc, d, st);
+            this.store.navScroll(this.sc2, d, st);
           })
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           .scrollBar(BarState.Off)
         }
-      } else {
-        List({ space: 12, scroller: this.sc2 }) {
-          ForEach(this.shownProviders(), (p: ProxyProvider) => {
-            ListItem() {
-              ProviderCard({ provider: p })
-            }
-          }, (p: ProxyProvider) => p.name + '_' + p.updatedAt + '_' + p.proxies.length)
-        }
-        .padding({ left: 14, right: 14, top: this.headerH + 14, bottom: this.bottomPad + 14 })
-        .width('100%')
-        .height('100%')
-        .clipContent(ContentClipMode.BOUNDARY)
-        .onDidScroll((d: number, st: ScrollState) => {
-          this.store.navScroll(this.sc2, d, st);
-        })
-        .scrollBar(BarState.Off)
       }
 
       GlassHeader({

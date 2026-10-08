@@ -1,4 +1,5 @@
 import { Store } from '../common/Store';
+import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { ConnItem } from '../common/Models';
 import { fmtBytes, fmtClock, fmtDuration, fmtSpeed, safeRegex, textMatch } from '../common/Format';
@@ -313,39 +314,42 @@ export struct ConnectionsView {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      if (this.list().length === 0) {
-        Column() {
-          EmptyCard({ pal: this.store.palette() })
+      PullRefresh({ topInset: this.headerH, page: 'connections' }) {
+        if (this.list().length === 0) {
+          Column() {
+            EmptyCard({ pal: this.store.palette() })
+          }
+          .padding({ left: 14, right: 14, top: this.headerH + 6 })
+        } else {
+          List({ space: this.compact ? 6 : 10, scroller: this.sc }) {
+            Repeat<ConnItem>(this.list())
+              .each((ri: RepeatItem<ConnItem>) => {
+                ListItem() {
+                  ConnCard({
+                    conn: ri.item,
+                    compact: this.compact,
+                    onOpen: () => {
+                      this.detail = ri.item;
+                      this.showDetail = true;
+                    }
+                  })
+                }
+              })
+              .key((c: ConnItem) => c.id + '_' + c.closedAt + '_' + c.upload + '_' + c.download + '_' + c.uploadSpeed + '_' +
+              c.downloadSpeed)
+              .virtualScroll()
+          }
+          .padding({ left: 14, right: 14, top: this.headerH + 4, bottom: this.bottomPad + 14 })
+          .width('100%')
+          .height('100%')
+          .clipContent(ContentClipMode.BOUNDARY)
+          .onDidScroll((d: number, st: ScrollState) => {
+            this.store.navScroll(this.sc, d, st);
+          })
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+          .scrollBar(BarState.Off)
+          .cachedCount(4)
         }
-        .padding({ left: 14, right: 14, top: this.headerH + 6 })
-      } else {
-        List({ space: this.compact ? 6 : 10, scroller: this.sc }) {
-          Repeat<ConnItem>(this.list())
-            .each((ri: RepeatItem<ConnItem>) => {
-              ListItem() {
-                ConnCard({
-                  conn: ri.item,
-                  compact: this.compact,
-                  onOpen: () => {
-                    this.detail = ri.item;
-                    this.showDetail = true;
-                  }
-                })
-              }
-            })
-            .key((c: ConnItem) => c.id + '_' + c.closedAt + '_' + c.upload + '_' + c.download + '_' + c.uploadSpeed + '_' +
-            c.downloadSpeed)
-            .virtualScroll()
-        }
-        .padding({ left: 14, right: 14, top: this.headerH + 4, bottom: this.bottomPad + 14 })
-        .width('100%')
-        .height('100%')
-        .clipContent(ContentClipMode.BOUNDARY)
-        .onDidScroll((d: number, st: ScrollState) => {
-          this.store.navScroll(this.sc, d, st);
-        })
-        .scrollBar(BarState.Off)
-        .cachedCount(4)
       }
 
       GlassHeader({

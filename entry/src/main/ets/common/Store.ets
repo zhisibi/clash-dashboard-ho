@@ -647,19 +647,21 @@ export class Store {
   }
 
   /** 对应 Kotlin launchSafe：统一捕获异常并提示；404/405/501 记为“后端不支持” */
-  async run(label: string, key: string, task: Task): Promise<void> {
+  async run(label: string, key: string, task: Task): Promise<boolean> {
     try {
       await task();
+      return true;
     } catch (e) {
       if (e instanceof ApiError) {
         const ae = e as ApiError;
         if ((ae.code === 404 || ae.code === 405 || ae.code === 501) && key.length > 0) {
           this.unsupported.set(key, ae.code);
           this.toast((label.length > 0 ? label : key) + '失败：当前后端不支持此接口 (HTTP ' + ae.code + ')');
-          return;
+          return false;
         }
       }
       this.toast((label.length > 0 ? label + '失败: ' : '') + errMsg(e as Object));
+      return false;
     }
   }
 
@@ -900,12 +902,12 @@ export class Store {
   }
 
   // ================= config =================
-  refreshConfig(): void {
+  refreshConfig(label: string = ''): Promise<boolean> {
     const a = this.api;
     if (a === null) {
-      return;
+      return Promise.resolve(false);
     }
-    this.run('', '', async () => {
+    return this.run(label, '', async () => {
       const c = await a.configs();
       if (this.api === a) {
         this.config = c;
@@ -1001,13 +1003,85 @@ export class Store {
     });
   }
 
-  // ================= proxies =================
-  refreshProxies(): void {
-    const a = this.api;
-    if (a === null) {
+  // ================= 下拉刷新（1.1.9） =================
+  /**
+   * 页面下拉刷新：等待对应的请求完成（成功或失败）后才结束刷新动画；失败由 run() 弹出简短提示。
+   * 未同意隐私政策前不发起任何网络请求。
+   */
+  async pullRefresh(page: string): Promise<void> {
+    if (!this.privacyAgreed) {
       return;
     }
-    this.run('', '', async () => {
+    const a = this.api;
+    if (a === null) {
+      this.toast(this.active === null ? '尚未连接后端' : '后端未连接');
+      return;
+    }
+    if (this.connState !== 'connected') {
+      // 连接失败或连接中：重新连接一次，等待版本探测结果
+      const b = this.active;
+      if (b !== null) {
+        this.connect(b);
+        await this.waitConnected(8000);
+        if (this.connState !== 'connected') {
+          this.toast('刷新失败: ' + (this.connError.length > 0 ? this.connError : '无法连接后端'));
+        }
+      }
+      return;
+    }
+    const L = '刷新';
+    if (page === 'proxies') {
+      await this.refreshProxies(L);
+    } else if (page === 'rules') {
+      await this.refreshRules(L);
+    } else if (page === 'connections' || page === 'logs') {
+      // 连接与日志来自实时流：先探测后端，再重建实时流
+      const ok = await this.run(L, '', async () => {
+        await a.version();
+      });
+      if (ok && this.api === a) {
+        this.stopStreams();
+        this.startStreams(a);
+      }
+    } else {
+      // 概览：先探测后端（失败只提示一次），再并行刷新配置、代理与规则
+      const ok = await this.run(L, '', async () => {
+        const v = await a.version();
+        if (this.api === a) {
+          this.version = v.version;
+        }
+      });
+      if (!ok || this.api !== a) {
+        return;
+      }
+      await Promise.all([this.refreshConfig(L), this.refreshProxies(L), this.refreshRules(L)]);
+      if (this.api === a && this.streams.length === 0) {
+        this.startStreams(a);
+      }
+    }
+  }
+
+  private waitConnected(timeoutMs: number): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      const t0 = Date.now();
+      const tick = () => {
+        if (this.connState !== 'connecting' || Date.now() - t0 > timeoutMs) {
+          resolve();
+          return;
+        }
+        setTimeout(tick, 150);
+      };
+      tick();
+    });
+  }
+
+  // ================= proxies =================
+  refreshProxies(label: string = ''): Promise<boolean> {
+    const a = this.api;
+    if (a === null) {
+      return Promise.resolve(false);
+    }
+    return this.run(label, '', async () => {
       this.proxiesLoading = true;
       try {
         const pp = a.proxies();
@@ -1277,12 +1351,12 @@ export class Store {
   }
 
   // ================= rules =================
-  refreshRules(): void {
+  refreshRules(label: string = ''): Promise<boolean> {
     const a = this.api;
     if (a === null) {
-      return;
+      return Promise.resolve(false);
     }
-    this.run('', '', async () => {
+    return this.run(label, '', async () => {
       const rp = a.ruleProviders().catch((): RuleProvider[] => []);
       const r = await a.rules();
       const providers = await rp;
