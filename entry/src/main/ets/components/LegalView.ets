@@ -21,7 +21,9 @@ export struct LegalView {
 
   build() {
     // 1.2.3: the page sits on top of Settings > About (or the consent screen) and the bottom bar; with glass or a
-    // wallpaper palette().bg is transparent, so it now draws its own opaque backdrop and blocks touches beneath
+    // wallpaper palette().bg is transparent, so it now draws its own opaque backdrop and blocks touches beneath.
+    // 1.2.4: was HitTestMode.Block, which also blocked its own children, so the text could not scroll and the back
+    // button did nothing; BLOCK_HIERARCHY lets the page and its children respond and stops everything beneath
     Stack({ alignContent: Alignment.Top }) {
       PageBackdrop()
     Column() {
@@ -104,6 +106,6 @@ export struct LegalView {
     .width('100%')
     .height('100%')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    .hitTestBehavior(HitTestMode.Block)
+    .hitTestBehavior(HitTestMode.BLOCK_HIERARCHY)
   }
 }

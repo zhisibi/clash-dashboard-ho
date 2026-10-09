@@ -1,9 +1,9 @@
 # Mimi Panel User Agreement
 
-Last updated: October 8, 2026
-Effective: October 8, 2026
+Last updated: October 9, 2026
+Effective: October 9, 2026
 
-Welcome to Mimi Panel ("the App"), provided by the developer zhisibi ("we" or "us"). Please read this agreement carefully before using the App. By tapping "Agree" or using the App, you confirm that you have read and accept this agreement and the Mimi Panel Privacy Policy.
+Welcome to Mimi Panel ("the App"), provided by the developer Zhang Shibo ("we" or "us"). Please read this agreement carefully before using the App. By tapping "Agree" or using the App, you confirm that you have read and accept this agreement and the Mimi Panel Privacy Policy.
 
 The Chinese version of this agreement (docs/agreement.md) is the governing version; this English version is provided for convenience.
 

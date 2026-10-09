@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.2.3（versionCode 1020300） |
+| 版本 | 1.2.4（versionCode 1020400） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,10 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.2.4
+- 修复隐私政策与用户协议页面无法上下滑动、返回按钮无响应（1.2.3 引入的触摸拦截把页面自身内容也拦住了）。
+- 关于页、隐私政策与用户协议中的开发者改为张世博；两份文件更新日期改为 2026 年 10 月 9 日。
 
 ### 1.2.3
 - 修复代理组节点弹窗（如“节点选择 Selector · 5 个节点 · 当前 …”）右上角的测速按钮被系统关闭按钮（X）压住：弹窗不再显示系统关闭按钮，标题栏改为“⚡ 测速”与“✕ 关闭”两个并排按钮，触控区域均为 48vp；仍可下拉拖动关闭。连接详情弹窗的“断开”按钮同样处理

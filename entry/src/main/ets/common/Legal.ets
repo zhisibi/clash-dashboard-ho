@@ -3,7 +3,7 @@ import { I18N } from './I18n';
 import { AGREEMENT_ZH, PRIVACY_ZH } from './i18n/LegalZh';
 import { AGREEMENT_EN, PRIVACY_EN } from './i18n/LegalEn';
 
-export const LEGAL_DEVELOPER: string = 'zhisibi';
+export const LEGAL_DEVELOPER: string = '张世博';
 export const LEGAL_CONTACT: string = 'https://github.com/zhisibi';
 /** Privacy policy version: bump on material changes so users are asked to accept again */
 export const PRIVACY_VERSION: number = 1;

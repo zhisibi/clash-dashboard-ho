@@ -1,9 +1,9 @@
 # Mimi Panel Privacy Policy
 
-Last updated: October 8, 2026
-Effective: October 8, 2026
+Last updated: October 9, 2026
+Effective: October 9, 2026
 
-Mimi Panel ("the App") is provided by the developer zhisibi ("we" or "us"). The App is a control panel that runs locally on your device and connects to the external-controller API of a mihomo-compatible proxy core that you deploy yourself. We take the protection of your personal information seriously; please read this policy carefully before using the App.
+Mimi Panel ("the App") is provided by the developer Zhang Shibo ("we" or "us"). The App is a control panel that runs locally on your device and connects to the external-controller API of a mihomo-compatible proxy core that you deploy yourself. We take the protection of your personal information seriously; please read this policy carefully before using the App.
 
 The Chinese version of this policy (docs/privacy.md) is the governing version; this English version is provided for convenience.
 
