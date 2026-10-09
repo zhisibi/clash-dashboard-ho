@@ -52,4 +52,4 @@ If this policy changes, we will update it in the App and on this page, and ask f
 
 ## 8. Contact us
 
-If you have any questions about this policy, contact us via the developer's page: https://github.com/zhisibi
+If you have any questions about this policy, contact us by the developer's email: zhisibi@163.com

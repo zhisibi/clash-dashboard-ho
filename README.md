@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.2.4（versionCode 1020400） |
+| 版本 | 1.2.5（versionCode 1020500） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.2.5
+- 隐私政策与用户协议末尾的联系方式改为开发者邮箱：zhisibi@163.com。
 
 ### 1.2.4
 - 修复隐私政策与用户协议页面无法上下滑动、返回按钮无响应（1.2.3 引入的触摸拦截把页面自身内容也拦住了）。

@@ -55,7 +55,7 @@ export const PRIVACY_EN: string[] = [
   "",
   "## 8. Contact us",
   "",
-  "If you have any questions about this policy, contact us via the developer's page: https://github.com/zhisibi"
+  "If you have any questions about this policy, contact us by the developer's email: zhisibi@163.com"
 ];
 
 export const AGREEMENT_EN: string[] = [
@@ -99,5 +99,5 @@ export const AGREEMENT_EN: string[] = [
   "",
   "## 7. Contact us",
   "",
-  "If you have any questions about this agreement, contact us via the developer's page: https://github.com/zhisibi"
+  "If you have any questions about this agreement, contact us by the developer's email: zhisibi@163.com"
 ];

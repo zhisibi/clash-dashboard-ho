@@ -53,7 +53,7 @@ export const PRIVACY_ZH: string[] = [
   "",
   "## 八、联系我们",
   "",
-  "如对本政策有任何疑问，请通过开发者主页联系我们：https://github.com/zhisibi"
+  "如对本政策有任何疑问，请通过开发者邮箱联系我们：zhisibi@163.com"
 ];
 
 export const AGREEMENT_ZH: string[] = [
@@ -95,5 +95,5 @@ export const AGREEMENT_ZH: string[] = [
   "",
   "## 七、联系我们",
   "",
-  "如对本协议有任何疑问，请通过开发者主页联系我们：https://github.com/zhisibi"
+  "如对本协议有任何疑问，请通过开发者邮箱联系我们：zhisibi@163.com"
 ];
