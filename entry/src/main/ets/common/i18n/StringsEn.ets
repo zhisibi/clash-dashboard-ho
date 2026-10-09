@@ -341,7 +341,7 @@ export const EN: Record<string, string> = {
   "version_check_desc": "Tap to check for updates",
   "update_checking": "Checking for updates…",
   "update_latest": "You're on the latest version ({0})",
-  "update_failed": "Couldn't check for updates. Check your network and try again",
+  "update_failed": "Couldn't check for updates. Make sure AppGallery is installed and you're online, then try again",
   "update_title": "New version available",
   "update_msg": "Version {0} is out (you have {1}). Open the download page?",
   "update_later": "Later",

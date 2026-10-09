@@ -10,11 +10,14 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.2.7 (versionCode 1020700) |
+| Version | 1.2.8 (versionCode 1020800) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.2.8
+- The update check now goes through Huawei AppGallery (StoreKit update service): tap Settings > About > Version and the system's update prompt appears when a newer version exists; GitHub is no longer contacted. Privacy policy updated to match.
 
 ## What's new in 1.2.7
 - New: tap Settings > About > Version to check the GitHub repo's latest release; when a newer one is out, a dialog offers to open the download page.

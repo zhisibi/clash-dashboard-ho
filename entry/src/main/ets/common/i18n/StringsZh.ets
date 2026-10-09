@@ -341,7 +341,7 @@ export const ZH: Record<string, string> = {
   "version_check_desc": "点击检查更新",
   "update_checking": "正在检查更新…",
   "update_latest": "已是最新版本（{0}）",
-  "update_failed": "检查更新失败，请检查网络后重试",
+  "update_failed": "检查更新失败，请确认已安装华为应用市场并联网后重试",
   "update_title": "发现新版本",
   "update_msg": "最新版本 {0}，当前版本 {1}。是否前往下载？",
   "update_later": "稍后",

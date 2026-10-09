@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.2.7（versionCode 1020700） |
+| 版本 | 1.2.8（versionCode 1020800） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.2.8
+- 检查更新改为通过华为应用市场（StoreKit 更新服务）：点击“设置 → 关于 → 版本”，有新版本时弹出系统更新提示，不再访问 GitHub；隐私政策同步修改。
 
 ### 1.2.7
 - 新增：“设置 → 关于 → 版本”点击即检查 GitHub 仓库最新发布版本，有新版本时弹窗提示，可直接打开下载页。
