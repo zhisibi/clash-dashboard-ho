@@ -1315,6 +1315,17 @@ export class Store {
     });
   }
 
+  /** 1.2.6: true while any proxy group latency test is running (drives the header test-all spinner) */
+  anyGroupTesting(): boolean {
+    let busy = false;
+    this.testing.forEach((v: boolean, k: string) => {
+      if (v && !k.startsWith('provider:')) {
+        busy = true;
+      }
+    });
+    return busy;
+  }
+
   testAllGroups(): void {
     for (const g of this.groups()) {
       if (g.name !== 'GLOBAL') {

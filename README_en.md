@@ -10,11 +10,14 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.2.5 (versionCode 1020500) |
+| Version | 1.2.6 (versionCode 1020600) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.2.6
+- Every latency-test button on the Proxies page now animates on press and keeps spinning until the test ends: the header "test all" and the group sheet's test button turn into a spinner, and while a whole group or provider is tested, each node's latency pill spins too.
 
 ## What's new in 1.2.5
 - The contact at the end of the privacy policy and user agreement is now the developer's email: zhisibi@163.com.

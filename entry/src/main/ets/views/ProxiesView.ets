@@ -140,7 +140,9 @@ struct NodeCard {
           delay: this.store.delayOf(this.node, this.url()),
           low: this.store.lowLatency,
           medium: this.store.mediumLatency,
-          testing: this.store.nodeTesting.get(this.node) === true,
+          // 1.2.6: also spins while the group this card sits in (or the node itself, when it is a group) is being tested
+          testing: this.store.nodeTesting.get(this.node) === true || this.store.testing.get(this.node) === true ||
+            this.store.testing.get(this.groupName) === true,
           onTap: () => {
             const p = this.store.proxies.get(this.node);
             if (p !== undefined && p.isGroup()) {
@@ -228,6 +230,7 @@ struct GroupDetail {
             pal: this.store.palette(),
             icon: $r('sys.symbol.bolt'),
             active: this.store.testing.get(this.name) === true,
+            busy: this.store.testing.get(this.name) === true,
             label: t('act_test'),
             onTap: () => {
               const g = this.store.proxies.get(this.name);
@@ -349,7 +352,8 @@ struct ProviderCard {
                 delay: this.store.delayOf(n.name, this.provider.testUrl),
                 low: this.store.lowLatency,
                 medium: this.store.mediumLatency,
-                testing: this.store.nodeTesting.get(n.name) === true,
+                testing: this.store.nodeTesting.get(n.name) === true ||
+                  this.store.testing.get('provider:' + this.provider.name) === true,
                 onTap: () => {
                   this.store.testNode(n.name, this.provider.testUrl.length > 0 ? this.provider.testUrl : this.store.testUrl);
                 }
@@ -603,7 +607,8 @@ export struct ProxiesView {
 
             if (this.tab === 0) {
               RoundIconButton({
-                pal: this.store.palette(), dense: true, icon: $r('sys.symbol.bolt'), onTap: () => {
+                pal: this.store.palette(), dense: true, icon: $r('sys.symbol.bolt'),
+                active: this.store.anyGroupTesting(), busy: this.store.anyGroupTesting(), onTap: () => {
                   this.store.testAllGroups();
                 }
               })

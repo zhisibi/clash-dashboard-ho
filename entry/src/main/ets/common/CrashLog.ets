@@ -40,7 +40,7 @@ export class CrashLog {
       const bi = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
       return bi.versionName + ' (' + bi.versionCode + ')';
     } catch (e) {
-      return '1.2.5';
+      return '1.2.6';
     }
   }
 

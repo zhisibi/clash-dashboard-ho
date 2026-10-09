@@ -54,6 +54,7 @@ export struct LatencyBadge {
     .padding({ left: 10, right: 10 })
     .borderRadius(12)
     .backgroundColor(this.pal.chip)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
     .onClick(() => {
       this.onTap();
     })
@@ -108,15 +109,25 @@ export struct RoundIconButton {
   @Param tint: string = '';
   /** Compact size (for headers) */
   @Param dense: boolean = false;
+  /** 1.2.6: work in progress (e.g. latency test): the icon gives way to a spinner until it ends */
+  @Param busy: boolean = false;
   @Event onTap: () => void = () => {
   };
 
   build() {
     Stack() {
-      SymbolGlyph(this.icon)
-        .fontSize(this.dense ? 17 : 20)
-        .fontColor([this.tint.length > 0 ? this.tint : (this.active ? this.pal.onPrimary : this.pal.text)])
+      if (this.busy) {
+        LoadingProgress()
+          .width(this.dense ? 22 : 26)
+          .height(this.dense ? 22 : 26)
+          .color(this.active ? this.pal.onPrimary : this.pal.text)
+      } else {
+        SymbolGlyph(this.icon)
+          .fontSize(this.dense ? 17 : 20)
+          .fontColor([this.tint.length > 0 ? this.tint : (this.active ? this.pal.onPrimary : this.pal.text)])
+      }
     }
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.88 })
     .width(this.dense ? 34 : 44)
     .height(this.dense ? 34 : 44)
     .borderRadius(this.dense ? 17 : 22)
@@ -138,16 +149,23 @@ export struct SheetHeaderButton {
   @Param icon: Resource = $r('sys.symbol.xmark');
   @Param active: boolean = false;
   @Param label: string = '';
+  /** 1.2.6: work in progress: spinner instead of the icon */
+  @Param busy: boolean = false;
   @Event onTap: () => void = () => {
   };
 
   build() {
     Stack() {
       Stack() {
-        SymbolGlyph(this.icon)
-          .fontSize(19)
-          .fontColor([this.active ? this.pal.onPrimary : this.pal.text])
+        if (this.busy) {
+          LoadingProgress().width(24).height(24).color(this.active ? this.pal.onPrimary : this.pal.text)
+        } else {
+          SymbolGlyph(this.icon)
+            .fontSize(19)
+            .fontColor([this.active ? this.pal.onPrimary : this.pal.text])
+        }
       }
+      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.88 })
       .width(40)
       .height(40)
       .borderRadius(20)
