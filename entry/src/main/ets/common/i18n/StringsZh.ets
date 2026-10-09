@@ -337,5 +337,13 @@ export const ZH: Record<string, string> = {
   "withdraw_desc": "撤回后应用将退出",
   "settings": "设置",
   "back": "返回",
-  "search_settings": "搜索设置"
+  "search_settings": "搜索设置",
+  "version_check_desc": "点击检查更新",
+  "update_checking": "正在检查更新…",
+  "update_latest": "已是最新版本（{0}）",
+  "update_failed": "检查更新失败，请检查网络后重试",
+  "update_title": "发现新版本",
+  "update_msg": "最新版本 {0}，当前版本 {1}。是否前往下载？",
+  "update_later": "稍后",
+  "update_go": "去更新"
 };

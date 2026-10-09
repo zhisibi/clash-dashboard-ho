@@ -150,6 +150,8 @@ export class Store {
   // ----- proxies -----
   @Trace proxies: Map<string, ProxyItem> = new Map<string, ProxyItem>();
   @Trace providers: ProxyProvider[] = [];
+  /** 1.2.7: About > Version update check in flight */
+  @Trace updateChecking: boolean = false;
   @Trace testing: Map<string, boolean> = new Map<string, boolean>();
   @Trace nodeTesting: Map<string, boolean> = new Map<string, boolean>();
   @Trace manualDelay: Map<string, number> = new Map<string, number>();

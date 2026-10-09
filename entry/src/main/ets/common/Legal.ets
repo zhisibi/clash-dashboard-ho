@@ -6,7 +6,7 @@ import { AGREEMENT_EN, PRIVACY_EN } from './i18n/LegalEn';
 export const LEGAL_DEVELOPER: string = '张世博';
 export const LEGAL_CONTACT: string = 'https://github.com/zhisibi';
 /** Privacy policy version: bump on material changes so users are asked to accept again */
-export const PRIVACY_VERSION: number = 1;
+export const PRIVACY_VERSION: number = 2;
 
 /** Privacy policy lines (markdown subset) in the current UI language */
 export function privacyLines(): string[] {

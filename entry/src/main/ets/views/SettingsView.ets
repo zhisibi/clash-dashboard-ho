@@ -6,6 +6,7 @@ import { ACCENTS, AccentDef } from '../common/Theme';
 import { Backend } from '../common/Models';
 import { CoreApi } from '../common/CoreApi';
 import { CrashLog } from '../common/CrashLog';
+import { Updater } from '../common/Updater';
 import { LEGAL_CONTACT, LEGAL_DEVELOPER } from '../common/Legal';
 import { FileUtil } from '../common/FileUtil';
 import { modeName } from '../common/Format';
@@ -1188,7 +1189,22 @@ struct AboutPage {
     Column() {
       Group({ pal: this.store.palette(), title: '' }) {
         RowItem({ pal: this.store.palette(), title: t('app_name_label'), desc: t('app_name') })
-        RowItem({ pal: this.store.palette(), title: t('version'), desc: CrashLog.versionName() })
+        // 1.2.7: tap to check the repo's latest release
+        RowItem({
+          pal: this.store.palette(),
+          title: t('version'),
+          desc: CrashLog.versionName() + ' · ' + (this.store.updateChecking ? t('update_checking') : t('version_check_desc')),
+          clickable: true,
+          onTap: () => {
+            Updater.check(this.store);
+          }
+        }) {
+          if (this.store.updateChecking) {
+            LoadingProgress().width(20).height(20).color(this.store.palette().subtle)
+          } else {
+            this.chevron()
+          }
+        }
         RowItem({ pal: this.store.palette(), title: t('developer'), desc: LEGAL_DEVELOPER + ' · ' + LEGAL_CONTACT })
         RowItem({
           pal: this.store.palette(),

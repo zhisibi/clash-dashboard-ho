@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.2.6（versionCode 1020600） |
+| 版本 | 1.2.7（versionCode 1020700） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,10 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.2.7
+- 新增：“设置 → 关于 → 版本”点击即检查 GitHub 仓库最新发布版本，有新版本时弹窗提示，可直接打开下载页。
+- 隐私政策补充检查更新所涉及的网络访问，隐私政策版本升为 2（升级后会请您重新确认）。
 
 ### 1.2.6
 - 代理页所有测速按钮按下时有按压缩放动画，测速期间持续转圈直到结束：顶栏“全部测速”、代理组详情的测速按钮会变为加载动画；测试整个代理组 / 健康检查提供者时，其中每个节点的延迟胶囊也同步转圈。
