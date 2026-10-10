@@ -15,6 +15,8 @@ import { Group, NumberRow, RowItem, SliderRow, SwitchRow } from '../components/S
 import { BackendForm } from '../components/BackendForm';
 import { bothLangs, isEn, langOptionLabel, LANG_KEYS, systemLang, t } from '../common/I18n';
 
+const FEEDBACK_GROUP: string = '1127250124';
+
 class Section {
   key: string = '';
   title: string = '';
@@ -1206,6 +1208,17 @@ struct AboutPage {
           }
         }
         RowItem({ pal: this.store.palette(), title: t('developer'), desc: LEGAL_DEVELOPER + ' · ' + LEGAL_CONTACT })
+        // 1.2.9: feedback group, tap to copy the number
+        RowItem({
+          pal: this.store.palette(),
+          title: t('feedback_group'),
+          desc: t('feedback_group_desc', FEEDBACK_GROUP),
+          clickable: true,
+          onTap: () => {
+            FileUtil.copyText(FEEDBACK_GROUP);
+            this.store.toast(t('copied'));
+          }
+        })
         RowItem({
           pal: this.store.palette(),
           title: t('compat_api'),
