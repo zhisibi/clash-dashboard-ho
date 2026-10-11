@@ -10,11 +10,14 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.2.9 (versionCode 1020900) |
+| Version | 1.2.10 (versionCode 1021000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.2.10
+- When the server has a label, the Overview header shows only the connection status and the label, without the "Overview" title or the core version.
 
 ## What's new in 1.2.9
 - Settings > About now lists the feedback group 1127250124; tap to copy the number.

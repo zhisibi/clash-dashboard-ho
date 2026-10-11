@@ -82,6 +82,10 @@ export struct OverviewView {
     return p;
   }
 
+  hasLabel(): boolean {
+    return this.store.active !== null && this.store.active.label.trim().length > 0;
+  }
+
   build() {
     Stack({ alignContent: Alignment.Top }) {
       PullRefresh({ topInset: this.headerH, page: 'overview' }) {
@@ -261,10 +265,12 @@ export struct OverviewView {
       }) {
         HeaderStatus({
           pal: this.store.palette(),
-          title: t('overview'),
+          // 1.2.10: with a server label, show only the status and the label (no "Overview", no core version)
+          title: this.hasLabel() ? '' : t('overview'),
           connState: this.store.connState,
-          address: this.store.active !== null ? this.store.active.host + ':' + this.store.active.port : t('not_connected'),
-          tag: this.store.version
+          address: this.hasLabel() ? this.store.active!.label.trim() :
+            (this.store.active !== null ? this.store.active.host + ':' + this.store.active.port : t('not_connected')),
+          tag: this.hasLabel() ? '' : this.store.version
         })
       }
     }

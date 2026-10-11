@@ -353,12 +353,16 @@ export struct HeaderStatus {
 
   build() {
     Row() {
-      Text(this.title).fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.pal.text)
-      Divider().vertical(true).height(16).color(this.pal.outline).margin({ left: 10, right: 10 })
+      // 1.2.10: with no title (overview with a server label), the status dot + label alone fill the row
+      if (this.title.length > 0) {
+        Text(this.title).fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.pal.text)
+        Divider().vertical(true).height(16).color(this.pal.outline).margin({ left: 10, right: 10 })
+      }
       Row().width(8).height(8).borderRadius(4).backgroundColor(this.dotColor())
       Text(this.address)
-        .fontSize(13)
-        .fontColor(this.pal.subtle)
+        .fontSize(this.title.length > 0 ? 13 : 18)
+        .fontWeight(this.title.length > 0 ? FontWeight.Normal : FontWeight.Medium)
+        .fontColor(this.title.length > 0 ? this.pal.subtle : this.pal.text)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
