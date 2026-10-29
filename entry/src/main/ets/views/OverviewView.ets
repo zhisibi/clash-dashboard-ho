@@ -142,15 +142,18 @@ export struct OverviewView {
               })
             }
 
-            // speed chart
+            // speed chart (1.3.4: same height as the memory card, both smaller - legends moved into the
+            // title row and both charts are 104 high, so the two cards match exactly)
             Column() {
               Row() {
                 Text(t('live_speed')).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
                   .layoutWeight(1)
+                Legend({ pal: this.store.palette(), color: this.store.palette().up, label: t('upload') })
+                Legend({ pal: this.store.palette(), color: this.store.palette().down, label: t('download') })
                 Text(t('peak', fmtSpeed(this.peak()))).fontSize(12).fontColor(this.store.palette().subtle)
               }
               .width('100%')
-              .margin({ bottom: 10 })
+              .margin({ bottom: 8 })
 
               LineChart({
                 series: [
@@ -159,21 +162,15 @@ export struct OverviewView {
                 ],
                 colors: [this.store.palette().up, this.store.palette().down],
                 grid: this.store.palette().outlineVariant,
-                chartHeight: 160
+                chartHeight: 104
               })
-              Row() {
-                Legend({ pal: this.store.palette(), color: this.store.palette().up, label: t('upload') })
-                Legend({ pal: this.store.palette(), color: this.store.palette().down, label: t('download') })
-              }
-              .width('100%')
-              .margin({ top: 8 })
             }
             .width('100%')
-            .padding(16)
+            .padding(14)
             .borderRadius(18)
             .attributeModifier(Store.get().glass('card'))
 
-            // memory chart
+            // memory chart (1.3.4: same structure and height as the speed card)
             Column() {
               Row() {
                 Text(t('memory')).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
@@ -181,17 +178,17 @@ export struct OverviewView {
                 Text(fmtBytes(this.store.memory)).fontSize(12).fontColor(this.store.palette().subtle)
               }
               .width('100%')
-              .margin({ bottom: 10 })
+              .margin({ bottom: 8 })
 
               LineChart({
                 series: [this.store.memoryHistory.slice()],
                 colors: [this.store.palette().accentUi],
                 grid: this.store.palette().outlineVariant,
-                chartHeight: 110
+                chartHeight: 104
               })
             }
             .width('100%')
-            .padding(16)
+            .padding(14)
             .borderRadius(18)
             .attributeModifier(Store.get().glass('card'))
 

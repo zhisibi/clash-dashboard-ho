@@ -10,11 +10,14 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.3.3 (versionCode 1033000) |
+| Version | 1.3.4 (versionCode 1034000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.3.4
+- **Equal, smaller chart cards on the Overview page**: the live-speed and memory line-chart cards are now exactly the same height - the speed card's legends moved into its title row, both charts are 104 vp high, and card padding is slightly tighter; both cards are shorter than before.
 
 ## What's new in 1.3.3
 - **Security fixes (from the post-1.3.2 security review, mirrored on Android)**: stricter backend address validation - the host must be an IP or domain name; addresses containing @ / ? # or spaces are rejected (they would send the request, secret included, to a different server), and the path prefix rejects ? # and .. as well. The WebSocket secret now travels only in the Authorization header instead of a URL query parameter (which leaks into server / proxy logs). Using HTTP with a public address shows a warning in the form that the secret will be sent unencrypted.
