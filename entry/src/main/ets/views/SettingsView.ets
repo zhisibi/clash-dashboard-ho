@@ -283,6 +283,8 @@ struct BackendPage {
           }
           .width('100%')
           .padding({ left: 12, right: 16, top: 10, bottom: 10 })
+          .borderRadius(18)
+          .attributeModifier(Store.get().glass('card'))
           .onClick(() => {
             if (this.store.active === null || this.store.active.id !== b.id) {
               this.store.connect(b);
@@ -359,7 +361,10 @@ struct BackendPage {
             Text(t('patch_unsupported', this.store.unsupported.get('patch') ?? 0))
               .fontSize(13)
               .fontColor(this.store.palette().bad)
-              .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+              .width('100%')
+              .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+              .borderRadius(18)
+              .attributeModifier(Store.get().glass('card'))
           }
           SwitchRow({
             pal: this.store.palette(),
@@ -528,6 +533,8 @@ struct PanelPage {
     .width('100%')
     .alignItems(HorizontalAlign.Start)
     .padding({ left: 16, right: 16, top: 6, bottom: 12 })
+    .borderRadius(18)
+    .attributeModifier(Store.get().glass('card'))
   }
 
   glassKeys(): string[] {
@@ -665,6 +672,8 @@ struct PanelPage {
           .width('100%')
           .alignItems(HorizontalAlign.Start)
           .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+          .borderRadius(18)
+          .attributeModifier(Store.get().glass('card'))
           SliderRow({
             pal: this.store.palette(),
             title: t('blur_strength'),
@@ -767,12 +776,17 @@ struct PanelPage {
 
       Group({ pal: this.store.palette(), title: t('wallpaper') }) {
         if (this.store.wallpaperPath.length > 0) {
-          Image(fileUri.getUriFromPath(this.store.wallpaperPath))
-            .width('100%')
-            .height(160)
-            .objectFit(ImageFit.Cover)
-            .borderRadius(14)
-            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+          Column() {
+            Image(fileUri.getUriFromPath(this.store.wallpaperPath))
+              .width('100%')
+              .height(160)
+              .objectFit(ImageFit.Cover)
+              .borderRadius(12)
+          }
+          .width('100%')
+          .padding(8)
+          .borderRadius(18)
+          .attributeModifier(Store.get().glass('card'))
         }
         RowItem({
           pal: this.store.palette(),
@@ -873,6 +887,8 @@ struct ProxyPrefsPage {
         }
         .alignItems(HorizontalAlign.Start)
         .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+        .borderRadius(18)
+        .attributeModifier(Store.get().glass('card'))
 
         NumberRow({
           pal: this.store.palette(), title: t('test_timeout'), value: this.store.testTimeout, suffix: 'ms', onValue: (v: number) => {
@@ -1116,11 +1132,14 @@ struct CrashLogPage {
         .attributeModifier(Store.get().glass('card'))
         .margin({ top: 16 })
 
-      Column() {
+      Column({ space: 10 }) {
         if (this.files.length === 0) {
           Text(t('no_crash')).fontSize(15).fontColor(this.store.palette().subtle).padding(20)
+            .width('100%')
+            .borderRadius(18)
+            .attributeModifier(Store.get().glass('card'))
         } else {
-          ForEach(this.files, (f: string, i: number) => {
+          ForEach(this.files, (f: string) => {
             Row() {
               SymbolGlyph($r('sys.symbol.exclamationmark_magnifyingglass'))
                 .fontSize(22)
@@ -1137,20 +1156,17 @@ struct CrashLogPage {
             }
             .width('100%')
             .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+            .borderRadius(18)
+            .attributeModifier(Store.get().glass('card'))
             .onClick(() => {
               this.open = f;
               this.showDetail = true;
             })
-            if (i < this.files.length - 1) {
-              Divider().color(this.store.palette().outlineVariant)
-            }
           }, (f: string) => f)
         }
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
-      .borderRadius(18)
-      .attributeModifier(Store.get().glass('card'))
       .margin({ top: 12 })
 
       if (this.files.length > 0) {
@@ -1326,8 +1342,8 @@ export struct SettingsView {
           if (this.store.settingsPage.length === 0) {
             // The title is in the header (same row as search), so no large title here
             Blank().height(14)
-            Column() {
-              ForEach(this.shown(), (s: Section, i: number) => {
+            Column({ space: 10 }) {
+              ForEach(this.shown(), (s: Section) => {
                 Row() {
                   Stack() {
                     SymbolGlyph(s.icon).fontSize(24).fontColor([this.store.palette().text])
@@ -1354,19 +1370,16 @@ export struct SettingsView {
                 }
                 .width('100%')
                 .padding(18)
+                .borderRadius(18)
+                .attributeModifier(Store.get().glass('card'))
                 .onClick(() => {
                   this.store.settingsPage = s.key;
                   this.store.expandNav();
                   this.sc.scrollEdge(Edge.Top);
                 })
-                if (i < this.shown().length - 1) {
-                  Divider().color(this.store.palette().outlineVariant)
-                }
               }, (s: Section) => s.key)
             }
             .width('100%')
-            .borderRadius(18)
-            .attributeModifier(Store.get().glass('card'))
           } else if (this.store.settingsPage === 'lang') {
             LanguagePage()
           } else if (this.store.settingsPage === 'backend') {

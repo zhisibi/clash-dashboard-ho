@@ -3,8 +3,10 @@ import { Palette } from '../common/Theme';
 import { Motion } from '../common/Motion';
 import { MOTION_BASE } from '../common/MotionLogic';
 
-/** Settings group: title + card. 1.3.1: titled groups fold - tap the title row to collapse the
- *  card (chevron turns with the global motion); the fold state is remembered per group title. */
+/** Settings group: title + items. 1.3.1: titled groups fold - tap the title row to collapse the
+ *  items (chevron turns with the global motion); the fold state is remembered per group title.
+ *  1.3.2: the title matches the settings home entries (18 vp, main text color), and every item
+ *  is its own card instead of rows sharing one group card. */
 @ComponentV2
 export struct Group {
   @Param pal: Palette = new Palette();
@@ -38,9 +40,8 @@ export struct Group {
       if (this.title.length > 0) {
         Row() {
           Text(this.title)
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.pal.subtle)
+            .fontSize(18)
+            .fontColor(this.pal.text)
             .layoutWeight(1)
           SymbolGlyph($r('sys.symbol.chevron_down'))
             .fontSize(16)
@@ -57,13 +58,10 @@ export struct Group {
         Blank().height(14)
       }
       if (this.title.length === 0 || this.open) {
-        Column() {
+        Column({ space: 10 }) {
           this.content()
         }
         .width('100%')
-        .padding({ top: 4, bottom: 4 })
-        .borderRadius(18)
-        .attributeModifier(Store.get().glass('card'))
         .transition(Motion.reveal())
       }
     }
@@ -108,6 +106,8 @@ export struct RowItem {
     .width('100%')
     .constraintSize({ minHeight: 52 })
     .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+    .borderRadius(18)
+    .attributeModifier(Store.get().glass('card'))
     .onClick(() => {
       if (this.clickable) {
         this.onTap();
@@ -148,6 +148,8 @@ export struct SwitchRow {
     .width('100%')
     .constraintSize({ minHeight: 52 })
     .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+    .borderRadius(18)
+    .attributeModifier(Store.get().glass('card'))
   }
 }
 
@@ -214,6 +216,8 @@ export struct NumberRow {
     .width('100%')
     .constraintSize({ minHeight: 52 })
     .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+    .borderRadius(18)
+    .attributeModifier(Store.get().glass('card'))
   }
 }
 
@@ -247,5 +251,7 @@ export struct SliderRow {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+    .borderRadius(18)
+    .attributeModifier(Store.get().glass('card'))
   }
 }

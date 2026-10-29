@@ -10,11 +10,15 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.3.1 (versionCode 1031000) |
+| Version | 1.3.2 (versionCode 1032000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.3.2
+- **Settings menus are all cards now**: on the settings home (first level) each section entry is its own card instead of sharing one big card; on every sub-page each item (switches, inputs, sliders, backend entries, custom blocks, crash-log entries) is its own card too, with 10 vp gaps - no more shared group card.
+- **Sub-page group titles match the first level**: group titles grow from 14 vp to the same 18 vp as the settings home entries and use the main text color; the fold chevron stays.
 
 ## What's new in 1.3.1
 - **Cards tinted by the theme**: every card now mixes a hint of the current accent into its surface (6% in light mode, 10% in dark), so switching accents re-tints all cards, settings groups and the glass material at once; the mix happens before opacity handling, so frosted-glass and wallpaper modes get it too.
