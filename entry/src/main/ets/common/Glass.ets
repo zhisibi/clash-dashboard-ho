@@ -111,7 +111,8 @@ function makeSysMaterial(cfg: GlassCfg, kind: GlassKind): uiMaterial.Material | 
       const tint = kind === 'bar' ? 0.50 : (kind === 'top' ? 0.42 : 0.12);
       const opts: uiMaterial.ImmersiveOptions = {
         style: st,
-        materialColor: withAlpha(cfg.dark ? '#1C1F24' : '#FFFFFF', tint),
+        // 1.3.1: follow the (accent-tinted) card color instead of a fixed black/white
+        materialColor: withAlpha(cfg.card, tint),
         applyShadow: kind === 'bar' || kind === 'card',
         // 1.1.6: turn off the bar material's interactive deformation so it doesn't compete with tab taps on some devices
         interactive: false,

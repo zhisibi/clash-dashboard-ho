@@ -8,7 +8,7 @@ import {
   asObj, jArr, jNum, jStr, parseConnection, parseJsonObj
 } from './Models';
 import { Prefs } from './Prefs';
-import { AccentDef, Palette, applyAccent, darkPalette, findAccent, lightPalette, withAlpha } from './Theme';
+import { AccentDef, Palette, applyAccent, darkPalette, findAccent, lightPalette, mixColor, withAlpha } from './Theme';
 import { FileUtil } from './FileUtil';
 import { CrashLog } from './CrashLog';
 import { PRIVACY_VERSION } from './Legal';
@@ -367,6 +367,9 @@ export class Store {
 
   palette(): Palette {
     const base = applyAccent(this.isDark() ? darkPalette() : lightPalette(), findAccent(this.accent));
+    // 1.3.1: cards pick up a hint of the current accent, so the chosen theme tints the whole UI
+    // (a whisper, not a wash: text contrast on cards is checked against the untinted surfaces)
+    base.card = mixColor(base.card, base.accentFill, base.dark ? 0.10 : 0.06);
     if (this.glassOn) {
       // Glass: Index draws the page background (wallpaper or soft gradient); cards are translucent
       base.bg = '#00000000';

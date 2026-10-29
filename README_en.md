@@ -10,11 +10,15 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.3.0 (versionCode 1030000) |
+| Version | 1.3.1 (versionCode 1031000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.3.1
+- **Cards tinted by the theme**: every card now mixes a hint of the current accent into its surface (6% in light mode, 10% in dark), so switching accents re-tints all cards, settings groups and the glass material at once; the mix happens before opacity handling, so frosted-glass and wallpaper modes get it too.
+- **Collapsible settings groups**: on every settings sub-page, tapping a group title folds or unfolds its card (the chevron turns with the global motion, instantly when animations are off). Fold state is remembered per group on the device, so long pages stay short.
 
 ## What's new in 1.3.0
 - **Gentle review prompt** (same spec as MimiFTP / MimiSSH): after 3 days installed, 5 launches and 3 successful backend connections, a soft card appears above the bottom bar inviting a review on AppGallery - at most once per 90 days and 3 times in total; "Later" snoozes 60 days, "Rate" / "Don't remind me" stop it for good. The card offers the feedback group first, and Settings > About keeps a permanent rate entry. State stays on the device.

@@ -1,33 +1,71 @@
 import { Store } from '../common/Store';
 import { Palette } from '../common/Theme';
 import { Motion } from '../common/Motion';
-import { SectionTitle } from './Widgets';
+import { MOTION_BASE } from '../common/MotionLogic';
 
-/** Settings group: title + card */
+/** Settings group: title + card. 1.3.1: titled groups fold - tap the title row to collapse the
+ *  card (chevron turns with the global motion); the fold state is remembered per group title. */
 @ComponentV2
 export struct Group {
   @Param pal: Palette = new Palette();
   @Param title: string = '';
   @BuilderParam content: () => void = this.none;
+  @Local open: boolean = true;
 
   @Builder
   none() {
   }
 
+  aboutToAppear(): void {
+    if (this.title.length > 0) {
+      const p = Store.get().prefs;
+      if (p !== null) {
+        this.open = p.bool('fold.' + this.title, true);
+      }
+    }
+  }
+
+  toggle(): void {
+    this.open = !this.open;
+    const p = Store.get().prefs;
+    if (p !== null) {
+      p.put('fold.' + this.title, this.open);
+    }
+  }
+
   build() {
     Column() {
       if (this.title.length > 0) {
-        SectionTitle({ pal: this.pal, text: this.title })
+        Row() {
+          Text(this.title)
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.pal.subtle)
+            .layoutWeight(1)
+          SymbolGlyph($r('sys.symbol.chevron_down'))
+            .fontSize(16)
+            .fontColor([this.pal.subtle])
+            .rotate({ angle: this.open ? 0 : -90 })
+            .animation({ duration: Motion.ms(MOTION_BASE), curve: Curve.EaseInOut })
+        }
+        .width('100%')
+        .padding({ left: 6, right: 6, top: 18, bottom: 8 })
+        .onClick(() => {
+          this.toggle();
+        })
       } else {
         Blank().height(14)
       }
-      Column() {
-        this.content()
+      if (this.title.length === 0 || this.open) {
+        Column() {
+          this.content()
+        }
+        .width('100%')
+        .padding({ top: 4, bottom: 4 })
+        .borderRadius(18)
+        .attributeModifier(Store.get().glass('card'))
+        .transition(Motion.reveal())
       }
-      .width('100%')
-      .padding({ top: 4, bottom: 4 })
-      .borderRadius(18)
-      .attributeModifier(Store.get().glass('card'))
     }
     .width('100%')
     // 1.3.0: settings groups fade in with the global motion (instant when transition animations are off)
