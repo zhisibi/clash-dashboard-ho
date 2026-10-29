@@ -10,11 +10,14 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.3.4 (versionCode 1034000) |
+| Version | 1.3.5 (versionCode 1035000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.3.5
+- **New fresh-install defaults**: the default accent is now red ("Huawei red"); frosted glass is on by default (custom material, blur strength 20, card opacity 20%); immersive light is on by default; the nav bar immersive light stays on by default; list-row blur stays off by default. Settings saved by existing installs are unaffected.
 
 ## What's new in 1.3.4
 - **Equal, smaller chart cards on the Overview page**: the live-speed and memory line-chart cards are now exactly the same height - the speed card's legends moved into its title row, both charts are 104 vp high, and card padding is slightly tighter; both cards are shorter than before.

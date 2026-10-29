@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.3.4（versionCode 1034000） |
+| 版本 | 1.3.5（versionCode 1035000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.3.5
+- **新装默认值调整**：默认主题色改为红色（华为红）；毛玻璃默认开启（自定义材质、模糊强度 20、卡片不透明度 20%）；沉浸光感默认开启；导航栏沉浸光感默认开启（原已默认开）；列表页模糊默认关闭。已安装用户保存过的设置不受影响
 
 ### 1.3.4
 - **首页图表卡片等高并缩小**：实时速度与内存两张折线图卡片改为完全等高——速度卡的图例移入标题行、两张图的高度统一为 104 vp，卡片内边距略收；两张卡都比之前更矮

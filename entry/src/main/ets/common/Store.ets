@@ -234,7 +234,8 @@ export class Store {
     }
     initLang(p.str('lang', 'system'));
     this.theme = p.str('theme', 'system');
-    this.accent = findAccent(p.str('accent', 'blue')).key;
+    // 1.3.5: fresh-install default accent is red ("Huawei red")
+    this.accent = findAccent(p.str('accent', 'red')).key;
     this.testUrl = p.str('test_url', 'https://www.gstatic.com/generate_204');
     this.testTimeout = p.num('test_timeout', 5000);
     this.lowLatency = p.num('low_latency', 400);
@@ -256,12 +257,14 @@ export class Store {
     this.wallpaperDim = p.num('wp_dim', 0.1);
     const wp = p.str('wallpaper', '');
     this.wallpaperPath = (wp.length > 0 && FileUtil.exists(wp)) ? wp : '';
-    this.glassOn = p.bool('glass_on', false);
+    // 1.3.5: fresh-install defaults - glass on (custom material, blur 20, card opacity 0.20), light on,
+    // list rows stay unblurred; existing installs keep their stored values
+    this.glassOn = p.bool('glass_on', true);
     this.glassStyle = p.str('glass_style', 'custom');
-    this.glassBlur = p.num('glass_blur', 45);
-    this.glassAlpha = p.num('glass_alpha', 0.55);
+    this.glassBlur = p.num('glass_blur', 20);
+    this.glassAlpha = p.num('glass_alpha', 0.20);
     this.glassRows = p.bool('glass_rows', false);
-    this.lightOn = p.bool('light_on', false);
+    this.lightOn = p.bool('light_on', true);
     this.lightIntensity = p.num('light_intensity', 0.6);
     this.lightTilt = p.bool('light_tilt', false);
     this.lightGlow = p.bool('light_glow', true);
