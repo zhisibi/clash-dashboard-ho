@@ -1,5 +1,5 @@
 import { Store } from '../common/Store';
-import { Backend } from '../common/Models';
+import { Backend, hostHasBadChars, isLocalHost, pathHasBadChars } from '../common/Models';
 import { errMsg } from '../common/CoreApi';
 import { SegTabs } from './Widgets';
 import { t } from '../common/I18n';
@@ -60,12 +60,20 @@ export struct BackendForm {
     if (this.host.trim().length === 0) {
       key = 'host';
       msg = t('err_host_required');
+    } else if (hostHasBadChars(this.host.trim())) {
+      // 1.3.3 (security): a host with '@'/'?'/'#' would break out of the URL authority and could send
+      // this backend's secret to a different server; the path prefix gets the same treatment.
+      key = 'host';
+      msg = t('err_host_invalid');
     } else if (this.port.trim().length === 0) {
       key = 'port';
       msg = t('err_port_required');
     } else if (!Number.isInteger(port) || port < 1 || port > 65535) {
       key = 'port';
       msg = t('err_port_invalid');
+    } else if (pathHasBadChars(this.path.trim())) {
+      key = 'path';
+      msg = t('err_path_invalid');
     }
     this.errField = key;
     if (key.length > 0) {
@@ -137,9 +145,17 @@ export struct BackendForm {
       }
       .width('100%')
 
-      this.field(t('f_path'), this.path, t('optional'), 0, false, (v: string) => {
+      this.field(t('f_path'), this.path, t('optional'), 0, this.errField === 'path', (v: string) => {
         this.path = v;
+        this.clearErr('path');
       })
+      if (this.protocol === 'http' && this.host.trim().length > 0 && !isLocalHost(this.host)) {
+        // 1.3.3: plain HTTP to a public address sends the secret unencrypted - say so in the form
+        Text(t('warn_cleartext'))
+          .fontSize(13)
+          .fontColor(this.store.palette().warn)
+          .width('100%')
+      }
       this.field(t('f_secret'), this.secret, t('optional'), 2, false, (v: string) => {
         this.secret = v;
       })

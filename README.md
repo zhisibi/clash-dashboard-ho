@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.3.2（versionCode 1032000） |
+| 版本 | 1.3.3（versionCode 1033000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.3.3
+- **安全修复（源自 1.3.2 后的安全审查，安卓版同步）**：后端地址校验收紧——主机只允许 IP 或域名，带 @、/、?、# 或空格的地址会被拒绝（此类地址会让请求连同密钥发往另一台服务器），路径前缀同样拒绝 ?、# 与 ..；WebSocket 密钥改为只走 Authorization 请求头，不再拼在 URL 查询串里（避免进服务端/代理日志）；用 HTTP 连接公网地址时，表单会提示密钥将明文传输
 
 ### 1.3.2
 - **设置菜单全面卡片化**：设置首页（一级菜单）各项从共用一张大卡片改为每项独立卡片；各二级页面的每一项（开关、输入、滑杆、后端条目、自定义区块、崩溃日志条目）也各自成卡，项与项之间留 10 vp 间距，不再共用分组大卡片

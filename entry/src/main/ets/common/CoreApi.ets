@@ -4,7 +4,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { util } from '@kit.ArkTS';
 import {
   Backend, CoreConfig, JObj, ProxyItem, ProxyProvider, RuleItem, RuleProvider,
-  asObj, asNum, jArr, jBool, jHas, jNum, jObj, jStr, parseJsonObj, parseProxy
+  asObj, asNum, hostHasBadChars, jArr, jBool, jHas, jNum, jObj, jStr, parseJsonObj, parseProxy, pathHasBadChars
 } from './Models';
 import { t } from './I18n';
 
@@ -444,14 +444,14 @@ export class CoreApi {
 
   // ---------- websocket ----------
   wsUrl(path: string): string {
+    // 1.3.3 (security): no token in the URL - the secret goes in the Authorization header of the
+    // WebSocket handshake (see openStream), like every REST call; a ?token= query parameter would
+    // leak into server / proxy logs.
     let u = this.url(path);
     if (u.startsWith('https://')) {
       u = 'wss://' + u.substring(8);
     } else if (u.startsWith('http://')) {
       u = 'ws://' + u.substring(7);
-    }
-    if (this.backend.secret.length > 0) {
-      u += (u.indexOf('?') >= 0 ? '&' : '?') + 'token=' + enc(this.backend.secret);
     }
     return u;
   }
@@ -463,7 +463,8 @@ export class CoreApi {
   }
 
   static validate(b: Backend): boolean {
-    if (b.host.trim().length === 0) {
+    // 1.3.3: host / path shape too, so a stored backend can never break out of the URL authority
+    if (b.host.trim().length === 0 || hostHasBadChars(b.host.trim()) || pathHasBadChars(b.secondaryPath.trim())) {
       return false;
     }
     const p = Number(b.port);

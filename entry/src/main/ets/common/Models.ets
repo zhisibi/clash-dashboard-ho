@@ -193,6 +193,44 @@ export class Backend {
   }
 }
 
+/**
+ * Host characters that would break out of the URL authority in baseUrl() (1.3.3, security): a userinfo '@'
+ * (http://127.0.0.1@evil.com sends the Bearer secret to evil.com), '/', '?', '#' or whitespace.
+ * Hosts are IP literals or domain names only.
+ */
+export function hostHasBadChars(h: string): boolean {
+  return h.indexOf('@') >= 0 || h.indexOf('/') >= 0 || h.indexOf('?') >= 0 || h.indexOf('#') >= 0 || /\s/.test(h);
+}
+
+/** The path prefix may contain '/' segments but no query/fragment markers and no '..' traversal. */
+export function pathHasBadChars(p: string): boolean {
+  if (p.indexOf('?') >= 0 || p.indexOf('#') >= 0 || /\s/.test(p)) {
+    return true;
+  }
+  return p.split('/').indexOf('..') >= 0;
+}
+
+/** Loopback / private / link-local host (for the plain-HTTP warning in the backend form). */
+export function isLocalHost(h: string): boolean {
+  let host = h.trim().toLowerCase();
+  if (host.startsWith('[') && host.endsWith(']')) {
+    host = host.substring(1, host.length - 1);
+  }
+  if (host === 'localhost' || host.endsWith('.local') || host === '::1') {
+    return true;
+  }
+  const parts = host.split('.');
+  if (parts.length === 4) {
+    const a = Number(parts[0]);
+    const b = Number(parts[1]);
+    if (!isNaN(a) && !isNaN(b) && parts.every((x: string) => !isNaN(Number(x)) && x.length > 0)) {
+      return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+        (a === 169 && b === 254);
+    }
+  }
+  return false;
+}
+
 export const GROUP_TYPES: string[] = ['selector', 'urltest', 'fallback', 'loadbalance', 'relay', 'smart'];
 
 export class ProxyItem {
