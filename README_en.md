@@ -10,11 +10,16 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.2.10 (versionCode 1021000) |
+| Version | 1.3.0 (versionCode 1030000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.3.0
+- **Gentle review prompt** (same spec as MimiFTP / MimiSSH): after 3 days installed, 5 launches and 3 successful backend connections, a soft card appears above the bottom bar inviting a review on AppGallery - at most once per 90 days and 3 times in total; "Later" snoozes 60 days, "Rate" / "Don't remind me" stop it for good. The card offers the feedback group first, and Settings > About keeps a permanent rate entry. State stays on the device.
+- **Global transition animations**: one motion module (`common/Motion.ets`, 150-300 ms, decelerating, no bounce) now drives tab switches, the nav bar folding in and out, settings groups and empty-state cards appearing, the failure banner and the review card. New "Transition animations" switch in Settings > Panel > Appearance (on by default); off - or a system animation scale of 0 - makes every switch instant.
+- **Nav bar immersive light** option (Settings > Panel > Navigation Bar, ported from MimiSSH): a floating capsule bar using the system immersive material (ImmersiveMaterial THIN) on API 26 devices that support it, falling back to heavy frosted glass with hairline and refraction rims; the selected tab only takes the accent color. **While it is on, the bar stays put and never auto-hides**, regardless of the auto-hide switch. On by default; turning it off restores the previous bar and its auto-hide behaviour.
 
 ## What's new in 1.2.10
 - When the server has a label, the Overview header shows only the connection status and the label, without the "Overview" title or the core version.

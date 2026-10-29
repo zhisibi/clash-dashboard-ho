@@ -3,6 +3,8 @@ import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Store } from '../common/Store';
 import { CrashLog } from '../common/CrashLog';
+import { Motion } from '../common/Motion';
+import { ReviewPrompt } from '../common/ReviewPrompt';
 import { onSystemLangChanged } from '../common/I18n';
 
 export default class EntryAbility extends UIAbility {
@@ -11,6 +13,9 @@ export default class EntryAbility extends UIAbility {
     const store = Store.get();
     store.systemDark = this.context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
     store.init(this.context);
+    // 1.3.0: global motion reads the system animation scales; the gentle review prompt counts this launch
+    Motion.readSystem(this.context);
+    ReviewPrompt.get().init();
   }
 
   onConfigurationUpdate(newConfig: Configuration): void {
@@ -39,6 +44,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    Motion.readSystem(this.context);
     Store.get().setForeground(true);
   }
 

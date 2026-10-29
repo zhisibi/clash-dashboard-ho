@@ -1,6 +1,7 @@
 import { Store } from '../common/Store';
 /** Shared UI components (Kotlin ui/Common.kt) */
 import { Palette } from '../common/Theme';
+import { Motion } from '../common/Motion';
 import { t } from '../common/I18n';
 
 export function rgba(hex: string, alpha: number): string {
@@ -310,6 +311,8 @@ export struct EmptyCard {
     .padding(18)
     .borderRadius(18)
     .attributeModifier(Store.get().glass('card'))
+    // 1.3.0: empty / state cards rise in with the global motion
+    .transition(Motion.rise())
   }
 }
 

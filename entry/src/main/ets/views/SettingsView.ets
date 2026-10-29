@@ -14,6 +14,8 @@ import { DropdownChip, HeaderStatus, SearchBox, SegTabs } from '../components/Wi
 import { Group, NumberRow, RowItem, SliderRow, SwitchRow } from '../components/SettingRows';
 import { BackendForm } from '../components/BackendForm';
 import { bothLangs, isEn, langOptionLabel, LANG_KEYS, systemLang, t } from '../common/I18n';
+import { NavLightSense } from '../common/NavLight';
+import { ReviewPrompt } from '../common/ReviewPrompt';
 
 const FEEDBACK_GROUP: string = '1127250124';
 
@@ -603,6 +605,15 @@ struct PanelPage {
           })
         }
         this.accentPreview()
+        SwitchRow({
+          pal: this.store.palette(),
+          title: t('motion'),
+          desc: t('motion_desc'),
+          checked: this.store.motion,
+          onChange: (v: boolean) => {
+            this.store.setMotion(v);
+          }
+        })
       }
 
       Group({ pal: this.store.palette(), title: t('nav_bar') }) {
@@ -613,6 +624,15 @@ struct PanelPage {
           checked: this.store.autoHideNav,
           onChange: (v: boolean) => {
             this.store.setAutoHideNav(v);
+          }
+        })
+        SwitchRow({
+          pal: this.store.palette(),
+          title: t('nav_light'),
+          desc: NavLightSense.material() ? t('nav_light_desc_sys') : t('nav_light_desc_fb'),
+          checked: this.store.navLight,
+          onChange: (v: boolean) => {
+            this.store.setNavLight(v);
           }
         })
       }
@@ -1219,6 +1239,22 @@ struct AboutPage {
             this.store.toast(t('copied'));
           }
         })
+        // 1.3.0: permanent review entry (not subject to the gentle prompt's rate limits)
+        RowItem({
+          pal: this.store.palette(),
+          title: t('rate_app'),
+          desc: t('rate_app_desc'),
+          clickable: true,
+          onTap: () => {
+            ReviewPrompt.openListing(this.store.ctx).then((ok: boolean) => {
+              if (!ok) {
+                this.store.toast(t('rate_open_failed'));
+              }
+            });
+          }
+        }) {
+          this.chevron()
+        }
         RowItem({
           pal: this.store.palette(),
           title: t('compat_api'),

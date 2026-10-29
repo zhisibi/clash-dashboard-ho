@@ -12,6 +12,11 @@ import { withAlpha } from '../common/Theme';
 import { LegalView } from '../components/LegalView';
 import { GlassGradient, PageBackdrop } from '../components/PageBackdrop';
 import { I18N, t } from '../common/I18n';
+import { Motion } from '../common/Motion';
+import { MOTION_TAB } from '../common/MotionLogic';
+import { BarGlassMod, GLASS_LABEL_DARK, GlassRimMod } from '../common/NavLight';
+import { ReviewPrompt } from '../common/ReviewPrompt';
+import { ReviewCard } from '../components/ReviewCard';
 
 class TabDef {
   /** i18n key of the tab label */
@@ -42,6 +47,7 @@ const DOT: number = 56;
 @ComponentV2
 struct Index {
   private store: Store = Store.get();
+  private review: ReviewPrompt = ReviewPrompt.get();
   @Local showCrash: boolean = false;
   @Local crashName: string = '';
   /** Light sweep position: -1 off the left edge, 1 off the right edge */
@@ -55,6 +61,11 @@ struct Index {
   private tabsCtl: TabsController = new TabsController();
 
   aboutToAppear(): void {
+    // 1.3.0: gentle review prompt - evaluate once the main UI has settled (consent / no-backend states are
+    // excluded inside consider(); a running connection attempt counts as busy and blocks the prompt)
+    setTimeout(() => {
+      this.review.consider(this.store.connState === 'connecting');
+    }, 2500);
     if (this.store.crashPrompt) {
       setTimeout(() => {
         this.promptCrash();
@@ -113,7 +124,8 @@ struct Index {
   }
 
   collapsed(): boolean {
-    return this.store.autoHideNav && this.store.navCollapsed;
+    // 1.3.0: with the nav bar immersive light sense on, the bar never collapses (MimiSSH rule)
+    return !this.store.navLight && this.store.autoHideNav && this.store.navCollapsed;
   }
 
   onBackPress(): boolean | void {
@@ -335,6 +347,45 @@ struct Index {
   }
 
   /**
+   * Tab row shared by both bar looks. 1.3.0 light-sense look (MimiSSH 1.5.7): no pill behind the selected
+   * tab - it only takes the accent colour; idle labels are white on the glass in the dark theme.
+   */
+  @Builder
+  barTabs(lightOn: boolean) {
+    Row() {
+      ForEach(TABS, (tab: TabDef, i: number) => {
+        Column() {
+          SymbolGlyph(tab.icon).fontSize(22)
+            .fontColor([i === this.selTab() ? this.store.palette().accentUi :
+              (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text)])
+          Text(t(tab.title))
+            .fontSize(11)
+            .maxFontSize(11)
+            .minFontSize(8)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .fontColor(i === this.selTab() ? this.store.palette().accent :
+              (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text))
+            .fontWeight(i === this.selTab() ? FontWeight.Bold : FontWeight.Normal)
+            .margin({ top: 2 })
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .borderRadius(34)
+        .backgroundColor(i === this.selTab() && !lightOn ? this.store.palette().accentSoft : Color.Transparent)
+        .onClick(() => {
+          this.selectTab(i);
+        })
+      }, (tab: TabDef) => tab.title)
+    }
+    .width(this.rootW > 0 ? this.rootW - 28 : '100%')
+    .height('100%')
+    .padding(6)
+    .transition(Motion.fade())
+  }
+
+  /**
    * Floating bottom bar.
    * 1.1.6 fix for "bar buttons don't respond":
    *  - The bar's outer container is a full-width HitTestMode.Transparent Column over the full-screen page; Transparent lets
@@ -342,9 +393,63 @@ struct Index {
    *    and were often swallowed on real devices. The bar now uses HitTestMode.BLOCK_HIERARCHY: touches on it go only to it.
    *  - Removed the outer Stack onClick that competed with the tabs (the round button handles its own tap).
    *  - The sweep layer is no longer an .overlay(); it is the bar's top child with HitTestMode.None.
+   * 1.3.0: keyed by the nav bar immersive light switch so toggling it rebuilds the bar (a system material set by a
+   * modifier is not reset when the modifier stops setting it - same trick as MimiSSH).
    */
   @Builder
   bottomBar() {
+    ForEach([this.store.navLight], (lightOn: boolean) => {
+      if (lightOn) {
+        this.barLightBody()
+      } else {
+        this.barPlainBody()
+      }
+    }, (lightOn: boolean) => 'barlight-' + lightOn)
+  }
+
+  /** 1.3.0 light-sense bar: system immersive material / heavy blur surface + refraction rim + hairline rim + tabs */
+  @Builder
+  barLightBody() {
+    Stack({ alignContent: Alignment.Center }) {
+      Row()
+        .width('100%')
+        .height('100%')
+        .borderRadius(40)
+        .attributeModifier(new BarGlassMod(this.store.navBarLook(false)))
+      Column() {
+        Row()
+          .width('100%')
+          .height('100%')
+          .borderRadius(38.5)
+          .attributeModifier(new GlassRimMod(this.store.isDark(), 1))
+      }
+      .width('100%')
+      .height('100%')
+      .padding(1.5)
+      .hitTestBehavior(HitTestMode.None)
+      Row()
+        .width('100%')
+        .height('100%')
+        .borderRadius(40)
+        .attributeModifier(new GlassRimMod(this.store.isDark(), 0))
+        .hitTestBehavior(HitTestMode.None)
+      this.barTabs(true)
+      if (this.sweepShow) {
+        this.sweepLayer()
+      }
+    }
+    .width(this.rootW > 0 ? this.rootW - 28 : '100%')
+    .height(BAR_H)
+    .hitTestBehavior(HitTestMode.BLOCK_HIERARCHY)
+    .transition(Motion.fade())
+    .onAreaChange((o: Area, n: Area) => {
+      this.barWidth = Number(n.width);
+    })
+  }
+
+  /** Pre-1.3.0 bar (light sense off): Store.glass('bar') surface, collapses into the round button */
+  @Builder
+  barPlainBody() {
     Stack() {
       Stack({ alignContent: Alignment.Center }) {
         if (this.collapsed()) {
@@ -359,37 +464,11 @@ struct Index {
           .onClick(() => {
             this.store.expandNav();
           })
-          .transition(TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.6, y: 0.6 })))
+          .transition(Motion.on() ?
+            TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.6, y: 0.6 })).animation(Motion.anim()) :
+            TransitionEffect.IDENTITY)
         } else {
-          Row() {
-            ForEach(TABS, (tab: TabDef, i: number) => {
-              Column() {
-                SymbolGlyph(tab.icon).fontSize(22)
-                  .fontColor([i === this.selTab() ? this.store.palette().accentUi : this.store.palette().text])
-                Text(t(tab.title))
-                  .fontSize(11)
-                  .maxFontSize(11)
-                  .minFontSize(8)
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .fontColor(i === this.selTab() ? this.store.palette().accent : this.store.palette().text)
-                  .fontWeight(i === this.selTab() ? FontWeight.Bold : FontWeight.Normal)
-                  .margin({ top: 2 })
-              }
-              .layoutWeight(1)
-              .height('100%')
-              .justifyContent(FlexAlign.Center)
-              .borderRadius(34)
-              .backgroundColor(i === this.selTab() ? this.store.palette().accentSoft : Color.Transparent)
-              .onClick(() => {
-                this.selectTab(i);
-              })
-            }, (tab: TabDef) => tab.title)
-          }
-          .width(this.rootW > 0 ? this.rootW - 28 : '100%')
-          .height('100%')
-          .padding(6)
-          .transition(TransitionEffect.OPACITY)
+          this.barTabs(false)
         }
 
         if (this.sweepShow) {
@@ -440,6 +519,7 @@ struct Index {
     .backgroundEffect({ radius: 40 })
     .margin({ bottom: 8 })
     .hitTestBehavior(HitTestMode.BLOCK_HIERARCHY)
+    .transition(Motion.pop())
     .onClick(() => {
       this.store.tab = 5;
       this.store.settingsPage = 'backend';
@@ -538,7 +618,7 @@ struct Index {
         .barHeight(0)
         .barMode(BarMode.Fixed)
         .scrollable(true)
-        .animationDuration(300)
+        .animationDuration(Motion.ms(MOTION_TAB))
         // 1.2.2 (AppGallery self-check): bounce when swiping past the first (Overview) or last (Settings) page
         .edgeEffect(EdgeEffect.Spring)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
@@ -557,6 +637,10 @@ struct Index {
         })
 
         Column() {
+          // 1.3.0: gentle review prompt soft card floats above the bar (non-blocking, see ReviewCard)
+          if (this.review.showCard) {
+            ReviewCard()
+          }
           if (this.store.connState === 'failed' && this.store.tab !== 5) {
             this.failBanner()
           }

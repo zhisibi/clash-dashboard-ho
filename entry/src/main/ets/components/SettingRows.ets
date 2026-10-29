@@ -1,5 +1,6 @@
 import { Store } from '../common/Store';
 import { Palette } from '../common/Theme';
+import { Motion } from '../common/Motion';
 import { SectionTitle } from './Widgets';
 
 /** Settings group: title + card */
@@ -29,6 +30,8 @@ export struct Group {
       .attributeModifier(Store.get().glass('card'))
     }
     .width('100%')
+    // 1.3.0: settings groups fade in with the global motion (instant when transition animations are off)
+    .transition(Motion.reveal())
   }
 }
 

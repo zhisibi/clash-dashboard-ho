@@ -15,6 +15,9 @@ import { PRIVACY_VERSION } from './Legal';
 import { sensor } from '@kit.SensorServiceKit';
 import { GlassCfg, GlassKind, GlassModifier, detectSysMaterial, sheetBlurStyle } from './Glass';
 import { I18N, initLang, setLangPref, t } from './I18n';
+import { Motion } from './Motion';
+import { MOTION_NAV } from './MotionLogic';
+import { BarLook } from './NavLight';
 
 export const HISTORY_LEN: number = 60;
 
@@ -140,8 +143,18 @@ export class Store {
   // ----- nav bar / immersive window -----
   /** Auto-hide the bottom nav bar while scrolling */
   @Trace autoHideNav: boolean = true;
+  /**
+   * 1.3.0: nav bar immersive light sense (floating capsule, ported from MimiSSH); default on like MimiSSH.
+   * While on, the bar never auto-hides, whatever autoHideNav says.
+   */
+  @Trace navLight: boolean = true;
   /** Whether the bottom bar is collapsed into the round button at the bottom left */
   @Trace navCollapsed: boolean = false;
+  // ----- motion -----
+  /** 1.3.0: global transition animations (Settings > Panel > Appearance); mirrors Motion.user */
+  @Trace motion: boolean = true;
+  /** Fired once per successful connect() (ReviewPrompt counts it for the gentle review prompt) */
+  backendConnectedHook: (() => void) | null = null;
   /** Status bar height (vp); content must avoid it in the full-screen layout */
   @Trace safeTop: number = 0;
   /** Height of the gesture indicator area at the bottom (vp) */
@@ -254,6 +267,12 @@ export class Store {
     this.lightGlow = p.bool('light_glow', true);
     this.lightSweep = p.bool('light_sweep', true);
     this.autoHideNav = p.bool('auto_hide_nav', true);
+    this.navLight = p.bool('nav_light', true);
+    if (this.navLight) {
+      this.navCollapsed = false;
+    }
+    this.motion = p.bool('motion', true);
+    Motion.user = this.motion;
     this.sysMaterialSupported = detectSysMaterial();
     if (this.glassStyle === 'system' && !this.sysMaterialSupported) {
       this.glassStyle = 'custom';
@@ -331,6 +350,8 @@ export class Store {
     p.put('light_glow', this.lightGlow);
     p.put('light_sweep', this.lightSweep);
     p.put('auto_hide_nav', this.autoHideNav);
+    p.put('nav_light', this.navLight);
+    p.put('motion', this.motion);
   }
 
   // ================= theme =================
@@ -559,6 +580,39 @@ export class Store {
     }
   }
 
+  /**
+   * 1.3.0: nav bar immersive light sense on/off. Turning it on expands a collapsed bar at once:
+   * while it is on the bar never folds (navScroll / collapseNav both check navLight first).
+   */
+  setNavLight(on: boolean): void {
+    this.navLight = on;
+    this.savePrefs();
+    if (on) {
+      this.expandNav();
+    }
+  }
+
+  /** Plain values for the bottom bar's BarGlassMod (common/NavLight.ets) */
+  navBarLook(round: boolean): BarLook {
+    const l = new BarLook();
+    l.on = this.navLight;
+    l.dark = this.isDark();
+    const p = this.palette();
+    l.bar = p.card;
+    l.divider = p.outlineVariant;
+    // Frosted glass already blurs the bar strongly; the light-sense fallback keeps at least that much
+    l.blurPx = this.glassOn ? Math.max(70, Math.round(4 + this.glassBlur * 0.8)) : 0;
+    l.round = round;
+    return l;
+  }
+
+  /** 1.3.0: global transition animations switch (Settings > Panel > Appearance) */
+  setMotion(on: boolean): void {
+    this.motion = on;
+    Motion.user = on;
+    this.savePrefs();
+  }
+
   private animNav(collapsed: boolean): void {
     if (this.navCollapsed === collapsed) {
       return;
@@ -568,7 +622,7 @@ export class Store {
       this.navCollapsed = collapsed;
       return;
     }
-    ui.animateTo({ duration: 380, curve: Curve.Friction }, () => {
+    ui.animateTo({ duration: Motion.ms(MOTION_NAV), curve: Curve.Friction }, () => {
       this.navCollapsed = collapsed;
     });
   }
@@ -579,6 +633,10 @@ export class Store {
   }
 
   collapseNav(): void {
+    // 1.3.0: with the nav bar immersive light sense on, the bar stays put (MimiSSH rule)
+    if (this.navLight) {
+      return;
+    }
     this.navAcc = 0;
     this.animNav(true);
   }
@@ -594,7 +652,7 @@ export class Store {
       this.navTab = this.tab;
       this.navAcc = 0;
     }
-    if (!this.autoHideNav || state === ScrollState.Idle || delta === 0) {
+    if (!this.autoHideNav || this.navLight || state === ScrollState.Idle || delta === 0) {
       return;
     }
     let y = 0;
@@ -769,6 +827,11 @@ export class Store {
       this.connState = 'connected';
       this.startStreams(a);
       this.refreshAll();
+      // 1.3.0: the gentle review prompt counts successful connections (hook set by ReviewPrompt.init)
+      const hook = this.backendConnectedHook;
+      if (hook !== null) {
+        hook();
+      }
     }).catch((e: Object) => {
       if (this.api !== a) {
         return;
