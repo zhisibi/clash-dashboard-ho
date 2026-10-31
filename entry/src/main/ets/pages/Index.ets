@@ -424,43 +424,6 @@ struct Index {
     }, (lightOn: boolean) => 'barlight-' + lightOn)
   }
 
-  /**
-   * 1.3.6 liquid-glass lens emulation at the two rounded ends (MimiFTP 1.2.8): each end shows the outer half of a
-   * circle the bar's height with a radial ring that brightens towards the curve (GlassRimMod kind 2), clipped at
-   * the centre line.
-   */
-  @Builder
-  lensCaps(h: number) {
-    Row() {
-      Stack() {
-        Row()
-          .width(h)
-          .height(h)
-          .borderRadius(h / 2)
-          .position({ x: 0, y: 0 })
-          .attributeModifier(new GlassRimMod(this.store.isDark(), 2))
-      }
-      .width(h / 2)
-      .height(h)
-      .clip(true)
-      Blank()
-      Stack() {
-        Row()
-          .width(h)
-          .height(h)
-          .borderRadius(h / 2)
-          .position({ x: -h / 2, y: 0 })
-          .attributeModifier(new GlassRimMod(this.store.isDark(), 2))
-      }
-      .width(h / 2)
-      .height(h)
-      .clip(true)
-    }
-    .width('100%')
-    .height(h)
-    .hitTestBehavior(HitTestMode.None)
-  }
-
   /** 1.3.0 light-sense bar: system immersive material / heavy blur surface + refraction rim + hairline rim + tabs */
   @Builder
   barLightBody() {
@@ -489,7 +452,6 @@ struct Index {
       .height('100%')
       .padding(1.5)
       .hitTestBehavior(HitTestMode.None)
-      this.lensCaps(BAR_H)
       Row()
         .width('100%')
         .height('100%')

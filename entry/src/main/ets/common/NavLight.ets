@@ -196,9 +196,9 @@ export class BarBackdropMod implements AttributeModifier<CommonAttribute> {
  * no public refraction API exists in SDK 26, so it is all gradients:
  * kind 0 = 1px hairline, brightest on top, softer at the sides, dim at the bottom; top sheen + darker inner shadow
  *          along the bottom edge (glass-slab thickness);
- * kind 1 = refraction rim (inset 1.5): bright bands at both rounded ends fading to clear, with an inset 0.5px ring;
- * kind 2 = lens cap (one per rounded end, a square the bar's height): radial ring that brightens towards the curve,
- *          like light bent through the thick glass edge.
+ * kind 1 = refraction rim (inset 1.5): bright bands at both rounded ends fading to clear, with an inset 0.5px ring.
+ * (The 1.3.6 kind 2 lens caps were removed in 1.3.7: their pure-white radial rings read as two hemispheres whose
+ * colour mismatched the bar tint — user report, removed in all three apps the same day.)
  */
 export class GlassRimMod implements AttributeModifier<CommonAttribute> {
   dark: boolean = true;
@@ -226,21 +226,13 @@ export class GlassRimMod implements AttributeModifier<CommonAttribute> {
         colors: [[withAlpha('#FFFFFF', d ? 0.09 : 0.26), 0], [withAlpha('#FFFFFF', 0), 0.38],
           [withAlpha('#000000', 0), 0.72], [withAlpha('#000000', d ? 0.16 : 0.06), 1]]
       });
-    } else if (this.kind === 1) {
+    } else {
       ins.border({ width: 0.5, color: withAlpha('#FFFFFF', d ? 0.16 : 0.55) });
       ins.linearGradient({
         angle: 90,
         colors: [[withAlpha('#FFFFFF', d ? 0.22 : 0.4), 0], [withAlpha('#FFFFFF', d ? 0.06 : 0.12), 0.04],
           [withAlpha('#FFFFFF', 0), 0.1], [withAlpha('#FFFFFF', 0), 0.9],
           [withAlpha('#FFFFFF', d ? 0.06 : 0.12), 0.96], [withAlpha('#FFFFFF', d ? 0.22 : 0.4), 1]]
-      });
-    } else {
-      ins.radialGradient({
-        center: ['50%', '50%'],
-        radius: '50%',
-        colors: [[withAlpha('#FFFFFF', 0), 0], [withAlpha('#FFFFFF', 0), 0.68],
-          [withAlpha('#FFFFFF', d ? 0.1 : 0.22), 0.86], [withAlpha('#FFFFFF', d ? 0.2 : 0.36), 0.96],
-          [withAlpha('#FFFFFF', 0), 1]]
       });
     }
   }
