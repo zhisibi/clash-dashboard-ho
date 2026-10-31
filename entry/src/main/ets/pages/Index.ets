@@ -14,7 +14,8 @@ import { GlassGradient, PageBackdrop } from '../components/PageBackdrop';
 import { I18N, t } from '../common/I18n';
 import { Motion } from '../common/Motion';
 import { MOTION_TAB } from '../common/MotionLogic';
-import { BarGlassMod, GLASS_LABEL_DARK, GlassRimMod } from '../common/NavLight';
+import { BarBackdropMod, BarGlassMod, GLASS_LABEL_DARK, GLASS_LABEL_SHADOW_DARK, GLASS_LABEL_SHADOW_LIGHT,
+  GlassRimMod, NavLightSense } from '../common/NavLight';
 import { ReviewPrompt } from '../common/ReviewPrompt';
 import { ReviewCard } from '../components/ReviewCard';
 
@@ -350,6 +351,20 @@ struct Index {
    * Tab row shared by both bar looks. 1.3.0 light-sense look (MimiSSH 1.5.7): no pill behind the selected
    * tab - it only takes the accent colour; idle labels are white on the glass in the dark theme.
    */
+  /** 1.3.6: soft halo behind the glass-bar icons / labels so they stay legible over bright content behind the glass */
+  labelHalo(): ShadowOptions {
+    const d = this.store.isDark();
+    return { radius: d ? 6 : 5, color: d ? GLASS_LABEL_SHADOW_DARK : GLASS_LABEL_SHADOW_LIGHT, offsetX: 0, offsetY: d ? 1 : 0 };
+  }
+
+  /** Halo for the bar labels, or a zero shadow for the plain bar (method call: @Builder bodies take no statements) */
+  barHalo(lightOn: boolean): ShadowOptions {
+    if (!lightOn) {
+      return { radius: 0, color: Color.Transparent, offsetX: 0, offsetY: 0 };
+    }
+    return this.labelHalo();
+  }
+
   @Builder
   barTabs(lightOn: boolean) {
     Row() {
@@ -358,6 +373,7 @@ struct Index {
           SymbolGlyph(tab.icon).fontSize(22)
             .fontColor([i === this.selTab() ? this.store.palette().accentUi :
               (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text)])
+            .symbolShadow(this.barHalo(lightOn))
           Text(t(tab.title))
             .fontSize(11)
             .maxFontSize(11)
@@ -367,6 +383,7 @@ struct Index {
             .fontColor(i === this.selTab() ? this.store.palette().accent :
               (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text))
             .fontWeight(i === this.selTab() ? FontWeight.Bold : FontWeight.Normal)
+            .textShadow(this.barHalo(lightOn))
             .margin({ top: 2 })
         }
         .layoutWeight(1)
@@ -407,10 +424,55 @@ struct Index {
     }, (lightOn: boolean) => 'barlight-' + lightOn)
   }
 
+  /**
+   * 1.3.6 liquid-glass lens emulation at the two rounded ends (MimiFTP 1.2.8): each end shows the outer half of a
+   * circle the bar's height with a radial ring that brightens towards the curve (GlassRimMod kind 2), clipped at
+   * the centre line.
+   */
+  @Builder
+  lensCaps(h: number) {
+    Row() {
+      Stack() {
+        Row()
+          .width(h)
+          .height(h)
+          .borderRadius(h / 2)
+          .position({ x: 0, y: 0 })
+          .attributeModifier(new GlassRimMod(this.store.isDark(), 2))
+      }
+      .width(h / 2)
+      .height(h)
+      .clip(true)
+      Blank()
+      Stack() {
+        Row()
+          .width(h)
+          .height(h)
+          .borderRadius(h / 2)
+          .position({ x: -h / 2, y: 0 })
+          .attributeModifier(new GlassRimMod(this.store.isDark(), 2))
+      }
+      .width(h / 2)
+      .height(h)
+      .clip(true)
+    }
+    .width('100%')
+    .height(h)
+    .hitTestBehavior(HitTestMode.None)
+  }
+
   /** 1.3.0 light-sense bar: system immersive material / heavy blur surface + refraction rim + hairline rim + tabs */
   @Builder
   barLightBody() {
     Stack({ alignContent: Alignment.Center }) {
+      if (NavLightSense.material()) {
+        Row()
+          .width('100%')
+          .height('100%')
+          .borderRadius(40)
+          .attributeModifier(new BarBackdropMod(this.store.isDark(), this.store.navBarLook(false).fallbackBlurPx))
+          .hitTestBehavior(HitTestMode.None)
+      }
       Row()
         .width('100%')
         .height('100%')
@@ -427,6 +489,7 @@ struct Index {
       .height('100%')
       .padding(1.5)
       .hitTestBehavior(HitTestMode.None)
+      this.lensCaps(BAR_H)
       Row()
         .width('100%')
         .height('100%')

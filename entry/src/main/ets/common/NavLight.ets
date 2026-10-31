@@ -12,6 +12,13 @@
  * The floating capsule, hairline rim and refraction highlight come from GlassRimMod overlays on every device.
  * While the switch is on the bar never folds (see Store.navScroll / Index.collapsed). Switch off = the pre-1.3.0
  * bar (Store.glass('bar')) exactly.
+ *
+ * 1.3.6: bar design aligned with MimiFTP 1.2.8 liquid glass (the user: FTP's bar looks right, this one read as
+ * plain transparent). Much lighter tints (material 0.34/0.46 -> 0.10/0.22, fallback 0.50/0.60 -> 0.16/0.30);
+ * a saturated backdrop underlay (BarBackdropMod) under the system material, blurred again by it -> heavier blur
+ * + colour boost; the fallback path uses backgroundEffect (blur + saturation 1.7 + brightness); rim gains a
+ * bottom inner shadow (glass thickness), wider refraction bands and kind 2 lens caps at both rounded ends;
+ * labels get a halo shadow (GLASS_LABEL_SHADOW_*) for legibility over colourful content behind the clear glass.
  */
 import { deviceInfo } from '@kit.BasicServicesKit';
 import { uiMaterial } from '@kit.ArkUI';
@@ -90,21 +97,37 @@ export class BarLook {
   round: boolean = false;
 }
 
-/** 1.5.7 glass tints from MimiSSH (checked there by check-contrast.py): dark / light, material alpha, fallback alpha */
+/**
+ * Glass tints: dark / light, material alpha, fallback alpha.
+ * 1.3.6 (= MimiFTP 1.2.8: very clear liquid glass, heavy blur, almost no fill): material 0.34/0.46 -> 0.10/0.22,
+ * fallback 0.50/0.60 -> 0.16/0.30 (the fallback has no system material fill of its own, so it keeps a bit more).
+ */
 export const GLASS_TINT_DARK: string = '#0E1216';
 export const GLASS_TINT_LIGHT: string = '#FFFFFF';
-export const GLASS_ALPHA_DARK: number = 0.34;
-export const GLASS_ALPHA_LIGHT: number = 0.46;
-export const GLASS_FB_ALPHA_DARK: number = 0.5;
-export const GLASS_FB_ALPHA_LIGHT: number = 0.6;
+export const GLASS_ALPHA_DARK: number = 0.1;
+export const GLASS_ALPHA_LIGHT: number = 0.22;
+export const GLASS_FB_ALPHA_DARK: number = 0.16;
+export const GLASS_FB_ALPHA_LIGHT: number = 0.3;
 /** Labels on the glass: white in the dark theme (the light theme keeps the palette text colour) */
 export const GLASS_LABEL_DARK: string = '#FFFFFF';
+/** 1.3.6 label halo for legibility over bright / colourful content behind the clear glass */
+export const GLASS_LABEL_SHADOW_DARK: string = '#8C000000';
+export const GLASS_LABEL_SHADOW_LIGHT: string = '#B3FFFFFF';
+/** 1.3.6 backdrop: blur radius in vp, saturation and brightness of what is seen through the glass */
+export const GLASS_BLUR_VP: number = 34;
+export const GLASS_SATURATION: number = 1.7;
+export const GLASS_BRIGHT_DARK: number = 0.94;
+export const GLASS_BRIGHT_LIGHT: number = 1.06;
 
 /**
- * Bottom-bar surface for the light-sense look. ImmersiveMaterial THIN with a light neutral tint where supported
- * (quite transparent, content visibly scrolls behind it), else heavy backdrop blur with the same tint. The hairline
- * rim / highlight layers are separate overlays (GlassRimMod) because the system material replaces border /
- * background on its own node. (The off look is Store.glass('bar'); this modifier's off branch only mirrors it.)
+ * Bottom-bar surface for the light-sense look.
+ * - System material (API 26+, supported): ImmersiveMaterial THIN with a very light neutral tint. A saturated
+ *   backdrop underlay (BarBackdropMod, below this node) is blurred again by the material -> heavier blur +
+ *   colour boost.
+ * - Fallback (API 20-25 / no material): backgroundEffect = blur + saturation + brightness + light tint.
+ * The hairline rim / lens layers are separate overlays (GlassRimMod) because the system material replaces
+ * border / background on its own node. (The off look is Store.glass('bar'); this modifier's off branch only
+ * mirrors it.)
  */
 export class BarGlassMod implements AttributeModifier<CommonAttribute> {
   look: BarLook;
@@ -133,18 +156,49 @@ export class BarGlassMod implements AttributeModifier<CommonAttribute> {
         lightEffect: { color: '#FFFFFF' }
       }));
     } else {
-      ins.backgroundColor(withAlpha(l.dark ? GLASS_TINT_DARK : GLASS_TINT_LIGHT,
-        l.dark ? GLASS_FB_ALPHA_DARK : GLASS_FB_ALPHA_LIGHT));
-      ins.backdropBlur(Math.max(l.blurPx, l.fallbackBlurPx));
-      ins.shadow({ radius: 24, color: l.dark ? '#73000000' : '#26000000', offsetY: 6 });
+      ins.backgroundEffect({
+        radius: Math.max(l.blurPx, l.fallbackBlurPx),
+        saturation: GLASS_SATURATION,
+        brightness: l.dark ? GLASS_BRIGHT_DARK : GLASS_BRIGHT_LIGHT,
+        color: withAlpha(l.dark ? GLASS_TINT_DARK : GLASS_TINT_LIGHT, l.dark ? GLASS_FB_ALPHA_DARK : GLASS_FB_ALPHA_LIGHT)
+      });
+      ins.shadow({ radius: 26, color: l.dark ? '#80000000' : '#2E000000', offsetY: 8 });
     }
   }
 }
 
 /**
- * Glass rim overlays (non-interactive, drawn above the surface, below the tabs):
- * kind 0 = 1px hairline, brightest on top, softer at the sides, dim at the bottom, plus a soft top sheen;
- * kind 1 = refraction rim: bright at both rounded ends fading to clear in the middle, with an inset 0.5px ring.
+ * 1.3.6: saturated backdrop under the system material (only used when NavLightSense.material()): blur + colour
+ * boost, no fill. The material above blurs it once more, so colours behind the bar read as soft bright blobs.
+ * Not used on the fallback path (backgroundEffect already does blur + saturation there).
+ */
+export class BarBackdropMod implements AttributeModifier<CommonAttribute> {
+  dark: boolean = true;
+  radiusPx: number = 60;
+
+  constructor(dark: boolean, radiusPx: number) {
+    this.dark = dark;
+    this.radiusPx = radiusPx;
+  }
+
+  applyNormalAttribute(ins: CommonAttribute): void {
+    ins.backgroundEffect({
+      radius: this.radiusPx * 0.6,
+      saturation: GLASS_SATURATION,
+      brightness: this.dark ? 1.0 : GLASS_BRIGHT_LIGHT,
+      color: Color.Transparent
+    });
+  }
+}
+
+/**
+ * Glass rim overlays (non-interactive, drawn above the surface, below the tabs). Liquid-glass lens emulation -
+ * no public refraction API exists in SDK 26, so it is all gradients:
+ * kind 0 = 1px hairline, brightest on top, softer at the sides, dim at the bottom; top sheen + darker inner shadow
+ *          along the bottom edge (glass-slab thickness);
+ * kind 1 = refraction rim (inset 1.5): bright bands at both rounded ends fading to clear, with an inset 0.5px ring;
+ * kind 2 = lens cap (one per rounded end, a square the bar's height): radial ring that brightens towards the curve,
+ *          like light bent through the thick glass edge.
  */
 export class GlassRimMod implements AttributeModifier<CommonAttribute> {
   dark: boolean = true;
@@ -161,23 +215,32 @@ export class GlassRimMod implements AttributeModifier<CommonAttribute> {
       ins.border({
         width: 1,
         color: {
-          top: withAlpha('#FFFFFF', d ? 0.42 : 0.95),
-          left: withAlpha('#FFFFFF', d ? 0.3 : 0.85),
-          right: withAlpha('#FFFFFF', d ? 0.3 : 0.85),
-          bottom: withAlpha('#FFFFFF', d ? 0.14 : 0.6)
+          top: withAlpha('#FFFFFF', d ? 0.55 : 0.98),
+          left: withAlpha('#FFFFFF', d ? 0.32 : 0.85),
+          right: withAlpha('#FFFFFF', d ? 0.32 : 0.85),
+          bottom: withAlpha('#FFFFFF', d ? 0.12 : 0.55)
         }
       });
       ins.linearGradient({
         angle: 180,
-        colors: [[withAlpha('#FFFFFF', d ? 0.1 : 0.32), 0], [withAlpha('#FFFFFF', 0), 0.45],
-          [withAlpha('#FFFFFF', 0), 0.8], [withAlpha('#FFFFFF', d ? 0.04 : 0.12), 1]]
+        colors: [[withAlpha('#FFFFFF', d ? 0.09 : 0.26), 0], [withAlpha('#FFFFFF', 0), 0.38],
+          [withAlpha('#000000', 0), 0.72], [withAlpha('#000000', d ? 0.16 : 0.06), 1]]
       });
-    } else {
-      ins.border({ width: 0.5, color: withAlpha('#FFFFFF', d ? 0.12 : 0.5) });
+    } else if (this.kind === 1) {
+      ins.border({ width: 0.5, color: withAlpha('#FFFFFF', d ? 0.16 : 0.55) });
       ins.linearGradient({
         angle: 90,
-        colors: [[withAlpha('#FFFFFF', d ? 0.16 : 0.34), 0], [withAlpha('#FFFFFF', 0), 0.07],
-          [withAlpha('#FFFFFF', 0), 0.93], [withAlpha('#FFFFFF', d ? 0.16 : 0.34), 1]]
+        colors: [[withAlpha('#FFFFFF', d ? 0.22 : 0.4), 0], [withAlpha('#FFFFFF', d ? 0.06 : 0.12), 0.04],
+          [withAlpha('#FFFFFF', 0), 0.1], [withAlpha('#FFFFFF', 0), 0.9],
+          [withAlpha('#FFFFFF', d ? 0.06 : 0.12), 0.96], [withAlpha('#FFFFFF', d ? 0.22 : 0.4), 1]]
+      });
+    } else {
+      ins.radialGradient({
+        center: ['50%', '50%'],
+        radius: '50%',
+        colors: [[withAlpha('#FFFFFF', 0), 0], [withAlpha('#FFFFFF', 0), 0.68],
+          [withAlpha('#FFFFFF', d ? 0.1 : 0.22), 0.86], [withAlpha('#FFFFFF', d ? 0.2 : 0.36), 0.96],
+          [withAlpha('#FFFFFF', 0), 1]]
       });
     }
   }
