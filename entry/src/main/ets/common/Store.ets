@@ -234,6 +234,9 @@ export class Store {
     }
     initLang(p.str('lang', 'system'));
     this.theme = p.str('theme', 'system');
+    if (this.theme !== 'system' && this.theme !== 'light' && this.theme !== 'dark') {
+      this.theme = 'system';
+    }
     // 1.3.5: fresh-install default accent is red ("Huawei red")
     this.accent = findAccent(p.str('accent', 'red')).key;
     this.testUrl = p.str('test_url', 'https://www.gstatic.com/generate_204');
@@ -359,7 +362,10 @@ export class Store {
 
   // ================= theme =================
   isDark(): boolean {
-    if (this.theme === 'dark' || this.theme === 'black') {
+    if (this.accent === 'black') {
+      return true;
+    }
+    if (this.theme === 'dark') {
       return true;
     }
     if (this.theme === 'light') {
@@ -368,9 +374,9 @@ export class Store {
     return this.systemDark;
   }
 
-  /** 1.3.8: 深夜黑 (pure black) theme */
+  /** 1.3.9: 深夜黑 is a theme COLOUR — picking it forces pure-black surfaces + white text/icons, any mode */
   isBlack(): boolean {
-    return this.theme === 'black';
+    return this.accent === 'black';
   }
 
   palette(): Palette {
@@ -381,14 +387,14 @@ export class Store {
     if (!this.isBlack()) {
       base.card = mixColor(base.card, base.accentFill, base.dark ? 0.10 : 0.06);
     }
-    if (this.glassOn) {
+    if (this.glassOn && !this.isBlack()) {
       // Glass: Index draws the page background (wallpaper or soft gradient); cards are translucent
       base.bg = '#00000000';
       base.card = withAlpha(base.card, this.glassAlpha);
       base.chip = withAlpha(base.chip, Math.min(1, this.glassAlpha + 0.15));
       // 1.2.3: sheets/popups sit over another page; keep them nearly opaque (over the system blur) so text never mixes
       base.sheet = withAlpha(base.sheet, Math.max(0.88, Math.min(0.94, this.glassAlpha + 0.3)));
-    } else if (this.wallpaperPath.length > 0) {
+    } else if (this.wallpaperPath.length > 0 && !this.isBlack()) {
       base.bg = '#00000000';
       base.card = withAlpha(base.card, this.cardAlpha);
       base.chip = withAlpha(base.chip, Math.min(1, this.cardAlpha + 0.1));

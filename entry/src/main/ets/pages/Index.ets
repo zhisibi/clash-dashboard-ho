@@ -583,10 +583,11 @@ struct Index {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor(this.store.wallpaperPath.length > 0 && this.store.backends.length > 0 ? '#000000' :
-          (this.store.isDark() ? '#111316' : '#F4F4F6'))
+        .backgroundColor(this.store.isBlack() ? '#000000' :
+          (this.store.wallpaperPath.length > 0 && this.store.backends.length > 0 ? '#000000' :
+            (this.store.isDark() ? '#111316' : '#F4F4F6')))
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-      if (this.store.glassOn && (this.store.wallpaperPath.length === 0 || this.store.backends.length === 0)) {
+      if (this.store.glassOn && !this.store.isBlack() && (this.store.wallpaperPath.length === 0 || this.store.backends.length === 0)) {
         this.glassBackdrop()
       }
       if (!this.store.privacyAgreed) {
@@ -594,7 +595,7 @@ struct Index {
       } else if (this.store.backends.length === 0) {
         this.setupScreen()
       } else {
-        if (this.store.wallpaperPath.length > 0) {
+        if (this.store.wallpaperPath.length > 0 && !this.store.isBlack()) {
           Image(this.store.wallpaperSrc())
             .width('100%')
             .height('100%')

@@ -87,7 +87,12 @@ export const ACCENTS: AccentDef[] = [
   new AccentDef('pink', 'accent_pink', '#FB7299', '#FC8DAE',
     new AccentTone('#EC0748', '#B90538', '#FB7299', '#1D2025'), new AccentTone('#FC8DAE', '#FDBACE', '#FC8DAE', '#15181C')),
   new AccentDef('green', 'accent_green', '#7BC23E', '#93D15E',
-    new AccentTone('#598C2C', '#456D22', '#7BC23E', '#1D2025'), new AccentTone('#93D15E', '#AFDD87', '#93D15E', '#15181C'))
+    new AccentTone('#598C2C', '#456D22', '#7BC23E', '#1D2025'), new AccentTone('#93D15E', '#AFDD87', '#93D15E', '#15181C')),
+  // 1.3.9 深夜黑 (user-named): a theme COLOUR, not a mode — picking it forces the pure-black scheme
+  // (blackPalette + white tones; Store.palette() short-circuits glass/wallpaper). lt = black-on-light set for
+  // the contrast checker; at runtime dk (white) always applies. Dark swatch is white so the row reads in dark UI.
+  new AccentDef('black', 'accent_black', '#000000', '#FFFFFF',
+    new AccentTone('#26292F', '#1D2025', '#000000', '#FFFFFF'), new AccentTone('#FFFFFF', '#FFFFFF', '#FFFFFF', '#000000'))
 ];
 
 export function findAccent(key: string): AccentDef {
@@ -169,6 +174,7 @@ export function blackPalette(): Palette {
   p.card = '#000000';
   p.chip = '#000000';
   p.sheet = '#000000';
+  p.text = '#FFFFFF';
   p.outline = '#2E2E2E';
   p.outlineVariant = '#1E1E1E';
   return p;

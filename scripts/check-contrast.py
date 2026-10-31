@@ -60,16 +60,31 @@ LIGHT = dict(re.findall(r"(\w+): string = '(#[0-9A-Fa-f]{6,8})'", pal_block))
 dark_block = re.search(r'export function darkPalette\(\).*?\{(.*?)\n\}', src, re.S).group(1)
 DARK = dict(LIGHT)
 DARK.update(dict(re.findall(r"p\.(\w+) = '(#[0-9A-Fa-f]{6})'", dark_block)))
+black_block = re.search(r'export function blackPalette\(\).*?\{(.*?)\n\}', src, re.S).group(1)
+BLACK = dict(DARK)
+BLACK.update(dict(re.findall(r"p\.(\w+) = '(#[0-9A-Fa-f]{6})'", black_block)))
 H = r"'(#[0-9A-Fa-f]{6})'"
 TONE = r"new AccentTone\(%s, %s, %s, %s\)" % (H, H, H, H)
 ACC = re.findall(r"new AccentDef\('(\w+)', '(\w+)', %s, %s,\s*%s, %s\)" % (H, H, TONE, TONE), src)
-assert len(ACC) == 7, 'expected 7 accent presets, parsed %d' % len(ACC)
+assert len(ACC) == 8, 'expected 8 accent presets, parsed %d' % len(ACC)
 
 
 def build(dark, a):
     """Mirror of Theme.applyAccent()."""
+    key = a[0]
+    if key == 'black':
+        # 1.3.9: the 深夜黑 accent forces the black palette + white (dk) tones in every mode (Store.palette())
+        p = dict(BLACK)
+        ui, text, fill, on = a[8:12]
+        p.update(accentFill=a[3], accent=text, accentUi=ui, primary=fill, onPrimary=on, onAccent=on)
+        p['accentSoftA'] = 0.20
+        p['down'] = ui
+        p['up'] = mix(ui, '#FFFFFF', 0.45)
+        p['downText'] = text
+        p['upText'] = mix(text, '#FFFFFF', 0.45)
+        return p
     p = dict(DARK if dark else LIGHT)
-    key, _, light, darkc = a[:4]
+    _, light, darkc = a[1], a[2], a[3]
     ui, text, fill, on = a[8:12] if dark else a[4:8]
     p.update(accentFill=darkc if dark else light, accent=text, accentUi=ui, primary=fill, onPrimary=on, onAccent=on)
     p['accentSoftA'] = 0.20 if dark else 0.11
@@ -99,6 +114,9 @@ for dark in (False, True):
     for a in ACC:
         p = build(dark, a)
         key = a[0]
+        if key == 'black' and not dark:
+            # 深夜黑 has no light-mode runtime counterpart: the accent forces the black scheme in every mode
+            continue
         page = p['bg']
         deco = p['accentFill']
         # glass backdrop (Index.glassBackdrop): mid stop mixes bg with the accent, plus an accent radial glow
@@ -108,7 +126,8 @@ for dark in (False, True):
         else:
             mid = mix('#F4F4F6', deco, 0.16)
             glow = over(deco, 0.30, mid)
-        backdrops = {'page': page, 'glass-mid': mid, 'glass-glow': glow}
+        # 深夜黑: glass/wallpaper are suppressed at runtime, so only the opaque page backdrop exists
+        backdrops = {'page': page} if key == 'black' else {'page': page, 'glass-mid': mid, 'glass-glow': glow}
         base = '#1C1F24' if dark else '#FFFFFF'
         surfaces = {'page bg': page, 'card': p['card'], 'chip': p['chip'], 'sheet': p['sheet']}
         for bname, b in backdrops.items():
@@ -136,7 +155,7 @@ for dark in (False, True):
             pill = over(p['accentUi'], p['accentSoftA'], bar)
             check(mode, key, 'nav selected label (accent) on pill/' + bname, p['accent'], pill, 4.5)
             check(mode, key, 'nav selected icon (accentUi) on pill/' + bname, p['accentUi'], pill, 3.0)
-        for sname, s in (('card', p['card']), ('glass card/glow', over(p['card'], GLASS_ALPHA, glow))):
+        for sname, s in (('card', p['card']), ('glass card/glow', p['card'] if key == 'black' else over(p['card'], GLASS_ALPHA, glow))):
             pill = over(p['accentUi'], p['accentSoftA'], s)
             check(mode, key, 'accent tag text on accentSoft/' + sname, p['accent'], pill, 4.5)
         # buttons / segmented tabs / round icon buttons
