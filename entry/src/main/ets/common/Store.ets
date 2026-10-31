@@ -8,7 +8,7 @@ import {
   asObj, jArr, jNum, jStr, parseConnection, parseJsonObj
 } from './Models';
 import { Prefs } from './Prefs';
-import { AccentDef, Palette, applyAccent, darkPalette, findAccent, lightPalette, mixColor, withAlpha } from './Theme';
+import { AccentDef, Palette, applyAccent, blackPalette, darkPalette, findAccent, lightPalette, mixColor, withAlpha } from './Theme';
 import { FileUtil } from './FileUtil';
 import { CrashLog } from './CrashLog';
 import { PRIVACY_VERSION } from './Legal';
@@ -359,7 +359,7 @@ export class Store {
 
   // ================= theme =================
   isDark(): boolean {
-    if (this.theme === 'dark') {
+    if (this.theme === 'dark' || this.theme === 'black') {
       return true;
     }
     if (this.theme === 'light') {
@@ -368,11 +368,19 @@ export class Store {
     return this.systemDark;
   }
 
+  /** 1.3.8: 深夜黑 (pure black) theme */
+  isBlack(): boolean {
+    return this.theme === 'black';
+  }
+
   palette(): Palette {
-    const base = applyAccent(this.isDark() ? darkPalette() : lightPalette(), findAccent(this.accent));
+    const base = applyAccent(this.isBlack() ? blackPalette() : (this.isDark() ? darkPalette() : lightPalette()), findAccent(this.accent));
     // 1.3.1: cards pick up a hint of the current accent, so the chosen theme tints the whole UI
     // (a whisper, not a wash: text contrast on cards is checked against the untinted surfaces)
-    base.card = mixColor(base.card, base.accentFill, base.dark ? 0.10 : 0.06);
+    // 1.3.8: skipped in 深夜黑 — cards stay pure black there
+    if (!this.isBlack()) {
+      base.card = mixColor(base.card, base.accentFill, base.dark ? 0.10 : 0.06);
+    }
     if (this.glassOn) {
       // Glass: Index draws the page background (wallpaper or soft gradient); cards are translucent
       base.bg = '#00000000';
@@ -390,7 +398,7 @@ export class Store {
 
   /** 1.2.3: opaque page color (palette().bg turns transparent with glass/wallpaper); base layer of every overlay page */
   solidBg(): string {
-    return this.isDark() ? darkPalette().bg : lightPalette().bg;
+    return this.isBlack() ? blackPalette().bg : (this.isDark() ? darkPalette().bg : lightPalette().bg);
   }
 
   // ================= frosted glass / immersive light =================

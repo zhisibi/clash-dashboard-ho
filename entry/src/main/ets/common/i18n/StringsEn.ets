@@ -229,6 +229,7 @@ export const EN: Record<string, string> = {
   "theme_system": "System",
   "theme_light": "Light",
   "theme_dark": "Dark",
+  "theme_black": "Midnight Black",
   "glass_custom": "Custom",
   "glass_thin": "Thin",
   "glass_regular": "Regular",

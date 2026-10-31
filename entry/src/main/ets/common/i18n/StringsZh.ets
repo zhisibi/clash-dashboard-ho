@@ -229,6 +229,7 @@ export const ZH: Record<string, string> = {
   "theme_system": "跟随系统",
   "theme_light": "浅色",
   "theme_dark": "深色",
+  "theme_black": "深夜黑",
   "glass_custom": "自定义",
   "glass_thin": "薄",
   "glass_regular": "常规",

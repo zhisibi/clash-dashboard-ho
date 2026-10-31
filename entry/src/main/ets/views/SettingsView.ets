@@ -47,8 +47,8 @@ const SECTIONS: Section[] = [
 ];
 
 const LOG_LEVELS: string[] = ['debug', 'info', 'warning', 'error', 'silent'];
-const THEME_KEYS: string[] = ['system', 'light', 'dark'];
-const THEME_LABELS: string[] = ['theme_system', 'theme_light', 'theme_dark'];
+const THEME_KEYS: string[] = ['system', 'light', 'dark', 'black'];
+const THEME_LABELS: string[] = ['theme_system', 'theme_light', 'theme_dark', 'theme_black'];
 const GLASS_KEYS: string[] = ['custom', 'thin', 'regular', 'thick'];
 const GLASS_LABELS: string[] = ['glass_custom', 'glass_thin', 'glass_regular', 'glass_thick'];
 const SORT_KEYS: string[] = ['default', 'latency', 'name'];

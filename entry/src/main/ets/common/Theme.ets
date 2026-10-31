@@ -162,6 +162,18 @@ export function darkPalette(): Palette {
   return p;
 }
 
+/** 1.3.8 深夜黑 (user-named): dark palette with every surface pressed to pure black; separation via outline alone */
+export function blackPalette(): Palette {
+  const p = darkPalette();
+  p.bg = '#000000';
+  p.card = '#000000';
+  p.chip = '#000000';
+  p.sheet = '#000000';
+  p.outline = '#2E2E2E';
+  p.outlineVariant = '#1E1E1E';
+  return p;
+}
+
 /** '#RRGGBB' + alpha(0..1) -> '#AARRGGBB' */
 export function withAlpha(hex: string, alpha: number): string {
   const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
