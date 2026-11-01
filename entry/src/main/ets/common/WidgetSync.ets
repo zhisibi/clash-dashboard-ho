@@ -200,11 +200,16 @@ export async function pushSnapshotToForms(ctx: common.Context, snap: WidgetSnaps
     return;
   }
   const data = formBindingData.createFormBindingData(snapshotToBinding(snap));
+  // Push to all forms concurrently (1.4.10): the registry accumulates ids across re-added
+  // cards, and a sequential loop lets one slow or hanging updateForm (e.g. a stale
+  // minus-one-screen id) starve every live card behind it - the visible symptom was card
+  // speeds freezing while the app itself showed live traffic.
+  const jobs: Promise<void>[] = [];
   for (const id of ids) {
-    try {
-      await formProvider.updateForm(id, data);
-    } catch (e) {
-      // transient or dead id: keep it registered; the next push / host update retries
-    }
+    jobs.push(formProvider.updateForm(id, data).then(() => {
+    }).catch(() => {
+      // transient or dead id: keep it registered; the next push retries
+    }));
   }
+  await Promise.all(jobs);
 }
