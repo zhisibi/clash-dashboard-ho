@@ -27,6 +27,8 @@ export struct WidgetBody {
   @Prop connText: string = '0';
   @Prop memText: string = '-';
   @Prop totalText: string = '';
+  @Prop upTotalText: string = '';
+  @Prop downTotalText: string = '';
   @Prop modeText: string = '';
   @Prop modeKey: string = '';
   @Prop modeRuleText: string = 'Rule';
@@ -173,17 +175,16 @@ export struct WidgetBody {
           this.headerRow(true)
           this.msgLine()
 
-          // 2x2: big download, up, node row (display only), mode segment. The row is pinned
-          // to the card width and the download text takes the slack, so a long upload value
-          // can no longer push itself outside the card (boss report, 1.4.9)
+          // 2x2: download / upload totals (live speeds left in 1.4.11 - they froze whenever
+          // the app process was killed, totals stay meaningful). Row pinned to card width.
           Row() {
             SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(16).fontColor(['#FFFFFF'])
-            Text(this.downText).fontSize(19).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+            Text(this.downTotalText).fontSize(19).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
               .margin({ left: 4 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               .layoutWeight(1)
             SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(12).fontColor(['#D9FFFFFF'])
               .margin({ left: 10 })
-            Text(this.upText).fontSize(12).fontColor('#D9FFFFFF').margin({ left: 3 })
+            Text(this.upTotalText).fontSize(12).fontColor('#D9FFFFFF').margin({ left: 3 })
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
           }
           .width('100%')
@@ -217,14 +218,15 @@ export struct WidgetBody {
             this.headerRow(false)
             this.msgLine()
 
-            // live speeds side by side (tap opens the app)
+            // totals + memory on one row (tap opens the app); live speeds left in 1.4.11
             Row() {
               Column() {
                 Row() {
                   SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(12).fontColor(['#BFFFFFFF'])
-                  Text('DOWN').fontSize(9).fontColor('#BFFFFFFF').margin({ left: 4 })
+                  Text($r('app.string.widget_total_down')).fontSize(9).fontColor('#BFFFFFFF')
+                    .margin({ left: 4 })
                 }
-                Text(this.downText).fontSize(20).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                Text(this.downTotalText).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
                   .margin({ top: 1 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
               .alignItems(HorizontalAlign.Start)
@@ -233,9 +235,22 @@ export struct WidgetBody {
               Column() {
                 Row() {
                   SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(12).fontColor(['#BFFFFFFF'])
-                  Text('UP').fontSize(9).fontColor('#BFFFFFFF').margin({ left: 4 })
+                  Text($r('app.string.widget_total_up')).fontSize(9).fontColor('#BFFFFFFF')
+                    .margin({ left: 4 })
                 }
-                Text(this.upText).fontSize(20).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                Text(this.upTotalText).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                  .margin({ top: 1 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+
+              Column() {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.memory_module')).fontSize(12).fontColor(['#BFFFFFFF'])
+                  Text($r('app.string.widget_mem')).fontSize(9).fontColor('#BFFFFFFF')
+                    .margin({ left: 4 })
+                }
+                Text(this.memText).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
                   .margin({ top: 1 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
               .alignItems(HorizontalAlign.Start)

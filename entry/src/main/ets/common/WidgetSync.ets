@@ -25,6 +25,9 @@ export class WidgetSnapshot {
   connText: string = '0';
   memText: string = '-';
   totalText: string = '';
+  /** Upload / download totals since the core started (1.4.11, replacing live speeds) */
+  upTotalText: string = '';
+  downTotalText: string = '';
   modeText: string = '';
   /** Raw mode key for the card's mode segment: rule | global | direct (1.4.1) */
   modeKey: string = '';
@@ -61,6 +64,8 @@ export function snapshotToBinding(s: WidgetSnapshot): Record<string, Object> {
   o['connText'] = s.connText;
   o['memText'] = s.memText;
   o['totalText'] = s.totalText;
+  o['upTotalText'] = s.upTotalText;
+  o['downTotalText'] = s.downTotalText;
   o['modeText'] = s.modeText;
   o['modeKey'] = s.modeKey;
   o['modeRuleText'] = s.modeRuleText;
@@ -107,6 +112,8 @@ export function snapshotFromJson(text: string): WidgetSnapshot {
     s.connText = str('connText', '0');
     s.memText = str('memText', '-');
     s.totalText = str('totalText', '');
+    s.upTotalText = str('upTotalText', '');
+    s.downTotalText = str('downTotalText', '');
     s.modeText = str('modeText', '');
     s.modeKey = str('modeKey', '');
     s.modeRuleText = str('modeRuleText', s.modeRuleText);

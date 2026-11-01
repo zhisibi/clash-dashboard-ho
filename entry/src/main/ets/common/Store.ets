@@ -911,6 +911,8 @@ export class Store {
     s.connText = this.activeConns.length.toString();
     s.memText = this.memory > 0 ? fmtBytes(this.memory) : '-';
     s.totalText = fmtBytes(this.connTotalUp) + ' / ' + fmtBytes(this.connTotalDown);
+    s.upTotalText = fmtBytes(this.connTotalUp);
+    s.downTotalText = fmtBytes(this.connTotalDown);
     s.modeText = modeName(this.config.mode);
     s.modeKey = this.config.mode;
     s.modeRuleText = modeName('rule');

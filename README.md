@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.10（versionCode 1050000） |
+| 版本 | 1.4.11（versionCode 1051000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.11
+- **卡片改显总量（老板指令）**：大小卡都把实时速度换成上传总量/下载总量（内核启动以来累计，来自连接流的 uploadTotal/downloadTotal）；宽卡（4×2）在同一行加第三列「内存」占用。速度依赖 App 进程常驻、被杀就冻结，总量则每次连上后端即为当前累计值，更适合卡片常驻展示；快照新增 upTotalText/downTotalText 字段，卡片描述文案同步更新
 
 ### 1.4.10
 - **修卡片速度不再实时刷新（老板真机反馈）**：快照推送原本按注册表顺序逐个串行 `updateForm`，反复删/加卡片后注册表里积了失效 id，排在前面的某个失效 id 一旦卡住，后面的活卡片就再也等不到推送（App 内速度正常、卡片冻结）。改为对所有卡片并发推送，单个 id 慢/失败互不影响。注意：卡片速度来自 App 进程的实时流量流，装完更新后需打开一次 App 并让它在后台活着，被系统强杀后卡片会停在最后一次数据

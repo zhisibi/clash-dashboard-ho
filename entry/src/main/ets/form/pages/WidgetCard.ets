@@ -14,6 +14,8 @@ struct WidgetCard {
   @LocalStorageProp('connText') connText: string = '0';
   @LocalStorageProp('memText') memText: string = '-';
   @LocalStorageProp('totalText') totalText: string = '';
+  @LocalStorageProp('upTotalText') upTotalText: string = '';
+  @LocalStorageProp('downTotalText') downTotalText: string = '';
   @LocalStorageProp('modeText') modeText: string = '';
   @LocalStorageProp('nodeText') nodeText: string = '';
   @LocalStorageProp('modeKey') modeKey: string = '';
@@ -42,6 +44,8 @@ struct WidgetCard {
       connText: this.connText,
       memText: this.memText,
       totalText: this.totalText,
+      upTotalText: this.upTotalText,
+      downTotalText: this.downTotalText,
       modeText: this.modeText,
       nodeText: this.nodeText,
       modeKey: this.modeKey,
