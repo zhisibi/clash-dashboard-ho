@@ -135,7 +135,7 @@ export struct WidgetBody {
       Text(this.brand).fontSize(this.compact ? 13 : 14).fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF').margin({ left: 6 })
         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-      if (this.labelText.length > 0) {
+      if (this.labelText.length > 0 && !this.compact) {
         Text(this.labelText).fontSize(11).fontColor('#BFFFFFFF').margin({ left: 6 })
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
       } else {
