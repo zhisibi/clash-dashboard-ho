@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.11（versionCode 1051000） |
+| 版本 | 1.4.12（versionCode 1052000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.12
+- **小卡（2×2）总量数字防省略（老板真机反馈）**：下载图标与数字字号过大，数值稍长就被截成省略号；改为图标 14、下载值 18 号起并启用自适应缩字（minFontSize 10 / 上传 9），上传值限宽 36%，TB 级大数字也能完整显示
 
 ### 1.4.11
 - **卡片改显总量（老板指令）**：大小卡都把实时速度换成上传总量/下载总量（内核启动以来累计，来自连接流的 uploadTotal/downloadTotal）；宽卡（4×2）在同一行加第三列「内存」占用。速度依赖 App 进程常驻、被杀就冻结，总量则每次连上后端即为当前累计值，更适合卡片常驻展示；快照新增 upTotalText/downTotalText 字段，卡片描述文案同步更新

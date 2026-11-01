@@ -176,16 +176,20 @@ export struct WidgetBody {
           this.msgLine()
 
           // 2x2: download / upload totals (live speeds left in 1.4.11 - they froze whenever
-          // the app process was killed, totals stay meaningful). Row pinned to card width.
+          // the app process was killed, totals stay meaningful). Row pinned to card width;
+          // both values use adaptive font shrink (minFontSize) so even TB-sized totals fit
+          // instead of collapsing into an ellipsis (boss report, 1.4.12)
           Row() {
-            SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(16).fontColor(['#FFFFFF'])
-            Text(this.downTotalText).fontSize(19).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
-              .margin({ left: 4 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(14).fontColor(['#FFFFFF'])
+            Text(this.downTotalText).fontSize(18).minFontSize(10).fontWeight(FontWeight.Bold)
+              .fontColor('#FFFFFF')
+              .margin({ left: 3 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               .layoutWeight(1)
-            SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(12).fontColor(['#D9FFFFFF'])
-              .margin({ left: 10 })
-            Text(this.upTotalText).fontSize(12).fontColor('#D9FFFFFF').margin({ left: 3 })
-              .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(11).fontColor(['#D9FFFFFF'])
+              .margin({ left: 8 })
+            Text(this.upTotalText).fontSize(12).minFontSize(9).fontColor('#D9FFFFFF')
+              .margin({ left: 2 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .constraintSize({ maxWidth: '36%' })
           }
           .width('100%')
           .margin({ top: 7 })
