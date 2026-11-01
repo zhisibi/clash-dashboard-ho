@@ -5,9 +5,8 @@
  * Interactions: tapping the header or the speed area opens the app (router action). The mode
  * buttons fire 'call' actions that start EntryAbility in the background; its callee runs the
  * switch through the app's own Store and pushes a fresh snapshot back, so the card re-renders
- * immediately with a short result line. Tapping the node row cycles to the next leaf node of
- * the main group the same way (a full node list cannot be shown on a form card - system
- * restriction - and since 1.4.4 there is no visible switch button, per the boss's layout).
+ * immediately with a short result line. The node row is display only: the boss removed its
+ * tap-to-cycle action in 1.4.7 (node switching happens in the app).
  * Wide card layout (boss, 2026-11-01): the right rail holds the connection status on top of
  * the Rule / Global / Direct buttons, aligned as one column and vertically centered; no
  * connection count, no totals line, no switch button. Small card: mode segment at the bottom
@@ -56,17 +55,6 @@ export struct WidgetBody {
       params: {
         method: 'widgetAction',
         params: JSON.stringify({ action: 'setMode', mode: mode })
-      }
-    });
-  }
-
-  private cycleNode(): void {
-    postCardAction(this, {
-      action: 'call',
-      abilityName: 'EntryAbility',
-      params: {
-        method: 'widgetAction',
-        params: JSON.stringify({ action: 'cycleNode' })
       }
     });
   }
@@ -181,7 +169,7 @@ export struct WidgetBody {
           this.headerRow(true)
           this.msgLine()
 
-          // 2x2: big download, up, node row (tap cycles, no switch glyph), mode segment
+          // 2x2: big download, up, node row (display only), mode segment
           Row() {
             SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(16).fontColor(['#FFFFFF'])
             Text(this.downText).fontSize(19).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
@@ -205,9 +193,6 @@ export struct WidgetBody {
           .width('100%')
           .padding({ top: 4, bottom: 4 })
           .margin({ top: 3 })
-          .onClick(() => {
-            this.cycleNode();
-          })
 
           this.modeRow()
         }
@@ -253,7 +238,7 @@ export struct WidgetBody {
               this.openApp();
             })
 
-            // node row: group + current node on one line; tap cycles (no visible button)
+            // node row: group + current node on one line, display only (1.4.7)
             Row() {
               SymbolGlyph($r('sys.symbol.paperplane')).fontSize(12).fontColor(['#E6FFFFFF'])
               if (this.groupName.length > 0) {
@@ -267,9 +252,6 @@ export struct WidgetBody {
             }
             .width('100%')
             .margin({ top: 9 })
-            .onClick(() => {
-              this.cycleNode();
-            })
           }
           .alignItems(HorizontalAlign.Start)
           .justifyContent(FlexAlign.Center)
