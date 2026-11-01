@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.5（versionCode 1045000） |
+| 版本 | 1.4.6（versionCode 1046000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.6
+- **修复负一屏卡片不刷新、按钮文字停在英文默认值**：根因在推送注册表——`pushSnapshotToForms` 只要某次 `updateForm` 失败（宿主忙、负一屏卡片刚创建等瞬时失败）就把该卡片的 formId 从注册表删掉，之后再也不给它推数据，这张卡就永远停在最初的默认绑定（英文 Rule/Global/Direct、不随点击刷新）。改法：推送失败绝不注销（只有卡片被移除时才注销）；formId 注册表改 `flushSync` 同步落盘（卡片进程短命，异步 flush 会丢）；`onAddForm` 除返回绑定外再主动推一次当前快照。已中招的负一屏卡片需删掉重新添加一次重新登记
 
 ### 1.4.5
 - 小卡（2×2）标题行不再显示后端地址：空间不够时地址被截断成省略号（老板指的「咪咪面板后面三个点」），小卡直接只留品牌名与连接状态；宽卡地址显示不变

@@ -42,13 +42,22 @@ export default class EntryFormAbility extends FormExtensionAbility {
 
   onAddForm(want: Want): formBindingData.FormBindingData {
     const params = want.parameters;
+    let fid: string = '';
     if (params !== undefined && params !== null) {
       const id = params[formInfo.FormParam.IDENTITY_KEY];
       if (typeof id === 'string' && (id as string).length > 0) {
-        this.remember(id as string);
+        fid = id as string;
+        this.remember(fid);
       }
     }
-    return this.binding();
+    const data = this.binding();
+    if (fid.length > 0) {
+      // belt and braces for the minus-one-screen host: push the current snapshot once more
+      // instead of relying only on the returned binding being applied (1.4.6)
+      formProvider.updateForm(fid, data).catch(() => {
+      });
+    }
+    return data;
   }
 
   onCastToNormalForm(formId: string): void {

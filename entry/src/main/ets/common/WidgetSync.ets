@@ -179,30 +179,32 @@ export function saveFormIds(ctx: common.Context, ids: string[]): void {
     const opts: preferences.Options = { name: WIDGET_PREFS_NAME };
     const sp = preferences.getPreferencesSync(ctx, opts);
     sp.putSync(WIDGET_FORM_IDS_KEY, JSON.stringify(ids));
-    sp.flush().catch(() => {
-    });
+    // the form process is short-lived: an async flush can be lost when it dies, and with it
+    // the registration of a card added on the minus-one screen (1.4.6 diagnosis)
+    sp.flushSync();
   } catch (e) {
     // ignore
   }
 }
 
-/** Pushes the snapshot to every live form; dead ids are dropped from the registry */
+/**
+ * Pushes the snapshot to every registered form. Ids are NEVER dropped here: updateForm can
+ * fail transiently (host busy, form still being created on the minus-one screen), and the
+ * 1.4.0-1.4.5 behaviour of forgetting the id on any failure left that card frozen forever -
+ * it kept its initial (default, English-labelled) binding and never refreshed after a tap.
+ * Only onRemoveForm unregisters a form.
+ */
 export async function pushSnapshotToForms(ctx: common.Context, snap: WidgetSnapshot): Promise<void> {
   const ids = readFormIds(ctx);
   if (ids.length === 0) {
     return;
   }
   const data = formBindingData.createFormBindingData(snapshotToBinding(snap));
-  const alive: string[] = [];
   for (const id of ids) {
     try {
       await formProvider.updateForm(id, data);
-      alive.push(id);
     } catch (e) {
-      // form was removed from the desktop; forget it
+      // transient or dead id: keep it registered; the next push / host update retries
     }
-  }
-  if (alive.length !== ids.length) {
-    saveFormIds(ctx, alive);
   }
 }
