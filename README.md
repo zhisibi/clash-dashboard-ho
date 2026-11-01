@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.13（versionCode 1053000） |
+| 版本 | 1.4.14（versionCode 1054000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.14
+- **小卡（2×2）总量改上下两行（老板真机截图：负一屏与桌面卡都中招）**：1.4.12 的单行布局在真机上仍把下载值截成「176 …」——同行还有上传值抢宽，且只设 minFontSize 没有触发 ArkUI 自适应缩字（min 与 max 必须成对）。改法：下载总量、上传总量各占一行整宽，数值加成对的 min/maxFontSize 自适应；宽卡三列数值同步补自适应缩字
 
 ### 1.4.13
 - **去掉卡片上的「已切换」提示行（老板指令）**：大小卡都不再渲染操作结果文字，Store 侧的反馈文案生成一并移除；点按后卡片照常即时刷新，高亮/状态本身就是反馈

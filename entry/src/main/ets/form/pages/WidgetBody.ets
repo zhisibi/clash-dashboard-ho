@@ -165,24 +165,33 @@ export struct WidgetBody {
         Column() {
           this.headerRow(true)
 
-          // 2x2: download / upload totals (live speeds left in 1.4.11 - they froze whenever
-          // the app process was killed, totals stay meaningful). Row pinned to card width;
-          // both values use adaptive font shrink (minFontSize) so even TB-sized totals fit
-          // instead of collapsing into an ellipsis (boss report, 1.4.12)
+          // 2x2: download / upload totals, one per line (live speeds left in 1.4.11). The
+          // 1.4.12 single-row layout still ellipsized the download value on device: sharing
+          // the row with the upload value left too little width, and minFontSize alone does
+          // not engage ArkUI's adaptive shrink (min AND max are both required). Each total
+          // now gets the full card width plus proper adaptive sizing (1.4.14)
           Row() {
-            SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(14).fontColor(['#FFFFFF'])
-            Text(this.downTotalText).fontSize(18).minFontSize(10).fontWeight(FontWeight.Bold)
-              .fontColor('#FFFFFF')
-              .margin({ left: 3 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(15).fontColor(['#FFFFFF'])
+            Text(this.downTotalText).fontSize(19).minFontSize(11).maxFontSize(19)
+              .fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+              .margin({ left: 4 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               .layoutWeight(1)
-            SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(11).fontColor(['#D9FFFFFF'])
-              .margin({ left: 8 })
-            Text(this.upTotalText).fontSize(12).minFontSize(9).fontColor('#D9FFFFFF')
-              .margin({ left: 2 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-              .constraintSize({ maxWidth: '36%' })
           }
           .width('100%')
           .margin({ top: 7 })
+          .onClick(() => {
+            this.openApp();
+          })
+
+          Row() {
+            SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(13).fontColor(['#D9FFFFFF'])
+            Text(this.upTotalText).fontSize(14).minFontSize(10).maxFontSize(14)
+              .fontColor('#E6FFFFFF')
+              .margin({ left: 4 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .margin({ top: 3 })
           .onClick(() => {
             this.openApp();
           })
@@ -219,7 +228,7 @@ export struct WidgetBody {
                   Text($r('app.string.widget_total_down')).fontSize(9).fontColor('#BFFFFFFF')
                     .margin({ left: 4 })
                 }
-                Text(this.downTotalText).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                Text(this.downTotalText).fontSize(17).minFontSize(11).maxFontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
                   .margin({ top: 1 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
               .alignItems(HorizontalAlign.Start)
@@ -231,7 +240,7 @@ export struct WidgetBody {
                   Text($r('app.string.widget_total_up')).fontSize(9).fontColor('#BFFFFFFF')
                     .margin({ left: 4 })
                 }
-                Text(this.upTotalText).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                Text(this.upTotalText).fontSize(17).minFontSize(11).maxFontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
                   .margin({ top: 1 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
               .alignItems(HorizontalAlign.Start)
@@ -243,7 +252,7 @@ export struct WidgetBody {
                   Text($r('app.string.widget_mem')).fontSize(9).fontColor('#BFFFFFFF')
                     .margin({ left: 4 })
                 }
-                Text(this.memText).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                Text(this.memText).fontSize(17).minFontSize(11).maxFontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
                   .margin({ top: 1 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
               .alignItems(HorizontalAlign.Start)
