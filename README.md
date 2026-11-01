@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.3（versionCode 1043000） |
+| 版本 | 1.4.4（versionCode 1044000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.4
+- **卡片版式按老板真机截图再调整**：宽卡（4×2）右侧栏改为「已连接」状态与规则/全局/直连三按钮成一列对齐、竖向整体居中；去掉宽卡底部总流量/内存一行与节点行上的「切换」按钮（点节点行本身仍可轮换节点，只是不再显示按钮）；小卡（2×2）去掉模式行右侧的时间数字、节点行不再显示切换图标（点行轮换保留）。1.4.2 起的 call 事件切换通路经老板真机确认已生效（截图见「已切换：DIRECT」），本版只动版式不动通路
 
 ### 1.4.3
 - **去掉网络出口检测（老板指令）**：删除概览页出口检测卡、Store 的检测状态与请求代码（Egress / EgressLogic 两文件整体移除），应用不再访问 ipwho.is / Cloudflare trace；桌面/负一屏卡片快照中的出口字段与宽卡出口地区 chip 一并去掉，卡片描述文案同步更新
