@@ -18,8 +18,6 @@ import { I18N, initLang, setLangPref, t } from './I18n';
 import { Motion } from './Motion';
 import { MOTION_NAV } from './MotionLogic';
 import { BarLook } from './NavLight';
-import { EgressInfo, egressWidgetText } from './EgressLogic';
-import { fetchEgress } from './Egress';
 import { WidgetSnapshot, WIDGET_SNAPSHOT_KEY, pushSnapshotToForms, readSnapshot } from './WidgetSync';
 import { fmtBytes, fmtClock, fmtSpeed, modeName } from './Format';
 
@@ -200,12 +198,6 @@ export class Store {
   @Trace memory: number = 0;
   @Trace memoryHistory: number[] = emptyNums();
 
-  // ----- egress check (1.4.0) -----
-  /** Last egress result; null until the user runs a check (never fetched automatically) */
-  @Trace egress: EgressInfo | null = null;
-  /** idle | checking | ok | failed */
-  @Trace egressState: string = 'idle';
-  @Trace egressError: string = '';
   /** Widget snapshot throttle stamp (ms) */
   private lastWidgetSnap: number = 0;
   /** When config / proxies were last fetched; a newer stored snapshot (card action) wins for mode/node */
@@ -832,8 +824,6 @@ export class Store {
     this.rules = [];
     this.activeConns = [];
     this.logs = [];
-    this.egress = null;
-    this.egressState = 'idle';
     this.saveWidgetSnapshot(true);
   }
 
@@ -904,37 +894,6 @@ export class Store {
     this.refreshRules();
   }
 
-  // ================= egress check (1.4.0) =================
-  /**
-   * Runs the egress check on demand only: the privacy policy promises these third-party
-   * requests happen when the user taps the button, never in the background.
-   */
-  async checkEgress(): Promise<void> {
-    if (this.egressState === 'checking') {
-      return;
-    }
-    this.egressState = 'checking';
-    this.egressError = '';
-    try {
-      const info = await fetchEgress();
-      this.egress = info;
-      this.egressState = 'ok';
-    } catch (e) {
-      this.egressState = 'failed';
-      this.egressError = errMsg(e as Object);
-    }
-    this.saveWidgetSnapshot(true);
-  }
-
-  copyEgressIp(): void {
-    const info = this.egress;
-    if (info === null || info.ip.length === 0) {
-      return;
-    }
-    FileUtil.copyText(info.ip);
-    this.toast(t('copied'));
-  }
-
   // ================= widget snapshot (1.4.0) =================
   /** Pre-formatted snapshot for the desktop / minus-one-screen form cards; see WidgetSync.ets */
   buildWidgetSnapshot(): WidgetSnapshot {
@@ -1003,12 +962,6 @@ export class Store {
     }
     if (this.widgetMsg.length > 0 && Date.now() - this.widgetMsgAt < 30000) {
       s.msgText = this.widgetMsg;
-    }
-    const eg = this.egress;
-    if (eg !== null && eg.ip.length > 0) {
-      s.hasEgress = true;
-      s.egressIp = eg.ip;
-      s.egressText = egressWidgetText(eg);
     }
     s.updatedAt = Date.now();
     s.updatedText = fmtClock(s.updatedAt);

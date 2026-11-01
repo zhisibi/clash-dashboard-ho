@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.2（versionCode 1042000） |
+| 版本 | 1.4.3（versionCode 1043000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,10 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.3
+- **去掉网络出口检测（老板指令）**：删除概览页出口检测卡、Store 的检测状态与请求代码（Egress / EgressLogic 两文件整体移除），应用不再访问 ipwho.is / Cloudflare trace；桌面/负一屏卡片快照中的出口字段与宽卡出口地区 chip 一并去掉，卡片描述文案同步更新
+- 隐私政策升至第 5 版：删去出口检测的数据收集与联网披露两处，卡片快照披露改为不含出口结果，升级后重新征求同意
 
 ### 1.4.2
 - **修复卡片按钮全部无反应（1.4.1 实锤）**：1.4.1 的卡片点按用 `message` 事件 + 手拼 `message` 字段传参，不符合系统约定（数据应放 `params`），消息根本没送达处理方，且失败无任何回显，老板真机反馈「所有按钮无效果」。1.4.2 改走官方 `call` 事件：点按在后台拉起主 App 的 EntryAbility，由其 callee 在主进程用应用自己的 Store 执行切换（等自动连接完成→PATCH /configs 或轮换节点→强制刷新快照推回卡片），成功/失败都在卡片标题下即时显示一行结果（已切换：全局 / 已切换：节点名 / 切换失败…）；为此新增后台运行权限 `ohos.permission.KEEP_BACKGROUND_RUNNING`（普通权限，无弹窗）。卡片进程内的旧执行器已移除，卡片恢复为纯展示

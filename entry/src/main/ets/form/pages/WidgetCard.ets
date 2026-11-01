@@ -1,6 +1,5 @@
 import { WidgetBody } from './WidgetBody';
 
-/** Wide service widget (2x4), the default form: speeds, connections, node and egress at a glance. */
 let storage = new LocalStorage();
 
 @Entry(storage)
@@ -27,9 +26,6 @@ struct WidgetCard {
   @LocalStorageProp('switchText') switchText: string = 'Switch';
   @LocalStorageProp('msgText') msgText: string = '';
   @LocalStorageProp('groupName') groupName: string = '';
-  @LocalStorageProp('egressText') egressText: string = '';
-  @LocalStorageProp('egressIp') egressIp: string = '';
-  @LocalStorageProp('hasEgress') hasEgress: boolean = false;
   @LocalStorageProp('updatedText') updatedText: string = '';
   @LocalStorageProp('bgA') bgA: string = '#0A59F7';
   @LocalStorageProp('bgB') bgB: string = '#0646C8';
@@ -58,9 +54,6 @@ struct WidgetCard {
       switchText: this.switchText,
       msgText: this.msgText,
       groupName: this.groupName,
-      egressText: this.egressText,
-      egressIp: this.egressIp,
-      hasEgress: this.hasEgress,
       updatedText: this.updatedText,
       bgA: this.bgA,
       bgB: this.bgB,

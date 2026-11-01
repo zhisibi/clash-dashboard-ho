@@ -7,12 +7,11 @@ import { pathToFileURL } from 'url';
 
 const root = path.join(path.dirname(new URL(import.meta.url).pathname), '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mimipanel-logic-'));
-for (const f of ['MotionLogic', 'ReviewLogic', 'EgressLogic']) {
+for (const f of ['MotionLogic', 'ReviewLogic']) {
   fs.copyFileSync(path.join(root, 'entry/src/main/ets/common', f + '.ets'), path.join(tmp, f + '.ts'));
 }
 const mot = await import(pathToFileURL(path.join(tmp, 'MotionLogic.ts')).href);
 const rev = await import(pathToFileURL(path.join(tmp, 'ReviewLogic.ts')).href);
-const egr = await import(pathToFileURL(path.join(tmp, 'EgressLogic.ts')).href);
 let failed = 0, passed = 0;
 const eq = (name, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -64,27 +63,6 @@ const r = fresh(); Object.assign(r, d); rev.reviewChooseRate(r);
 eq('rated blocks forever', rev.reviewBlockers(r, T0 + 999 * DAY, false).includes('life-done'), true);
 const n = fresh(); rev.reviewChooseNever(n);
 eq('never blocks forever', rev.reviewBlockers(n, T0 + 999 * DAY, false).includes('life-never'), true);
-
-// ---- egress (1.4.0)
-const iw = egr.parseIpwho(JSON.stringify({ success: true, ip: '203.0.113.7', country: 'Japan', country_code: 'jp', region: 'Tokyo', city: 'Tokyo', connection: { isp: 'Example ISP', org: 'Example Org' } }));
-eq('ipwho ip', iw && iw.ip, '203.0.113.7');
-eq('ipwho code upper', iw && iw.countryCode, 'JP');
-eq('ipwho isp preferred', iw && iw.isp, 'Example ISP');
-eq('ipwho source', iw && iw.source, 'ipwho');
-eq('ipwho failure is null', egr.parseIpwho(JSON.stringify({ success: false, message: 'reserved' })), null);
-eq('ipwho junk is null', egr.parseIpwho('not json'), null);
-eq('ipwho no ip is null', egr.parseIpwho(JSON.stringify({ success: true })), null);
-const cf = egr.parseCfTrace('fl=1\nh=www.cloudflare.com\nip=198.51.100.9\nloc=SG\n');
-eq('cf ip', cf && cf.ip, '198.51.100.9');
-eq('cf code', cf && cf.countryCode, 'SG');
-eq('cf no ip is null', egr.parseCfTrace('loc=SG\n'), null);
-eq('flag JP', egr.flagEmoji('JP'), '\uD83C\uDDEF\uD83C\uDDF5');
-eq('flag lower', egr.flagEmoji('sg'), '\uD83C\uDDF8\uD83C\uDDEC');
-eq('flag bad len', egr.flagEmoji('JPN'), '');
-eq('flag bad chars', egr.flagEmoji('J1'), '');
-eq('location dedup', iw && egr.egressLocationText(iw), 'Japan Tokyo');
-eq('location code fallback', cf && egr.egressLocationText(cf), 'SG');
-eq('widget text flag+loc', iw && egr.egressWidgetText(iw), '\uD83C\uDDEF\uD83C\uDDF5 Japan Tokyo');
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

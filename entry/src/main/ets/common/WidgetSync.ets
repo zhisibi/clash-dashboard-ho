@@ -42,9 +42,6 @@ export class WidgetSnapshot {
   /** Main selectable group the card's node row switches (1.4.1) */
   groupName: string = '';
   nodeText: string = '';
-  egressText: string = '';
-  egressIp: string = '';
-  hasEgress: boolean = false;
   updatedText: string = '';
   /** Gradient stops for the card background, computed from the current accent by the app */
   bgA: string = '#0A59F7';
@@ -76,9 +73,6 @@ export function snapshotToBinding(s: WidgetSnapshot): Record<string, Object> {
   o['msgText'] = s.msgText;
   o['groupName'] = s.groupName;
   o['nodeText'] = s.nodeText;
-  o['egressText'] = s.egressText;
-  o['egressIp'] = s.egressIp;
-  o['hasEgress'] = s.hasEgress;
   o['updatedText'] = s.updatedText;
   o['bgA'] = s.bgA;
   o['bgB'] = s.bgB;
@@ -125,9 +119,6 @@ export function snapshotFromJson(text: string): WidgetSnapshot {
     s.msgText = str('msgText', '');
     s.groupName = str('groupName', '');
     s.nodeText = str('nodeText', '');
-    s.egressText = str('egressText', '');
-    s.egressIp = str('egressIp', '');
-    s.hasEgress = bol('hasEgress', false);
     s.updatedText = str('updatedText', '');
     s.bgA = str('bgA', s.bgA);
     s.bgB = str('bgB', s.bgB);

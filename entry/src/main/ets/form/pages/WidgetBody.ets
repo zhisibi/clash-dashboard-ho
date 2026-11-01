@@ -36,9 +36,6 @@ export struct WidgetBody {
   @Prop msgText: string = '';
   @Prop groupName: string = '';
   @Prop nodeText: string = '';
-  @Prop egressText: string = '';
-  @Prop egressIp: string = '';
-  @Prop hasEgress: boolean = false;
   @Prop updatedText: string = '';
   @Prop bgA: string = '#0A59F7';
   @Prop bgB: string = '#0646C8';
@@ -72,20 +69,6 @@ export struct WidgetBody {
         params: JSON.stringify({ action: 'cycleNode' })
       }
     });
-  }
-
-  @Builder
-  chip(icon: Resource, text: string) {
-    Row() {
-      SymbolGlyph(icon).fontSize(11).fontColor(['#E6FFFFFF'])
-      Text(text).fontSize(11).fontColor('#E6FFFFFF').margin({ left: 4 })
-        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-    }
-    .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-    .borderRadius(10)
-    .backgroundColor('#26FFFFFF')
-    .margin({ right: 6 })
-    .constraintSize({ maxWidth: '62%' })
   }
 
   @Builder
@@ -283,11 +266,8 @@ export struct WidgetBody {
               .width('100%')
               .margin({ top: 7 })
 
-              // bottom line: egress chip + totals / memory
+              // bottom line: totals / memory (egress chip removed with the feature in 1.4.3)
               Row() {
-                if (this.hasEgress) {
-                  this.chip($r('sys.symbol.pin'), this.egressText.length > 0 ? this.egressText : this.egressIp)
-                }
                 Blank().layoutWeight(1)
                 Text(this.totalText + '  ·  ' + this.memText).fontSize(10).fontColor('#99FFFFFF')
                   .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })

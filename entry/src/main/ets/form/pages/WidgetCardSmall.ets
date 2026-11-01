@@ -1,6 +1,5 @@
 import { WidgetBody } from './WidgetBody';
 
-/** Compact service widget (2x2): status, live speeds, connections and egress location. */
 let storage = new LocalStorage();
 
 @Entry(storage)
@@ -27,9 +26,6 @@ struct WidgetCardSmall {
   @LocalStorageProp('switchText') switchText: string = 'Switch';
   @LocalStorageProp('msgText') msgText: string = '';
   @LocalStorageProp('groupName') groupName: string = '';
-  @LocalStorageProp('egressText') egressText: string = '';
-  @LocalStorageProp('egressIp') egressIp: string = '';
-  @LocalStorageProp('hasEgress') hasEgress: boolean = false;
   @LocalStorageProp('updatedText') updatedText: string = '';
   @LocalStorageProp('bgA') bgA: string = '#0A59F7';
   @LocalStorageProp('bgB') bgB: string = '#0646C8';
@@ -58,9 +54,6 @@ struct WidgetCardSmall {
       switchText: this.switchText,
       msgText: this.msgText,
       groupName: this.groupName,
-      egressText: this.egressText,
-      egressIp: this.egressIp,
-      hasEgress: this.hasEgress,
       updatedText: this.updatedText,
       bgA: this.bgA,
       bgB: this.bgB,

@@ -1,8 +1,7 @@
 import { Store } from '../common/Store';
 import { Palette } from '../common/Theme';
 import { ProxyItem, Traffic } from '../common/Models';
-import { fmtAgo, fmtBytes, fmtSpeed, modeName } from '../common/Format';
-import { egressLocationText, flagEmoji } from '../common/EgressLogic';
+import { fmtBytes, fmtSpeed, modeName } from '../common/Format';
 import { HeaderStatus, Legend, LineChart, RoundIconButton, SegTabs } from '../components/Widgets';
 import { PullRefresh } from '../components/PullRefresh';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
@@ -85,21 +84,6 @@ export struct OverviewView {
 
   hasLabel(): boolean {
     return this.store.active !== null && this.store.active.label.trim().length > 0;
-  }
-
-  egressFlag(): string {
-    const e = this.store.egress;
-    return e === null ? '' : flagEmoji(e.countryCode);
-  }
-
-  egressLoc(): string {
-    const e = this.store.egress;
-    return e === null ? '' : egressLocationText(e);
-  }
-
-  egressSourceName(): string {
-    const e = this.store.egress;
-    return e !== null && e.source === 'ipwho' ? 'ipwho.is' : 'Cloudflare';
   }
 
   build() {
@@ -205,98 +189,6 @@ export struct OverviewView {
             }
             .width('100%')
             .padding(14)
-            .borderRadius(18)
-            .attributeModifier(Store.get().glass('card'))
-
-            // egress check (1.4.0): on-demand only - the card never fetches on its own
-            Column() {
-              Row() {
-                SymbolGlyph($r('sys.symbol.pin')).fontSize(17).fontColor([this.store.palette().accentUi])
-                Text(t('egress_title')).fontSize(16).fontWeight(FontWeight.Medium)
-                  .fontColor(this.store.palette().text).margin({ left: 6 }).layoutWeight(1)
-                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                if (this.store.egressState === 'ok' && this.store.egress !== null) {
-                  Text(fmtAgo(this.store.egress!.checkedAt)).fontSize(12).fontColor(this.store.palette().subtle)
-                    .margin({ right: 4 })
-                }
-                RoundIconButton({
-                  pal: this.store.palette(),
-                  dense: true,
-                  icon: $r('sys.symbol.arrow_clockwise'),
-                  busy: this.store.egressState === 'checking',
-                  onTap: () => {
-                    this.store.checkEgress();
-                  }
-                })
-              }
-              .width('100%')
-
-              if (this.store.egressState === 'checking') {
-                Row() {
-                  LoadingProgress().width(18).height(18).color(this.store.palette().subtle)
-                  Text(t('egress_checking')).fontSize(13).fontColor(this.store.palette().subtle)
-                    .margin({ left: 8 })
-                }
-                .width('100%')
-                .margin({ top: 10 })
-              } else if (this.store.egressState === 'ok' && this.store.egress !== null) {
-                Row() {
-                  if (this.egressFlag().length > 0) {
-                    Text(this.egressFlag()).fontSize(30).margin({ right: 10 })
-                  }
-                  Column() {
-                    Row() {
-                      Text(this.store.egress!.ip).fontSize(19).fontWeight(FontWeight.Medium)
-                        .fontColor(this.store.palette().text)
-                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                      SymbolGlyph($r('sys.symbol.square_on_square_fill')).fontSize(14)
-                        .fontColor([this.store.palette().subtle]).margin({ left: 6 })
-                    }
-                    if (this.egressLoc().length > 0) {
-                      Text(this.egressLoc()).fontSize(14).fontColor(this.store.palette().text)
-                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).margin({ top: 2 })
-                    }
-                    Text((this.store.egress!.isp.length > 0 ? this.store.egress!.isp + ' · ' : '') +
-                      t('egress_latency', this.store.egress!.latencyMs) + ' · ' + this.egressSourceName())
-                      .fontSize(12).fontColor(this.store.palette().subtle)
-                      .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).margin({ top: 2 })
-                  }
-                  .alignItems(HorizontalAlign.Start)
-                  .layoutWeight(1)
-                }
-                .width('100%')
-                .margin({ top: 10 })
-                .onClick(() => {
-                  this.store.copyEgressIp();
-                })
-              } else if (this.store.egressState === 'failed') {
-                Text(t('egress_failed', this.store.egressError)).fontSize(13)
-                  .fontColor(this.store.palette().bad).margin({ top: 8 })
-                Button(t('egress_redetect'), { type: ButtonType.Capsule })
-                  .fontColor(this.store.palette().onPrimary)
-                  .backgroundColor(this.store.palette().primary)
-                  .margin({ top: 10 })
-                  .onClick(() => {
-                    this.store.checkEgress();
-                  })
-              } else {
-                Text(t('egress_desc')).fontSize(13).fontColor(this.store.palette().subtle)
-                  .margin({ top: 8 })
-                Button(t('egress_detect'), { type: ButtonType.Capsule })
-                  .fontColor(this.store.palette().onPrimary)
-                  .backgroundColor(this.store.palette().primary)
-                  .margin({ top: 10 })
-                  .onClick(() => {
-                    this.store.checkEgress();
-                  })
-              }
-
-              Text(t('egress_note')).fontSize(11).fontColor(this.store.palette().subtle)
-                .margin({ top: 10 })
-            }
-            .width('100%')
-            .alignItems(HorizontalAlign.Start)
-            .padding(16)
             .borderRadius(18)
             .attributeModifier(Store.get().glass('card'))
 
