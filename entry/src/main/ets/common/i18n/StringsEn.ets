@@ -202,6 +202,7 @@ export const EN: Record<string, string> = {
   "widget_connected": "Connected",
   "widget_switch": "Switch",
   "widget_action_failed": "Switch failed - tap the card to retry in the app",
+  "widget_action_ok": "Switched: {0}",
   "not_connected": "Not connected",
   "f_host": "Host",
   "f_port": "Port",

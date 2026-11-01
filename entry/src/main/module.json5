@@ -13,6 +13,9 @@
         "name": "ohos.permission.INTERNET",
         "reason": "$string:perm_internet",
         "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      {
+        "name": "ohos.permission.KEEP_BACKGROUND_RUNNING"
       }
     ],
     "abilities": [

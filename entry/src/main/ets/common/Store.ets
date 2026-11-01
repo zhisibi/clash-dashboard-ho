@@ -211,6 +211,9 @@ export class Store {
   /** When config / proxies were last fetched; a newer stored snapshot (card action) wins for mode/node */
   private configAt: number = 0;
   private proxiesAt: number = 0;
+  /** Latest widget-card action feedback (1.4.2); wins over the stored-snapshot merge below */
+  private widgetMsg: string = '';
+  private widgetMsgAt: number = 0;
 
   // ----- crash -----
   @Trace crashPrompt: boolean = false;
@@ -998,6 +1001,9 @@ export class Store {
         }
       }
     }
+    if (this.widgetMsg.length > 0 && Date.now() - this.widgetMsgAt < 30000) {
+      s.msgText = this.widgetMsg;
+    }
     const eg = this.egress;
     if (eg !== null && eg.ip.length > 0) {
       s.hasEgress = true;
@@ -1193,6 +1199,119 @@ export class Store {
       this.configAt = Date.now();
       this.refreshProxies();
     });
+  }
+
+  // ================= widget card actions (1.4.2) =================
+  /**
+   * Executes a tap from a desktop / minus-one-screen card. The card fires a 'call' postCardAction
+   * and EntryAbility's callee lands here, in the main process, so the regular CoreApi stack
+   * applies (the form-process message path of 1.4.1 never delivered its payload). Waits for the
+   * auto-connect, runs the action, then pushes a fresh snapshot so the card re-renders at once,
+   * with a short result line.
+   */
+  async widgetAction(action: string, mode: string): Promise<void> {
+    if (!this.privacyAgreed) {
+      return;
+    }
+    if (this.connState !== 'connected') {
+      await this.waitConnected(6000);
+    }
+    const a = this.api;
+    if (a === null || this.connState !== 'connected') {
+      this.widgetFeedback(false);
+      return;
+    }
+    if (action === 'setMode') {
+      if (mode !== 'rule' && mode !== 'global' && mode !== 'direct') {
+        return;
+      }
+      if (this.config.mode === mode) {
+        this.widgetFeedback(true, modeName(mode));
+        return;
+      }
+      const ok = await this.run(t('act_mode'), 'patch', async () => {
+        const b: JObj = { 'mode': mode };
+        await a.patchConfigs(b);
+        const c = this.config.copy();
+        c.mode = mode;
+        this.config = c;
+        this.configAt = Date.now();
+      });
+      this.widgetFeedback(ok, modeName(mode));
+      if (ok) {
+        this.refreshProxies();
+      }
+    } else if (action === 'cycleNode') {
+      const next = await this.widgetCycleNode(a);
+      this.widgetFeedback(next.length > 0, next);
+    } else {
+      this.saveWidgetSnapshot(true);
+    }
+  }
+
+  private widgetFeedback(ok: boolean, detail: string = ''): void {
+    this.widgetMsg = ok ? t('widget_action_ok', detail) : t('widget_action_failed');
+    this.widgetMsgAt = Date.now();
+    this.saveWidgetSnapshot(true);
+  }
+
+  /** Cycles the main selectable group to its next leaf node; returns the new node name or '' */
+  private async widgetCycleNode(a: CoreApi): Promise<string> {
+    let mainGroup: ProxyItem | null = null;
+    for (const grp of this.groups()) {
+      if (grp.name !== 'GLOBAL' && this.isSelectable(grp)) {
+        mainGroup = grp;
+        break;
+      }
+    }
+    if (mainGroup === null) {
+      const g = this.proxies.get('GLOBAL');
+      if (g !== undefined && this.isSelectable(g)) {
+        mainGroup = g;
+      }
+    }
+    if (mainGroup === null) {
+      return '';
+    }
+    const grp: ProxyItem = mainGroup;
+    const leaves: string[] = [];
+    for (const n of grp.all) {
+      const p = this.proxies.get(n);
+      if (p === undefined || !p.isGroup()) {
+        leaves.push(n);
+      }
+    }
+    if (leaves.length === 0) {
+      return '';
+    }
+    let cur = grp.now;
+    const seen = new Set<string>();
+    let hops = 0;
+    while (hops < 8) {
+      const p = this.proxies.get(cur);
+      if (p !== undefined && p.isGroup() && p.now.length > 0 && !seen.has(cur)) {
+        seen.add(cur);
+        cur = p.now;
+        hops++;
+      } else {
+        break;
+      }
+    }
+    const idx = leaves.indexOf(cur);
+    const next = leaves[(idx + 1) % leaves.length];
+    if (next === cur) {
+      return cur;
+    }
+    const ok = await this.run(t('act_select'), 'select', async () => {
+      await a.selectProxy(grp.name, next);
+      const m = new Map<string, ProxyItem>(this.proxies);
+      const g2 = grp.copy();
+      g2.now = next;
+      m.set(grp.name, g2);
+      this.proxies = m;
+      this.proxiesAt = Date.now();
+    });
+    return ok ? next : '';
   }
 
   private patchConfig(label: string, body: JObj, local: (c: CoreConfig) => void): void {
