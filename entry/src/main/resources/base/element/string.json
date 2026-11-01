@@ -6,6 +6,9 @@
     { "name": "perm_internet", "value": "连接代理内核的外部控制器（后端）" },
     { "name": "widget_name", "value": "咪咪面板 · 宽卡" },
     { "name": "widget_name_small", "value": "咪咪面板 · 小卡" },
-    { "name": "widget_desc", "value": "实时速度、连接数与当前节点，可直接切换模式与节点" }
+    { "name": "widget_desc", "value": "实时速度、连接数与当前节点，可直接切换模式与节点" },
+    { "name": "widget_mode_rule", "value": "规则" },
+    { "name": "widget_mode_global", "value": "全局" },
+    { "name": "widget_mode_direct", "value": "直连" }
   ]
 }

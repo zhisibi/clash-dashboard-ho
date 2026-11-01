@@ -11,6 +11,10 @@
  * the Rule / Global / Direct buttons, aligned as one column and vertically centered; no
  * connection count, no totals line, no switch button. Small card: mode segment at the bottom
  * with no clock text, node row without the switch glyph.
+ * Since 1.4.8 the mode button labels come from the card's own string resources (following the
+ * system language), not from the snapshot, so they can never get stuck in the wrong language;
+ * the small card's content is vertically centered as a whole (the minus-one-screen host gives
+ * the 2x2 form more height than the desktop, which left a blank band at the bottom).
  */
 @Component
 export struct WidgetBody {
@@ -60,7 +64,7 @@ export struct WidgetBody {
   }
 
   @Builder
-  modeChip(mode: string, label: string, enabled: boolean) {
+  modeChip(mode: string, label: Resource, enabled: boolean) {
     Text(label)
       .fontSize(this.compact ? 10 : 11)
       .fontWeight(this.modeKey === mode ? FontWeight.Bold : FontWeight.Normal)
@@ -83,13 +87,13 @@ export struct WidgetBody {
   modeRow() {
     Row() {
       if (this.hasRule) {
-        this.modeChip('rule', this.modeRuleText, true)
+        this.modeChip('rule', $r('app.string.widget_mode_rule'), true)
       }
       if (this.hasGlobal) {
-        this.modeChip('global', this.modeGlobalText, true)
+        this.modeChip('global', $r('app.string.widget_mode_global'), true)
       }
       if (this.hasDirect) {
-        this.modeChip('direct', this.modeDirectText, true)
+        this.modeChip('direct', $r('app.string.widget_mode_direct'), true)
       }
     }
     .width('100%')
@@ -98,7 +102,7 @@ export struct WidgetBody {
 
   /** Wide card right rail: one mode button, stacked vertically (boss layout, 1.4.2/1.4.4) */
   @Builder
-  railBtn(mode: string, label: string, enabled: boolean, first: boolean) {
+  railBtn(mode: string, label: Resource, enabled: boolean, first: boolean) {
     Text(label)
       .fontSize(11)
       .fontWeight(this.modeKey === mode ? FontWeight.Bold : FontWeight.Normal)
@@ -200,6 +204,7 @@ export struct WidgetBody {
         .height('100%')
         .padding(11)
         .alignItems(HorizontalAlign.Start)
+        .justifyContent(FlexAlign.Center)
       } else {
         // 2x4 (boss layout): left = header / speeds / node; right rail = status + mode
         // buttons, aligned as one column and vertically centered as a whole
@@ -266,13 +271,13 @@ export struct WidgetBody {
               .maxLines(1)
               .margin({ bottom: 8 })
             if (this.hasRule) {
-              this.railBtn('rule', this.modeRuleText, true, true)
+              this.railBtn('rule', $r('app.string.widget_mode_rule'), true, true)
             }
             if (this.hasGlobal) {
-              this.railBtn('global', this.modeGlobalText, true, !this.hasRule)
+              this.railBtn('global', $r('app.string.widget_mode_global'), true, !this.hasRule)
             }
             if (this.hasDirect) {
-              this.railBtn('direct', this.modeDirectText, true, !this.hasRule && !this.hasGlobal)
+              this.railBtn('direct', $r('app.string.widget_mode_direct'), true, !this.hasRule && !this.hasGlobal)
             }
           }
           .alignItems(HorizontalAlign.Center)

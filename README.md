@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.7（versionCode 1047000） |
+| 版本 | 1.4.8（versionCode 1048000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,10 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.8
+- **负一屏卡片按钮文字强制跟随系统语言（老板指令）**：模式三按钮的文字不再取自 App 快照，改读卡片自己的字符串资源（`widget_mode_rule/global/direct`，中文系统即「规则/全局/直连」），快照再旧也不会停在英文默认值上
+- **小卡（2×2）内容整体垂直居中（老板指令）**：负一屏宿主给 2×2 卡的高度比桌面大，旧版顶部对齐导致下边大片空白；内容块改竖向居中，桌面显示基本不变
 
 ### 1.4.7
 - **去掉卡片节点区域的点击切换（老板指令）**：宽卡与小卡的节点行改为纯展示，点按不再轮换节点；卡片上只保留模式三按钮可点，节点切换回 App 内操作
