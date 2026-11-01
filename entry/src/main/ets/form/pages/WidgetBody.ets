@@ -173,16 +173,20 @@ export struct WidgetBody {
           this.headerRow(true)
           this.msgLine()
 
-          // 2x2: big download, up, node row (display only), mode segment
+          // 2x2: big download, up, node row (display only), mode segment. The row is pinned
+          // to the card width and the download text takes the slack, so a long upload value
+          // can no longer push itself outside the card (boss report, 1.4.9)
           Row() {
             SymbolGlyph($r('sys.symbol.arrow_down')).fontSize(16).fontColor(['#FFFFFF'])
             Text(this.downText).fontSize(19).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
               .margin({ left: 4 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
             SymbolGlyph($r('sys.symbol.arrow_up')).fontSize(12).fontColor(['#D9FFFFFF'])
               .margin({ left: 10 })
             Text(this.upText).fontSize(12).fontColor('#D9FFFFFF').margin({ left: 3 })
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
           }
+          .width('100%')
           .margin({ top: 7 })
           .onClick(() => {
             this.openApp();

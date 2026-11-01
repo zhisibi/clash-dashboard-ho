@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.8（versionCode 1048000） |
+| 版本 | 1.4.9（versionCode 1049000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.9
+- **修小卡（2×2）上传速度溢出卡片外（老板真机反馈）**：速度行未定宽，下载值占满后上传文本被挤出卡片边缘；行宽锁定为卡片宽、下载文本占剩余空间并省略，上传值再长也留在卡内
 
 ### 1.4.8
 - **负一屏卡片按钮文字强制跟随系统语言（老板指令）**：模式三按钮的文字不再取自 App 快照，改读卡片自己的字符串资源（`widget_mode_rule/global/direct`，中文系统即「规则/全局/直连」），快照再旧也不会停在英文默认值上
