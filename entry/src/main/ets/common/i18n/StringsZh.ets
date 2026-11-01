@@ -193,8 +193,6 @@ export const ZH: Record<string, string> = {
   "overview": "概览",
   "widget_connected": "已连接",
   "widget_switch": "切换",
-  "widget_action_failed": "切换失败，点卡片打开 App 重试",
-  "widget_action_ok": "已切换：{0}",
   "not_connected": "未连接",
   "f_host": "地址",
   "f_port": "端口",

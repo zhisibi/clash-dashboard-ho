@@ -146,15 +146,6 @@ export struct WidgetBody {
     })
   }
 
-  @Builder
-  msgLine() {
-    if (this.msgText.length > 0) {
-      Text(this.msgText).fontSize(10).fontColor('#FDE68A')
-        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        .margin({ top: 3 })
-    }
-  }
-
   build() {
     Stack() {
       // gradient backdrop + two soft light blobs
@@ -173,7 +164,6 @@ export struct WidgetBody {
       if (this.compact) {
         Column() {
           this.headerRow(true)
-          this.msgLine()
 
           // 2x2: download / upload totals (live speeds left in 1.4.11 - they froze whenever
           // the app process was killed, totals stay meaningful). Row pinned to card width;
@@ -220,7 +210,6 @@ export struct WidgetBody {
         Row() {
           Column() {
             this.headerRow(false)
-            this.msgLine()
 
             // totals + memory on one row (tap opens the app); live speeds left in 1.4.11
             Row() {

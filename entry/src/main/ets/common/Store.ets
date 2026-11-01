@@ -204,8 +204,7 @@ export class Store {
   private configAt: number = 0;
   private proxiesAt: number = 0;
   /** Latest widget-card action feedback (1.4.2); wins over the stored-snapshot merge below */
-  private widgetMsg: string = '';
-  private widgetMsgAt: number = 0;
+
 
   // ----- crash -----
   @Trace crashPrompt: boolean = false;
@@ -962,9 +961,6 @@ export class Store {
         }
       }
     }
-    if (this.widgetMsg.length > 0 && Date.now() - this.widgetMsgAt < 30000) {
-      s.msgText = this.widgetMsg;
-    }
     s.updatedAt = Date.now();
     s.updatedText = fmtClock(s.updatedAt);
     if (this.isBlack()) {
@@ -1161,8 +1157,9 @@ export class Store {
    * Executes a tap from a desktop / minus-one-screen card. The card fires a 'call' postCardAction
    * and EntryAbility's callee lands here, in the main process, so the regular CoreApi stack
    * applies (the form-process message path of 1.4.1 never delivered its payload). Waits for the
-   * auto-connect, runs the action, then pushes a fresh snapshot so the card re-renders at once,
-   * with a short result line.
+   * auto-connect, runs the action, then pushes a fresh snapshot so the card re-renders at
+   * once. No result text is shown on the card (boss, 1.4.13): the moved highlight / new
+   * state is the feedback.
    */
   async widgetAction(action: string, mode: string): Promise<void> {
     if (!this.privacyAgreed) {
@@ -1173,7 +1170,7 @@ export class Store {
     }
     const a = this.api;
     if (a === null || this.connState !== 'connected') {
-      this.widgetFeedback(false);
+      this.saveWidgetSnapshot(true);
       return;
     }
     if (action === 'setMode') {
@@ -1181,7 +1178,7 @@ export class Store {
         return;
       }
       if (this.config.mode === mode) {
-        this.widgetFeedback(true, modeName(mode));
+        this.saveWidgetSnapshot(true);
         return;
       }
       const ok = await this.run(t('act_mode'), 'patch', async () => {
@@ -1192,22 +1189,16 @@ export class Store {
         this.config = c;
         this.configAt = Date.now();
       });
-      this.widgetFeedback(ok, modeName(mode));
+      this.saveWidgetSnapshot(true);
       if (ok) {
         this.refreshProxies();
       }
     } else if (action === 'cycleNode') {
-      const next = await this.widgetCycleNode(a);
-      this.widgetFeedback(next.length > 0, next);
+      await this.widgetCycleNode(a);
+      this.saveWidgetSnapshot(true);
     } else {
       this.saveWidgetSnapshot(true);
     }
-  }
-
-  private widgetFeedback(ok: boolean, detail: string = ''): void {
-    this.widgetMsg = ok ? t('widget_action_ok', detail) : t('widget_action_failed');
-    this.widgetMsgAt = Date.now();
-    this.saveWidgetSnapshot(true);
   }
 
   /** Cycles the main selectable group to its next leaf node; returns the new node name or '' */
