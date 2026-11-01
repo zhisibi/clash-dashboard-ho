@@ -46,6 +46,13 @@ export default class EntryAbility extends UIAbility {
   onForeground(): void {
     Motion.readSystem(this.context);
     Store.get().setForeground(true);
+    // 1.4.1: the widget card may have switched mode / node while the app was away - refetch so the
+    // in-app view and the next snapshot agree with the backend again
+    const store = Store.get();
+    if (store.connState === 'connected') {
+      store.refreshConfig();
+      store.refreshProxies();
+    }
   }
 
   onBackground(): void {

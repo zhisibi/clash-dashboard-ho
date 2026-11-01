@@ -17,6 +17,16 @@ struct WidgetCard {
   @LocalStorageProp('totalText') totalText: string = '';
   @LocalStorageProp('modeText') modeText: string = '';
   @LocalStorageProp('nodeText') nodeText: string = '';
+  @LocalStorageProp('modeKey') modeKey: string = '';
+  @LocalStorageProp('modeRuleText') modeRuleText: string = 'Rule';
+  @LocalStorageProp('modeGlobalText') modeGlobalText: string = 'Global';
+  @LocalStorageProp('modeDirectText') modeDirectText: string = 'Direct';
+  @LocalStorageProp('hasRule') hasRule: boolean = true;
+  @LocalStorageProp('hasGlobal') hasGlobal: boolean = true;
+  @LocalStorageProp('hasDirect') hasDirect: boolean = true;
+  @LocalStorageProp('switchText') switchText: string = 'Switch';
+  @LocalStorageProp('msgText') msgText: string = '';
+  @LocalStorageProp('groupName') groupName: string = '';
   @LocalStorageProp('egressText') egressText: string = '';
   @LocalStorageProp('egressIp') egressIp: string = '';
   @LocalStorageProp('hasEgress') hasEgress: boolean = false;
@@ -38,6 +48,16 @@ struct WidgetCard {
       totalText: this.totalText,
       modeText: this.modeText,
       nodeText: this.nodeText,
+      modeKey: this.modeKey,
+      modeRuleText: this.modeRuleText,
+      modeGlobalText: this.modeGlobalText,
+      modeDirectText: this.modeDirectText,
+      hasRule: this.hasRule,
+      hasGlobal: this.hasGlobal,
+      hasDirect: this.hasDirect,
+      switchText: this.switchText,
+      msgText: this.msgText,
+      groupName: this.groupName,
       egressText: this.egressText,
       egressIp: this.egressIp,
       hasEgress: this.hasEgress,

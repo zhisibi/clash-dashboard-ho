@@ -10,11 +10,15 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.4.0 (versionCode 1040000) |
+| Version | 1.4.1 (versionCode 1041000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.4.1
+- **Widgets are interactive now**: the desktop / minus-one-screen cards gain a mode segment (Rule / Global / Direct, current mode highlighted, modes the backend does not offer are hidden) and node switching - a dedicated Switch button on the wide card, tap-the-node-row on the compact one. Taps are executed by the form process directly against the backend (PATCH /configs for mode; the node button cycles the main selectable group to its next leaf node), the result is written back to the card at once, and failures show a one-line note on the card. A full node list cannot pop up on a form card (platform restriction), so cycling plus tap-to-open-the-app is the most complete in-card flow; when the app returns to the foreground it refetches config and proxies to line up with card actions.
+- Privacy policy bumped to version 4: card taps use the backend details saved on the device and talk only to your own backend; consent is asked again after upgrading.
 
 ## What's new in 1.4.0
 - **Egress check**: a new card on the Overview page checks - only when tapped, never automatically or in the background - this device's network exit IP, flag, country / region / city, ISP, request latency and check time; tap the IP to copy it. Data comes from ipwho.is, falling back to Cloudflare trace (IP + country code); plain HTTPS requests that never carry the backend address or secret. When device traffic goes through the proxy, this is the proxy egress.

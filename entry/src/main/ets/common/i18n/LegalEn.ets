@@ -43,7 +43,7 @@ export const PRIVACY_EN: string[] = [
   "- Image picker: when setting a wallpaper, you pick one image through the system photo picker. The App can access only the image you pick and needs no storage permission.",
   "- Saving and sharing files: done through the system \"Save as\" picker and share panel, and only for log content you choose to export.",
   "- Clipboard: written only when you tap \"Copy\". The App never reads the clipboard.",
-  "- Desktop and minus-one-screen cards (service widgets): card content comes from a data snapshot the App generates locally on the device, kept in the App's private storage. The cards themselves make no network requests and never read the backend secret.",
+  "- Desktop and minus-one-screen cards (service widgets): card content comes from a data snapshot the App generates locally on the device, kept in the App's private storage. When you tap a card to switch the mode or node, the card process uses the backend details you saved in the App (address and secret) and sends the switch request only to your own backend; it contacts no other server.",
   "",
   "## 5. Your rights",
   "",

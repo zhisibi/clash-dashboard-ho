@@ -20,7 +20,7 @@ import { MOTION_NAV } from './MotionLogic';
 import { BarLook } from './NavLight';
 import { EgressInfo, egressWidgetText } from './EgressLogic';
 import { fetchEgress } from './Egress';
-import { WidgetSnapshot, WIDGET_SNAPSHOT_KEY, pushSnapshotToForms } from './WidgetSync';
+import { WidgetSnapshot, WIDGET_SNAPSHOT_KEY, pushSnapshotToForms, readSnapshot } from './WidgetSync';
 import { fmtBytes, fmtClock, fmtSpeed, modeName } from './Format';
 
 export const HISTORY_LEN: number = 60;
@@ -208,6 +208,9 @@ export class Store {
   @Trace egressError: string = '';
   /** Widget snapshot throttle stamp (ms) */
   private lastWidgetSnap: number = 0;
+  /** When config / proxies were last fetched; a newer stored snapshot (card action) wins for mode/node */
+  private configAt: number = 0;
+  private proxiesAt: number = 0;
 
   // ----- crash -----
   @Trace crashPrompt: boolean = false;
@@ -947,13 +950,52 @@ export class Store {
     s.memText = this.memory > 0 ? fmtBytes(this.memory) : '-';
     s.totalText = fmtBytes(this.connTotalUp) + ' / ' + fmtBytes(this.connTotalDown);
     s.modeText = modeName(this.config.mode);
-    const g = this.proxies.get('GLOBAL');
-    if (g !== undefined && g.now.length > 0) {
-      s.nodeText = this.resolveNow('GLOBAL');
+    s.modeKey = this.config.mode;
+    s.modeRuleText = modeName('rule');
+    s.modeGlobalText = modeName('global');
+    s.modeDirectText = modeName('direct');
+    s.hasRule = this.config.modes.indexOf('rule') >= 0;
+    s.hasGlobal = this.config.modes.indexOf('global') >= 0;
+    s.hasDirect = this.config.modes.indexOf('direct') >= 0;
+    s.switchText = t('widget_switch');
+    // main selectable group for the card's node row: first selectable group in display order
+    let mainGroup: ProxyItem | null = null;
+    for (const grp of this.groups()) {
+      if (grp.name !== 'GLOBAL' && this.isSelectable(grp)) {
+        mainGroup = grp;
+        break;
+      }
+    }
+    if (mainGroup !== null) {
+      s.groupName = mainGroup.name;
+      if (mainGroup.now.length > 0) {
+        s.nodeText = this.resolveNow(mainGroup.name);
+      }
     } else {
-      const gs = this.groups();
-      if (gs.length > 0 && gs[0].now.length > 0) {
-        s.nodeText = this.resolveNow(gs[0].name);
+      const g = this.proxies.get('GLOBAL');
+      if (g !== undefined && g.now.length > 0) {
+        s.groupName = 'GLOBAL';
+        s.nodeText = this.resolveNow('GLOBAL');
+      }
+    }
+    // 1.4.1: a card action (mode / node switch from the widget) writes a newer snapshot while the
+    // app's own config/proxies view is older - the stored mode/node win until the app refetches them
+    const ctx = this.ctx;
+    if (ctx !== null) {
+      const stored = readSnapshot(ctx);
+      if (stored.updatedAt > this.configAt && stored.modeKey.length > 0 && stored.connected) {
+        s.modeKey = stored.modeKey;
+        s.modeText = modeName(stored.modeKey);
+      }
+      if (stored.updatedAt > this.proxiesAt && stored.groupName.length > 0 && stored.connected &&
+        stored.groupName === s.groupName) {
+        s.nodeText = stored.nodeText;
+      }
+      if (stored.msgText.length > 0 && stored.updatedAt > this.configAt && stored.updatedAt > this.proxiesAt) {
+        // keep a fresh card-action result visible until fresher app data replaces the snapshot
+        if (Date.now() - stored.updatedAt < 30000) {
+          s.msgText = stored.msgText;
+        }
       }
     }
     const eg = this.egress;
@@ -1132,6 +1174,7 @@ export class Store {
       const c = await a.configs();
       if (this.api === a) {
         this.config = c;
+        this.configAt = Date.now();
       }
     });
   }
@@ -1147,6 +1190,7 @@ export class Store {
       const c = this.config.copy();
       c.mode = mode;
       this.config = c;
+      this.configAt = Date.now();
       this.refreshProxies();
     });
   }
@@ -1315,6 +1359,7 @@ export class Store {
         }
         this.proxies = p;
         this.providers = providers;
+        this.proxiesAt = Date.now();
         this.manualDelay = new Map<string, number>();
       } finally {
         this.proxiesLoading = false;

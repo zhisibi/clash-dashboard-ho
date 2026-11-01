@@ -200,6 +200,8 @@ export const EN: Record<string, string> = {
   "egress_latency": "{0} ms",
   "egress_note": "Data from ipwho.is / Cloudflare, queried only when you tap Check. No backend address or secret is sent.",
   "widget_connected": "Connected",
+  "widget_switch": "Switch",
+  "widget_action_failed": "Switch failed - tap the card to retry in the app",
   "not_connected": "Not connected",
   "f_host": "Host",
   "f_port": "Port",

@@ -200,6 +200,8 @@ export const ZH: Record<string, string> = {
   "egress_latency": "延迟 {0} ms",
   "egress_note": "数据来自 ipwho.is / Cloudflare，仅在您点击检测时联网查询，不会发送后端地址与密钥。",
   "widget_connected": "已连接",
+  "widget_switch": "切换",
+  "widget_action_failed": "切换失败，点卡片打开 App 重试",
   "not_connected": "未连接",
   "f_host": "地址",
   "f_port": "端口",

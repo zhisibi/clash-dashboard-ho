@@ -26,6 +26,21 @@ export class WidgetSnapshot {
   memText: string = '-';
   totalText: string = '';
   modeText: string = '';
+  /** Raw mode key for the card's mode segment: rule | global | direct (1.4.1) */
+  modeKey: string = '';
+  /** Localized labels for the three mode chips + which modes the backend offers (1.4.1) */
+  modeRuleText: string = 'Rule';
+  modeGlobalText: string = 'Global';
+  modeDirectText: string = 'Direct';
+  hasRule: boolean = true;
+  hasGlobal: boolean = true;
+  hasDirect: boolean = true;
+  /** Label of the node-cycle button (1.4.1) */
+  switchText: string = 'Switch';
+  /** Transient result of the last card action, shown until the next snapshot (1.4.1) */
+  msgText: string = '';
+  /** Main selectable group the card's node row switches (1.4.1) */
+  groupName: string = '';
   nodeText: string = '';
   egressText: string = '';
   egressIp: string = '';
@@ -50,6 +65,16 @@ export function snapshotToBinding(s: WidgetSnapshot): Record<string, Object> {
   o['memText'] = s.memText;
   o['totalText'] = s.totalText;
   o['modeText'] = s.modeText;
+  o['modeKey'] = s.modeKey;
+  o['modeRuleText'] = s.modeRuleText;
+  o['modeGlobalText'] = s.modeGlobalText;
+  o['modeDirectText'] = s.modeDirectText;
+  o['hasRule'] = s.hasRule;
+  o['hasGlobal'] = s.hasGlobal;
+  o['hasDirect'] = s.hasDirect;
+  o['switchText'] = s.switchText;
+  o['msgText'] = s.msgText;
+  o['groupName'] = s.groupName;
   o['nodeText'] = s.nodeText;
   o['egressText'] = s.egressText;
   o['egressIp'] = s.egressIp;
@@ -89,6 +114,16 @@ export function snapshotFromJson(text: string): WidgetSnapshot {
     s.memText = str('memText', '-');
     s.totalText = str('totalText', '');
     s.modeText = str('modeText', '');
+    s.modeKey = str('modeKey', '');
+    s.modeRuleText = str('modeRuleText', s.modeRuleText);
+    s.modeGlobalText = str('modeGlobalText', s.modeGlobalText);
+    s.modeDirectText = str('modeDirectText', s.modeDirectText);
+    s.hasRule = bol('hasRule', true);
+    s.hasGlobal = bol('hasGlobal', true);
+    s.hasDirect = bol('hasDirect', true);
+    s.switchText = str('switchText', s.switchText);
+    s.msgText = str('msgText', '');
+    s.groupName = str('groupName', '');
     s.nodeText = str('nodeText', '');
     s.egressText = str('egressText', '');
     s.egressIp = str('egressIp', '');
@@ -111,6 +146,18 @@ export function readSnapshot(ctx: common.Context): WidgetSnapshot {
     return snapshotFromJson(typeof v === 'string' ? v as string : '');
   } catch (e) {
     return new WidgetSnapshot();
+  }
+}
+
+export function writeSnapshot(ctx: common.Context, snap: WidgetSnapshot): void {
+  try {
+    const opts: preferences.Options = { name: WIDGET_PREFS_NAME };
+    const sp = preferences.getPreferencesSync(ctx, opts);
+    sp.putSync(WIDGET_SNAPSHOT_KEY, JSON.stringify(snap));
+    sp.flush().catch(() => {
+    });
+  } catch (e) {
+    // ignore
   }
 }
 
