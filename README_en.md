@@ -10,11 +10,16 @@ A native HarmonyOS control panel written in **ArkTS + ArkUI (Stage model)** for 
 | --- | --- |
 | App name | Mimi Panel (咪咪面板) |
 | bundleName | `com.zhisibi.mimipanel` |
-| Version | 1.3.5 (versionCode 1035000) |
+| Version | 1.4.0 (versionCode 1040000) |
 | Minimum OS | HarmonyOS 6.0 (`compatibleSdkVersion: "6.0.0(20)"`) |
 | Target OS | HarmonyOS 7 (`targetSdkVersion: "26.0.0"`, API 26) |
 | Tooling | DevEco Studio 26.0.0 Release (26.0.0.821) or the matching Command Line Tools |
 | UI languages | Simplified Chinese and English (Settings → Language, can follow the system) |
+
+## What's new in 1.4.0
+- **Egress check**: a new card on the Overview page checks - only when tapped, never automatically or in the background - this device's network exit IP, flag, country / region / city, ISP, request latency and check time; tap the IP to copy it. Data comes from ipwho.is, falling back to Cloudflare trace (IP + country code); plain HTTPS requests that never carry the backend address or secret. When device traffic goes through the proxy, this is the proxy egress.
+- **Desktop / minus-one-screen service widgets**: two sizes (2x4 wide, 2x2 compact) with a gradient tinted by the current accent, showing connection state and backend label, live up / down speeds, active connections, the current node, totals / memory, the latest egress location and the update time. While the app runs, data is pushed to the cards live; tap a card to open the app. When the app is not running, cards show the latest snapshot and refresh on the system's schedule. Card data comes from a snapshot the app writes to its on-device Preferences; the cards make no network requests and never see the backend secret.
+- Privacy policy bumped to version 3 (egress-check networking - on tap only, and the service sees the exit IP - plus the local widget snapshot), so consent is asked again after upgrading.
 
 ## What's new in 1.3.5
 - **New fresh-install defaults**: the default accent is now red ("Huawei red"); frosted glass is on by default (custom material, blur strength 20, card opacity 20%); immersive light is on by default; the nav bar immersive light stays on by default; list-row blur stays off by default. Settings saved by existing installs are unaffected.

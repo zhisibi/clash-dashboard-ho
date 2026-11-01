@@ -3,6 +3,9 @@
     { "name": "module_desc", "value": "代理内核外部控制面板" },
     { "name": "EntryAbility_desc", "value": "咪咪面板" },
     { "name": "EntryAbility_label", "value": "咪咪面板" },
-    { "name": "perm_internet", "value": "连接代理内核的外部控制器（后端）" }
+    { "name": "perm_internet", "value": "连接代理内核的外部控制器（后端）" },
+    { "name": "widget_name", "value": "咪咪面板 · 宽卡" },
+    { "name": "widget_name_small", "value": "咪咪面板 · 小卡" },
+    { "name": "widget_desc", "value": "实时速度、连接数、当前节点与出口地区" }
   ]
 }

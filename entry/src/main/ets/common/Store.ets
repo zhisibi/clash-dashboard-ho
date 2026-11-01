@@ -18,6 +18,10 @@ import { I18N, initLang, setLangPref, t } from './I18n';
 import { Motion } from './Motion';
 import { MOTION_NAV } from './MotionLogic';
 import { BarLook } from './NavLight';
+import { EgressInfo, egressWidgetText } from './EgressLogic';
+import { fetchEgress } from './Egress';
+import { WidgetSnapshot, WIDGET_SNAPSHOT_KEY, pushSnapshotToForms } from './WidgetSync';
+import { fmtBytes, fmtClock, fmtSpeed, modeName } from './Format';
 
 export const HISTORY_LEN: number = 60;
 
@@ -195,6 +199,15 @@ export class Store {
   @Trace trafficHistory: Traffic[] = emptyTraffic();
   @Trace memory: number = 0;
   @Trace memoryHistory: number[] = emptyNums();
+
+  // ----- egress check (1.4.0) -----
+  /** Last egress result; null until the user runs a check (never fetched automatically) */
+  @Trace egress: EgressInfo | null = null;
+  /** idle | checking | ok | failed */
+  @Trace egressState: string = 'idle';
+  @Trace egressError: string = '';
+  /** Widget snapshot throttle stamp (ms) */
+  private lastWidgetSnap: number = 0;
 
   // ----- crash -----
   @Trace crashPrompt: boolean = false;
@@ -519,6 +532,7 @@ export class Store {
   setAccent(key: string): void {
     this.accent = findAccent(key).key;
     this.savePrefs();
+    this.saveWidgetSnapshot(true);
   }
 
   /** In-app language: 'system' | 'zh' | 'en'. Applies immediately (see I18n.ets); persisted in Preferences key `lang`. */
@@ -812,6 +826,9 @@ export class Store {
     this.rules = [];
     this.activeConns = [];
     this.logs = [];
+    this.egress = null;
+    this.egressState = 'idle';
+    this.saveWidgetSnapshot(true);
   }
 
   connect(b: Backend): void {
@@ -847,6 +864,7 @@ export class Store {
       this.connState = 'connected';
       this.startStreams(a);
       this.refreshAll();
+      this.saveWidgetSnapshot(true);
       // 1.3.0: the gentle review prompt counts successful connections (hook set by ReviewPrompt.init)
       const hook = this.backendConnectedHook;
       if (hook !== null) {
@@ -880,6 +898,104 @@ export class Store {
     this.refreshRules();
   }
 
+  // ================= egress check (1.4.0) =================
+  /**
+   * Runs the egress check on demand only: the privacy policy promises these third-party
+   * requests happen when the user taps the button, never in the background.
+   */
+  async checkEgress(): Promise<void> {
+    if (this.egressState === 'checking') {
+      return;
+    }
+    this.egressState = 'checking';
+    this.egressError = '';
+    try {
+      const info = await fetchEgress();
+      this.egress = info;
+      this.egressState = 'ok';
+    } catch (e) {
+      this.egressState = 'failed';
+      this.egressError = errMsg(e as Object);
+    }
+    this.saveWidgetSnapshot(true);
+  }
+
+  copyEgressIp(): void {
+    const info = this.egress;
+    if (info === null || info.ip.length === 0) {
+      return;
+    }
+    FileUtil.copyText(info.ip);
+    this.toast(t('copied'));
+  }
+
+  // ================= widget snapshot (1.4.0) =================
+  /** Pre-formatted snapshot for the desktop / minus-one-screen form cards; see WidgetSync.ets */
+  buildWidgetSnapshot(): WidgetSnapshot {
+    const s = new WidgetSnapshot();
+    const pal = this.palette();
+    s.brand = t('app_name');
+    s.connected = this.connState === 'connected';
+    s.statusText = s.connected ? t('widget_connected') : t('not_connected');
+    const act = this.active;
+    if (act !== null) {
+      s.labelText = act.label.trim().length > 0 ? act.label.trim() : act.host + ':' + act.port;
+    }
+    s.upText = fmtSpeed(this.traffic.up);
+    s.downText = fmtSpeed(this.traffic.down);
+    s.connText = this.activeConns.length.toString();
+    s.memText = this.memory > 0 ? fmtBytes(this.memory) : '-';
+    s.totalText = fmtBytes(this.connTotalUp) + ' / ' + fmtBytes(this.connTotalDown);
+    s.modeText = modeName(this.config.mode);
+    const g = this.proxies.get('GLOBAL');
+    if (g !== undefined && g.now.length > 0) {
+      s.nodeText = this.resolveNow('GLOBAL');
+    } else {
+      const gs = this.groups();
+      if (gs.length > 0 && gs[0].now.length > 0) {
+        s.nodeText = this.resolveNow(gs[0].name);
+      }
+    }
+    const eg = this.egress;
+    if (eg !== null && eg.ip.length > 0) {
+      s.hasEgress = true;
+      s.egressIp = eg.ip;
+      s.egressText = egressWidgetText(eg);
+    }
+    s.updatedAt = Date.now();
+    s.updatedText = fmtClock(s.updatedAt);
+    if (this.isBlack()) {
+      s.bgA = '#26292F';
+      s.bgB = '#000000';
+    } else {
+      s.bgA = mixColor(pal.accentFill, '#000000', this.isDark() ? 0.05 : 0.18);
+      s.bgB = mixColor(pal.accentFill, '#000000', 0.52);
+    }
+    return s;
+  }
+
+  /** Writes the snapshot (throttled to 5 s unless forced) and pushes it to live forms */
+  saveWidgetSnapshot(force: boolean = false): void {
+    const p = this.prefs;
+    const ctx = this.ctx;
+    if (p === null || ctx === null) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - this.lastWidgetSnap < 5000) {
+      return;
+    }
+    this.lastWidgetSnap = now;
+    const snap = this.buildWidgetSnapshot();
+    try {
+      p.put(WIDGET_SNAPSHOT_KEY, JSON.stringify(snap));
+    } catch (e) {
+      return;
+    }
+    pushSnapshotToForms(ctx, snap).catch(() => {
+    });
+  }
+
   // ================= streams =================
   private stopStreams(): void {
     for (const s of this.streams) {
@@ -908,6 +1024,7 @@ export class Store {
       const h = this.trafficHistory.slice(this.trafficHistory.length >= HISTORY_LEN ? 1 : 0);
       h.push(tr);
       this.trafficHistory = h;
+      this.saveWidgetSnapshot();
     }));
     this.streams.push(a.openStream('/memory', (t: string) => {
       if (this.api !== a) {
@@ -1002,6 +1119,7 @@ export class Store {
     if (!this.connsPaused) {
       this.activeConns = list;
     }
+    this.saveWidgetSnapshot();
   }
 
   // ================= config =================
