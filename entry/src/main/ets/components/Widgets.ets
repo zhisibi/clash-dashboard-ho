@@ -387,11 +387,17 @@ export struct LineChart {
   @Param colors: string[] = [];
   @Param grid: string = '#E8EAED';
   @Param chartHeight: number = 160;
+  /** mirror mode (overview speed): zero line centered, first series above it, second below (plotted negated) */
+  @Param mirror: boolean = false;
+  /** bars mode: draw each sample as a vertical bar instead of a smooth line */
+  @Param bars: boolean = false;
+  /** faint mode (stat-card backgrounds): softer stroke and fill so the curve stays behind the text */
+  @Param faint: boolean = false;
   private settings: RenderingContextSettings = new RenderingContextSettings(true);
   private c2d: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings);
   private ready: boolean = false;
 
-  @Monitor('series', 'colors', 'grid')
+  @Monitor('series', 'colors', 'grid', 'mirror', 'bars', 'faint')
   onData(): void {
     this.draw();
   }
@@ -407,6 +413,10 @@ export struct LineChart {
       return;
     }
     ctx.clearRect(0, 0, w, h);
+    if (this.mirror) {
+      this.drawMirror(w, h);
+      return;
+    }
     let max = 1;
     for (const s of this.series) {
       for (const v of s) {
@@ -431,6 +441,19 @@ export struct LineChart {
       if (data.length < 2) {
         continue;
       }
+      if (this.bars) {
+        const slot = w / data.length;
+        const bw = Math.max(1, slot * 0.62);
+        ctx.fillStyle = rgba(color, 0.85);
+        for (let i = 0; i < data.length; i++) {
+          const y = h - (data[i] / max) * h;
+          if (h - y <= 0) {
+            continue;
+          }
+          ctx.fillRect(i * slot + (slot - bw) / 2, y, bw, h - y);
+        }
+        continue;
+      }
       const step = w / (data.length - 1);
       const path = new Path2D();
       for (let i = 0; i < data.length; i++) {
@@ -451,8 +474,90 @@ export struct LineChart {
       fill.lineTo(0, h);
       fill.closePath();
       const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, rgba(color, 0.25));
+      grad.addColorStop(0, rgba(color, this.faint ? 0.12 : 0.25));
       grad.addColorStop(1, rgba(color, 0));
+      ctx.fillStyle = grad;
+      ctx.fill(fill);
+      ctx.strokeStyle = this.faint ? rgba(color, 0.5) : color;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.stroke(path);
+    }
+  }
+
+  /** Mirror layout for the speed chart: the zero line sits at the vertical middle, the first
+   *  series (download) rises above it and the second (upload) hangs below it as its negative,
+   *  both on one shared scale so the two magnitudes stay comparable. */
+  private drawMirror(w: number, h: number): void {
+    const ctx = this.c2d;
+    let max = 1;
+    for (const s of this.series) {
+      for (const v of s) {
+        if (v > max) {
+          max = v;
+        }
+      }
+    }
+    max = max * 1.15;
+    const midY = h / 2;
+    const half = h / 2;
+    ctx.strokeStyle = this.grid;
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      const y = h * i / 4;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    for (let si = 0; si < this.series.length && si < 2; si++) {
+      const data = this.series[si];
+      const color = si < this.colors.length ? this.colors[si] : '#16A6E8';
+      if (data.length < 2) {
+        continue;
+      }
+      const below = si === 1;
+      if (this.bars) {
+        const slot = w / data.length;
+        const bw = Math.max(1, slot * 0.62);
+        ctx.fillStyle = rgba(color, 0.85);
+        for (let i = 0; i < data.length; i++) {
+          const y = midY + (below ? 1 : -1) * (data[i] / max) * half;
+          const bh = Math.abs(midY - y);
+          if (bh <= 0) {
+            continue;
+          }
+          ctx.fillRect(i * slot + (slot - bw) / 2, below ? midY : y, bw, bh);
+        }
+        continue;
+      }
+      const step = w / (data.length - 1);
+      const path = new Path2D();
+      for (let i = 0; i < data.length; i++) {
+        const x = i * step;
+        const y = midY + (below ? 1 : -1) * (data[i] / max) * half;
+        if (i === 0) {
+          path.moveTo(x, y);
+        } else {
+          const px = (i - 1) * step;
+          const py = midY + (below ? 1 : -1) * (data[i - 1] / max) * half;
+          const cx = (px + x) / 2;
+          path.bezierCurveTo(cx, py, cx, y, x, y);
+        }
+      }
+      const fill = new Path2D();
+      fill.addPath(path);
+      fill.lineTo(w, midY);
+      fill.lineTo(0, midY);
+      fill.closePath();
+      const grad = below ? ctx.createLinearGradient(0, midY, 0, h) : ctx.createLinearGradient(0, 0, 0, midY);
+      if (below) {
+        grad.addColorStop(0, rgba(color, 0));
+        grad.addColorStop(1, rgba(color, 0.25));
+      } else {
+        grad.addColorStop(0, rgba(color, 0.25));
+        grad.addColorStop(1, rgba(color, 0));
+      }
       ctx.fillStyle = grad;
       ctx.fill(fill);
       ctx.strokeStyle = color;

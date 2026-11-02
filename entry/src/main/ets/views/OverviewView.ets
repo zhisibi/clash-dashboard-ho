@@ -45,6 +45,56 @@ struct BigStat {
   }
 }
 
+/** BigStat with a history curve as the card background (line mode, no grid); same size and layout as BigStat */
+@ComponentV2
+struct BgStat {
+  @Param pal: Palette = new Palette();
+  @Param title: string = '';
+  @Param value: string = '';
+  @Param icon: Resource = $r('sys.symbol.arrow_up');
+  @Param color: string = '';
+  @Param bg: number[] = [];
+
+  @Builder
+  content() {
+    Column() {
+      Row() {
+        SymbolGlyph(this.icon).fontSize(16).fontColor([this.color.length > 0 ? this.color : this.pal.subtle])
+        Text(this.title).fontSize(13).fontColor(this.pal.subtle).margin({ left: 6 })
+          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
+      }
+      .width('100%')
+
+      Text(this.value)
+        .fontSize(22)
+        .fontWeight(FontWeight.Medium)
+        .maxLines(1)
+        .fontColor(this.color.length > 0 ? this.color : this.pal.text)
+        .margin({ top: 6 })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+  }
+
+  build() {
+    Stack() {
+      LineChart({
+        series: [this.bg.slice()],
+        colors: [this.color.length > 0 ? this.color : this.pal.accentUi],
+        grid: 'rgba(0,0,0,0)',
+        chartHeight: 88,
+        faint: true
+      })
+      this.content()
+    }
+    .layoutWeight(1)
+    .borderRadius(18)
+    .attributeModifier(Store.get().glass('card'))
+    .clip(true)
+  }
+}
+
 // Frozen while not the current page (hidden TabContent); latest data applies on return, page state is kept
 @ComponentV2({ freezeWhenInactive: true })
 export struct OverviewView {
@@ -110,13 +160,15 @@ export struct OverviewView {
             .attributeModifier(Store.get().glass('card'))
 
             Row({ space: 12 }) {
-              BigStat({
+              BgStat({
                 pal: this.store.palette(), title: t('upload'), value: fmtSpeed(this.store.traffic.up),
-                icon: $r('sys.symbol.arrow_up'), color: this.store.palette().up
+                icon: $r('sys.symbol.arrow_up'), color: this.store.palette().up,
+                bg: this.store.trafficHistory.map((x: Traffic) => x.up)
               })
-              BigStat({
+              BgStat({
                 pal: this.store.palette(), title: t('download'), value: fmtSpeed(this.store.traffic.down),
-                icon: $r('sys.symbol.arrow_down'), color: this.store.palette().down
+                icon: $r('sys.symbol.arrow_down'), color: this.store.palette().down,
+                bg: this.store.trafficHistory.map((x: Traffic) => x.down)
               })
             }
 
@@ -136,14 +188,14 @@ export struct OverviewView {
                 pal: this.store.palette(), title: t('active_conns'), value: this.store.activeConns.length.toString(),
                 icon: $r('sys.symbol.link'), color: ''
               })
-              BigStat({
+              BgStat({
                 pal: this.store.palette(), title: t('memory_usage'), value: fmtBytes(this.store.memory),
-                icon: $r('sys.symbol.memory_module'), color: ''
+                icon: $r('sys.symbol.memory_module'), color: '', bg: this.store.memoryHistory.slice()
               })
             }
 
-            // speed chart (1.3.4: same height as the memory card, both smaller - legends moved into the
-            // title row and both charts are 104 high, so the two cards match exactly)
+            // speed chart: mirrored bars (download up, upload down), height 80; the memory curve moved
+            // into the memory stat card as its background, so there is no separate memory card anymore
             Column() {
               Row() {
                 Text(t('live_speed')).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
@@ -157,12 +209,14 @@ export struct OverviewView {
 
               LineChart({
                 series: [
-                  this.store.trafficHistory.map((x: Traffic) => x.up),
-                  this.store.trafficHistory.map((x: Traffic) => x.down)
+                  this.store.trafficHistory.map((x: Traffic) => x.down),
+                  this.store.trafficHistory.map((x: Traffic) => x.up)
                 ],
-                colors: [this.store.palette().up, this.store.palette().down],
+                colors: [this.store.palette().down, this.store.palette().up],
                 grid: this.store.palette().outlineVariant,
-                chartHeight: 104
+                chartHeight: 80,
+                mirror: true,
+                bars: true
               })
             }
             .width('100%')
@@ -170,27 +224,6 @@ export struct OverviewView {
             .borderRadius(18)
             .attributeModifier(Store.get().glass('card'))
 
-            // memory chart (1.3.4: same structure and height as the speed card)
-            Column() {
-              Row() {
-                Text(t('memory')).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().text)
-                  .layoutWeight(1)
-                Text(fmtBytes(this.store.memory)).fontSize(12).fontColor(this.store.palette().subtle)
-              }
-              .width('100%')
-              .margin({ bottom: 8 })
-
-              LineChart({
-                series: [this.store.memoryHistory.slice()],
-                colors: [this.store.palette().accentUi],
-                grid: this.store.palette().outlineVariant,
-                chartHeight: 104
-              })
-            }
-            .width('100%')
-            .padding(14)
-            .borderRadius(18)
-            .attributeModifier(Store.get().glass('card'))
 
             // top hosts by traffic
             if (this.topHosts().length > 0) {
