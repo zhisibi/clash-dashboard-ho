@@ -104,7 +104,7 @@ export class Store {
   /** Accent color key, see ACCENTS in Theme.ets */
   @Trace accent: string = 'blue';
   @Trace systemDark: boolean = false;
-  @Trace testUrl: string = 'https://www.gstatic.com/generate_204';
+  @Trace testUrl: string = 'https://connect.rom.miui.com/generate_204';
   @Trace testTimeout: number = 5000;
   @Trace lowLatency: number = 400;
   @Trace mediumLatency: number = 800;
@@ -249,7 +249,7 @@ export class Store {
     }
     // 1.3.5: fresh-install default accent is red ("Huawei red")
     this.accent = findAccent(p.str('accent', 'red')).key;
-    this.testUrl = p.str('test_url', 'https://www.gstatic.com/generate_204');
+    this.testUrl = p.str('test_url', 'https://connect.rom.miui.com/generate_204');
     this.testTimeout = p.num('test_timeout', 5000);
     this.lowLatency = p.num('low_latency', 400);
     this.mediumLatency = p.num('medium_latency', 800);

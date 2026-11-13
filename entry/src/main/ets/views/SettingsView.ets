@@ -871,7 +871,7 @@ struct ProxyPrefsPage {
       Group({ pal: this.store.palette(), title: t('latency_test') }) {
         Column() {
           Text(t('test_url')).fontSize(12).fontColor(this.store.palette().subtle).margin({ bottom: 4 })
-          TextInput({ text: this.url, placeholder: 'https://www.gstatic.com/generate_204' })
+          TextInput({ text: this.url, placeholder: 'https://connect.rom.miui.com/generate_204' })
             .width('100%')
             .height(44)
             .fontSize(15)

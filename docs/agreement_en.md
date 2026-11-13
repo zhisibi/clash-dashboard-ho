@@ -13,6 +13,8 @@ The App is a control panel. Through the RESTful external-controller API of a mih
 
 The App contains no proxy core and provides no proxy servers, nodes, subscriptions or network acceleration, and it does not create proxy or VPN connections on your device. All of its features depend on the backend you configure. The nodes, policy groups, subscription and traffic information shown in the App all come from data returned by the backend you connect to; the App does not produce or provide any of that content.
 
+This app is a backend management tool, intended only to connect to and manage compatible core backends that you deploy yourself. This app does not provide any proxy service, server, node or subscription content. Please make sure you have the legal right to use the backends you connect to, and comply with the laws and regulations of your location.
+
 ## 2. Acceptable use and compliance undertakings
 
 - Connect only to backends that you own or are expressly authorized to manage. Do not connect to, probe or operate other people's backends.

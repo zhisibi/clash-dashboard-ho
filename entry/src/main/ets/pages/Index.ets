@@ -230,6 +230,29 @@ struct Index {
             .lineHeight(22)
             .fontColor(this.store.palette().subtle)
             .margin({ top: 10 })
+          // 1.4.17 (on-market risk control): first-run statement of what the app is and is not,
+          // shown prominently at the top of the consent screen, before the policy links and the
+          // Agree button. Same text also closes section 1 of the user agreement.
+          Column() {
+            Text(t('consent_decl_1'))
+              .fontSize(14).lineHeight(22).fontWeight(FontWeight.Medium)
+              .fontColor(this.store.palette().text)
+            Text(t('consent_decl_2'))
+              .fontSize(14).lineHeight(22).fontWeight(FontWeight.Medium)
+              .fontColor(this.store.palette().text)
+              .margin({ top: 4 })
+            Text(t('consent_decl_3'))
+              .fontSize(14).lineHeight(22).fontWeight(FontWeight.Medium)
+              .fontColor(this.store.palette().text)
+              .margin({ top: 4 })
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .margin({ top: 16 })
+          .padding(16)
+          .borderRadius(16)
+          .backgroundColor(this.store.palette().chip)
+          .border({ width: 1, color: this.store.palette().warn })
           Column() {
             this.consentPoint(t('consent_p1'))
             this.consentPoint(t('consent_p2'))
