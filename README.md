@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.4.18（versionCode 1058000） |
+| 版本 | 1.4.19（versionCode 1059000） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,9 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.4.19
+- **闪退日志落盘脱敏**：闪退日志组装完成后、写盘前统一过一道脱敏（新增纯逻辑模块 `common/Sanitize.ets`，与安卓版同口径）——完整 URL 替换为 `<url>`、裸 IPv4/IP:端口与方括号 IPv6 替换为 `***`、`Authorization`/`Bearer` 值与 `secret`/`token` 等查询参数值一律打码；堆栈的类名/方法名、三段版本号与时间戳不受影响，日志可读性不变
 
 ### 1.4.18
 - **代理页顶端测速进度条**：测速进行中在筛选行下方显示一条细胶囊进度条——左侧当前在测的分组/节点名、右侧「已完成/总数 · 百分比」，填充跟随主题色并带平滑过渡，测完自动消失。进度接真实执行流：Store 新增聚合计数（分组测速按成员数计单位，/group 响应到达整组计步、无 /group 接口的逐节点回退路径逐个计步，单节点测速计 1 个单位），不改测速逻辑与延迟回填本身

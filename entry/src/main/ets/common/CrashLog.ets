@@ -1,6 +1,7 @@
 import { common, errorManager, bundleManager } from '@kit.AbilityKit';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import { FileUtil } from './FileUtil';
+import { sanitizeCrashText } from './Sanitize';
 import { fmtStamp, fmtDateTime } from './Format';
 import { t } from './I18n';
 
@@ -57,7 +58,9 @@ export class CrashLog {
     text += t('crash_kind') + ': ' + kind + '\n';
     text += '\n';
     text += detail;
-    FileUtil.writeText(CrashLog.dirPath + '/crash-' + fmtStamp(now) + '.txt', text);
+    // Redact before writing (1.4.19): the detail text is a raw exception message + stack trace and
+    // could carry a backend URL / IP / credential; the on-disk copy is what users share for diagnosis.
+    FileUtil.writeText(CrashLog.dirPath + '/crash-' + fmtStamp(now) + '.txt', sanitizeCrashText(text));
     const files = CrashLog.list();
     for (let i = 20; i < files.length; i++) {
       FileUtil.remove(CrashLog.dirPath + '/' + files[i]);
