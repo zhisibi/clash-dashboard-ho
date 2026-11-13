@@ -494,6 +494,47 @@ export struct ProxiesView {
     })
   }
 
+  // 1.4.18: latency-test progress strip under the header filter row. Data comes from the
+  // Store's aggregate counters (real per-node results, see Store.tpBegin/tpStep); the strip
+  // exists only while a test runs and disappears when the counters complete.
+  @Builder
+  testProgressBar() {
+    Column() {
+      Row() {
+        Text(this.store.testLabel.length > 0 ? this.store.testLabel : t('latency_test'))
+          .fontSize(11)
+          .fontColor(this.store.palette().subtle)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        Text(this.store.testDone + '/' + this.store.testTotal + ' · ' + this.store.testPercent() + '%')
+          .fontSize(11)
+          .fontColor(this.store.palette().subtle)
+          .margin({ left: 8 })
+      }
+      .width('100%')
+
+      Stack({ alignContent: Alignment.Start }) {
+        Row()
+          .width('100%')
+          .height(5)
+          .borderRadius(2.5)
+          .backgroundColor(this.store.palette().chip)
+        Row()
+          .width(this.store.testPercent() + '%')
+          .height(5)
+          .borderRadius(2.5)
+          .backgroundColor(this.store.palette().accentUi)
+          .animation({ duration: 300, curve: Curve.EaseOut })
+      }
+      .width('100%')
+      .height(5)
+      .margin({ top: 4 })
+    }
+    .width('100%')
+    .margin({ top: 6 })
+  }
+
   colsTemplate(): string {
     const n = Math.max(1, Math.min(3, this.store.proxyCols));
     if (n === 1) {
@@ -621,6 +662,10 @@ export struct ProxiesView {
             }
           }
           .width('100%')
+
+          if (this.store.testProgressActive()) {
+            this.testProgressBar()
+          }
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)

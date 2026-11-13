@@ -170,6 +170,13 @@ export class Store {
   @Trace testing: Map<string, boolean> = new Map<string, boolean>();
   @Trace nodeTesting: Map<string, boolean> = new Map<string, boolean>();
   @Trace manualDelay: Map<string, number> = new Map<string, number>();
+  /** 1.4.18: aggregate latency-test progress driving the proxies-page top progress bar.
+   *  Units are individual node results: a group test contributes all.length units (resolved
+   *  in one step when the /group response lands, or one by one on the per-node fallback
+   *  path), a single-node test contributes 1. testLabel names an item in flight. */
+  @Trace testTotal: number = 0;
+  @Trace testDone: number = 0;
+  @Trace testLabel: string = '';
   @Trace proxiesLoading: boolean = false;
 
   // ----- rules -----
@@ -1561,11 +1568,52 @@ export class Store {
     await Promise.all(ws);
   }
 
+  /** 1.4.18: true while any counted latency test is running (proxies-page progress bar) */
+  testProgressActive(): boolean {
+    return this.testTotal > 0 && this.testDone < this.testTotal;
+  }
+
+  testPercent(): number {
+    if (this.testTotal <= 0) {
+      return 0;
+    }
+    return Math.round(this.testDone * 100 / this.testTotal);
+  }
+
+  private tpBegin(units: number, label: string): void {
+    if (this.testDone >= this.testTotal) {
+      this.testTotal = 0;
+      this.testDone = 0;
+    }
+    this.testTotal += units;
+    this.testLabel = label;
+  }
+
+  private tpStep(units: number): void {
+    this.testDone = Math.min(this.testTotal, this.testDone + units);
+  }
+
+  private tpCurrent(label: string): void {
+    if (this.testProgressActive()) {
+      this.testLabel = label;
+    }
+  }
+
   testGroup(g: ProxyItem): void {
     const a = this.api;
     if (a === null || this.testing.get(g.name) === true) {
       return;
     }
+    // 1.4.18: progress units for this group; stepped tracks how many this run resolved
+    const units = g.all.length;
+    if (units > 0) {
+      this.tpBegin(units, g.name);
+    }
+    let stepped = 0;
+    const step = (n: number): void => {
+      stepped += n;
+      this.tpStep(n);
+    };
     this.run(t('act_test'), 'test', async () => {
       this.testing.set(g.name, true);
       try {
@@ -1587,12 +1635,16 @@ export class Store {
             ok = true;
           }
         }
-        if (!ok) {
+        if (ok) {
+          // group response (or all-timeout 5xx) resolved every member at once
+          step(units);
+        } else {
           const nodes = g.all.filter((n: string) => {
             const p = this.proxies.get(n);
             return p === undefined || !p.isGroup();
           });
           await this.pool(nodes, 8, async (n: string) => {
+            this.tpCurrent(n);
             let d = 0;
             try {
               d = await a.proxyDelay(n, url, this.testTimeout);
@@ -1600,6 +1652,7 @@ export class Store {
               d = 0;
             }
             this.manualDelay.set(n, d);
+            step(1);
           });
         }
         const p = await a.proxies();
@@ -1608,6 +1661,14 @@ export class Store {
           this.proxies = p;
         }
       } finally {
+        // 1.4.18: top up any units this run did not resolve (subgroups on the fallback
+        // path, early errors) so the aggregate progress can always reach 100%
+        if (stepped < units) {
+          this.tpStep(units - stepped);
+        }
+        if (this.testLabel === g.name && this.testProgressActive()) {
+          this.testLabel = '';
+        }
         this.testing.delete(g.name);
       }
     });
@@ -1618,6 +1679,7 @@ export class Store {
     if (a === null) {
       return;
     }
+    this.tpBegin(1, name);
     this.nodeTesting.set(name, true);
     a.proxyDelay(name, url, this.testTimeout).then((d: number) => {
       this.manualDelay.set(name, d);
@@ -1625,6 +1687,10 @@ export class Store {
       this.manualDelay.set(name, 0);
     }).finally(() => {
       this.nodeTesting.delete(name);
+      this.tpStep(1);
+      if (this.testLabel === name && this.testProgressActive()) {
+        this.testLabel = '';
+      }
     });
   }
 
