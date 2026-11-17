@@ -364,7 +364,7 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async flushDns(): Promise<void> {
-    await this.hCall('DELETE', '/dns/cache/flush', null, 15000);
+    await this.hObj('POST', '/dns/cache/flush', '{}', 15000);
   }
 
   private async waitOp(opId: string, timeoutMs: number): Promise<JObj> {
@@ -849,8 +849,8 @@ export class HonkCoreApi extends CoreApi {
         const traffic = jObj(rt, 'traffic');
         const bytes = traffic !== undefined ? jObj(traffic, 'bytes') : undefined;
         if (bytes !== undefined) {
-          totalUp = asNum(jGet(bytes, 'upload_bytes'));
-          totalDown = asNum(jGet(bytes, 'download_bytes'));
+          totalUp = asNum(jGet(bytes, 'upload')) || asNum(jGet(bytes, 'upload_bytes'));
+          totalDown = asNum(jGet(bytes, 'download')) || asNum(jGet(bytes, 'download_bytes'));
         }
       } catch (e) {
         totalUp = sumUp;
@@ -915,6 +915,131 @@ export class HonkCoreApi extends CoreApi {
       'rulePayload': jStr(c, 'rule_expression')
     };
     return o;
+  }
+
+  // ---------------- native passthroughs (honk pages) ----------------
+  // The honk-mode pages (HonkOverviewView / HonkPolicyView / HonkToolsView)
+  // work on raw honk payloads; these wrappers reuse this adapter's session
+  // and transport so there is exactly one honk client per backend.
+
+  async nRuntime(detail: string): Promise<JObj> {
+    return this.hObj('GET', '/runtime?detail=' + enc(detail));
+  }
+
+  async nRuntimeMemory(): Promise<JObj> {
+    return this.hObj('GET', '/runtime/memory');
+  }
+
+  async nOutbounds(): Promise<JObj> {
+    return this.hObj('GET', '/runtime/outbounds');
+  }
+
+  async nGroups(): Promise<JObj[]> {
+    return this.hGroups();
+  }
+
+  async nGroupDetail(id: string): Promise<JObj> {
+    return this.hObj('GET', '/groups/' + enc(id));
+  }
+
+  async nNodes(): Promise<JObj[]> {
+    const r = await this.hObj('GET', '/nodes?limit=1000');
+    return arrOf(r, 'nodes');
+  }
+
+  async nProviders(): Promise<JObj[]> {
+    const r = await this.hObj('GET', '/providers');
+    return arrOf(r, 'providers');
+  }
+
+  async nSelect(groupId: string, memberId: string): Promise<void> {
+    const body: JObj = { 'network': 'both', 'member_id': memberId };
+    await this.hObj('PUT', '/groups/' + enc(groupId) + '/selection', JSON.stringify(body));
+  }
+
+  async nClearSelection(groupId: string): Promise<void> {
+    await this.hCall('DELETE', '/groups/' + enc(groupId) + '/selection', null, 15000);
+  }
+
+  async nProbe(target: JObj): Promise<JObj> {
+    return this.probe(target);
+  }
+
+  async nRefreshProvider(id: string): Promise<JObj> {
+    const op = await this.hObj('POST', '/providers/' + enc(id) + '/refresh', '{}', 60000);
+    const done = await this.waitOp(jStr(op, 'operation_id'), 120000);
+    this.mapsAt = 0;
+    return done;
+  }
+
+  async nReload(): Promise<JObj> {
+    const op = await this.hObj('POST', '/operations/reload', '{}');
+    return this.waitOp(jStr(op, 'operation_id'), 60000);
+  }
+
+  async nDnsQuery(domain: string, types: string[], cacheMode: string): Promise<JObj> {
+    const b: JObj = {};
+    b['domain'] = domain;
+    b['type'] = types;
+    b['cache_mode'] = cacheMode;
+    return this.hObj('POST', '/dns/query?detail=full', JSON.stringify(b));
+  }
+
+  async nDnsCache(domainFilter: string, limit: number): Promise<JObj> {
+    let p = '/dns/cache?limit=' + limit + '&detail=full&include_expired=true';
+    if (domainFilter !== '') {
+      p += '&domain=' + enc(domainFilter);
+    }
+    return this.hObj('GET', p);
+  }
+
+  async nDeleteDnsCacheEntry(id: string): Promise<void> {
+    await this.hCall('DELETE', '/dns/cache/' + enc(id), null, 15000);
+  }
+
+  async nDnsLog(nameFilter: string, limit: number): Promise<JObj> {
+    let p = '/dns/log?limit=' + limit;
+    if (nameFilter !== '') {
+      p += '&name=' + enc(nameFilter);
+    }
+    return this.hObj('GET', p);
+  }
+
+  async nDnsRules(): Promise<JObj> {
+    return this.hObj('GET', '/dns/rules');
+  }
+
+  async nRulesRaw(): Promise<JObj> {
+    return this.hObj('GET', '/rules');
+  }
+
+  async nRoutingTrace(bodyJson: string): Promise<JObj> {
+    return this.hObj('POST', '/routing/trace', bodyJson);
+  }
+
+  async nGeodata(): Promise<JObj> {
+    return this.hObj('GET', '/geodata');
+  }
+
+  async nGeodataUpdate(): Promise<JObj> {
+    const op = await this.hObj('POST', '/geodata/update', '{}', 60000);
+    return this.waitOp(jStr(op, 'operation_id'), 120000);
+  }
+
+  async nRuntimeSettings(): Promise<JObj> {
+    return this.hObj('GET', '/runtime/settings');
+  }
+
+  async nDatapath(): Promise<JObj> {
+    return this.hObj('GET', '/datapath?detail=full');
+  }
+
+  async nCapabilities(): Promise<JObj> {
+    return this.hObj('GET', '/capabilities');
+  }
+
+  async nVersionRaw(): Promise<JObj> {
+    return this.hObj('GET', '/version');
   }
 
   private startLogSse(stream: HonkStream, level: string): void {

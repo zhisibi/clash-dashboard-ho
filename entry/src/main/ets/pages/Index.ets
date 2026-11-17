@@ -6,6 +6,9 @@ import { OverviewView } from '../views/OverviewView';
 import { ProxiesView } from '../views/ProxiesView';
 import { ConnectionsView } from '../views/ConnectionsView';
 import { LogsView } from '../views/LogsView';
+import { HonkOverviewView } from '../views/HonkOverviewView';
+import { HonkPolicyView } from '../views/HonkPolicyView';
+import { HonkToolsView } from '../views/HonkToolsView';
 import { RulesView } from '../views/RulesView';
 import { SettingsView, CrashDetail } from '../views/SettingsView';
 import { withAlpha } from '../common/Theme';
@@ -393,11 +396,11 @@ struct Index {
     Row() {
       ForEach(TABS, (tab: TabDef, i: number) => {
         Column() {
-          SymbolGlyph(tab.icon).fontSize(22)
+          SymbolGlyph(i === 3 && this.store.activeIsHonk() ? $r('sys.symbol.wrench_and_screwdriver') : tab.icon).fontSize(22)
             .fontColor([i === this.selTab() ? this.store.palette().accentUi :
               (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text)])
             .symbolShadow(this.barHalo(lightOn))
-          Text(t(tab.title))
+          Text(i === 3 && this.store.activeIsHonk() ? t('tab_tools') : t(tab.title))
             .fontSize(11)
             .maxFontSize(11)
             .minFontSize(8)
@@ -639,11 +642,19 @@ struct Index {
         // Horizontal scrolls (e.g. crash log), sliders etc. inside a page win over the Tabs swipe.
         Tabs({ index: this.store.tab, controller: this.tabsCtl }) {
           TabContent() {
-            OverviewView({ bottomPad: this.bottomPad(0) })
+            if (this.store.activeIsHonk()) {
+              HonkOverviewView({ bottomPad: this.bottomPad(0) })
+            } else {
+              OverviewView({ bottomPad: this.bottomPad(0) })
+            }
           }
 
           TabContent() {
-            ProxiesView({ bottomPad: this.bottomPad(1) })
+            if (this.store.activeIsHonk()) {
+              HonkPolicyView({ bottomPad: this.bottomPad(1) })
+            } else {
+              ProxiesView({ bottomPad: this.bottomPad(1) })
+            }
           }
 
           TabContent() {
@@ -651,7 +662,11 @@ struct Index {
           }
 
           TabContent() {
-            LogsView({ bottomPad: this.bottomPad(3) })
+            if (this.store.activeIsHonk()) {
+              HonkToolsView({ bottomPad: this.bottomPad(3) })
+            } else {
+              LogsView({ bottomPad: this.bottomPad(3) })
+            }
           }
 
           TabContent() {

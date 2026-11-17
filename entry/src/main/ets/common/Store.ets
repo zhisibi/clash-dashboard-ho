@@ -897,6 +897,16 @@ export class Store {
     }
   }
 
+  /** 1.5.0: true while the active backend is a honk backend */
+  activeIsHonk(): boolean {
+    return this.active !== null && this.active.isHonk();
+  }
+
+  /** 1.5.0: the honk adapter behind the active connection (honk pages' data source), null otherwise */
+  honkApi(): HonkCoreApi | null {
+    return this.api instanceof HonkCoreApi ? this.api as HonkCoreApi : null;
+  }
+
   refreshAll(): void {
     this.refreshConfig();
     this.refreshProxies();

@@ -222,6 +222,14 @@ struct BackendPage {
     .attributeModifier(Store.get().glass('card'))
   }
 
+  /** 1.5.0: honk backends only show the maintenance ops they actually support */
+  visibleOps(): OpDef[] {
+    if (this.store.activeIsHonk()) {
+      return OPS.filter((op: OpDef) => op.key === 'reload' || op.key === 'geo' || op.key === 'dns');
+    }
+    return OPS;
+  }
+
   portValue(key: string): number {
     const c = this.store.config;
     if (key === 'mixed-port') {
@@ -340,30 +348,33 @@ struct BackendPage {
             desc: (this.store.version.length > 0 ? this.store.version : t('version_unknown')) +
               (this.store.isMeta ? ' · Meta' : '')
           })
-          RowItem({ pal: this.store.palette(), title: t('proxy_mode') }) {
-            SegTabs({
-              pal: this.store.palette(),
-              dense: isEn(),
-              items: this.store.config.modes.map((m: string) => modeName(m)),
-              selected: Math.max(0, this.store.config.modes.indexOf(this.store.config.mode)),
-              onSelect: (i: number) => {
-                this.store.setMode(this.store.config.modes[i]);
-              }
-            })
-          }
-          RowItem({ pal: this.store.palette(), title: t('core_log_level') }) {
-            DropdownChip({
-              pal: this.store.palette(),
-              label: this.store.config.logLevel,
-              options: LOG_LEVELS,
-              chipWidth: 130,
-              onSelect: (i: number) => {
-                this.store.setCoreLogLevel(LOG_LEVELS[i]);
-              }
-            })
+          if (!this.store.activeIsHonk()) {
+            RowItem({ pal: this.store.palette(), title: t('proxy_mode') }) {
+              SegTabs({
+                pal: this.store.palette(),
+                dense: isEn(),
+                items: this.store.config.modes.map((m: string) => modeName(m)),
+                selected: Math.max(0, this.store.config.modes.indexOf(this.store.config.mode)),
+                onSelect: (i: number) => {
+                  this.store.setMode(this.store.config.modes[i]);
+                }
+              })
+            }
+            RowItem({ pal: this.store.palette(), title: t('core_log_level') }) {
+              DropdownChip({
+                pal: this.store.palette(),
+                label: this.store.config.logLevel,
+                options: LOG_LEVELS,
+                chipWidth: 130,
+                onSelect: (i: number) => {
+                  this.store.setCoreLogLevel(LOG_LEVELS[i]);
+                }
+              })
+            }
           }
         }
 
+        if (!this.store.activeIsHonk()) {
         Group({ pal: this.store.palette(), title: t('network') }) {
           if (this.store.unsupported.has('patch')) {
             Text(t('patch_unsupported', this.store.unsupported.get('patch') ?? 0))
@@ -413,8 +424,9 @@ struct BackendPage {
           }, (k: string) => k)
         }
 
+        }
         Group({ pal: this.store.palette(), title: t('maintenance') }) {
-          ForEach(OPS, (op: OpDef) => {
+          ForEach(this.visibleOps(), (op: OpDef) => {
             RowItem({
               pal: this.store.palette(),
               title: t(op.title),
