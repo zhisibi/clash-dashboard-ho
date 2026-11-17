@@ -3,6 +3,7 @@ import { window } from '@kit.ArkUI';
 import { util } from '@kit.ArkTS';
 import { fileUri } from '@kit.CoreFileKit';
 import { ApiError, CoreApi, VersionInfo, WsStream, errMsg } from './CoreApi';
+import { HonkCoreApi } from './HonkCoreApi';
 import {
   Backend, ConnItem, CoreConfig, JObj, LogEntry, ProxyItem, ProxyProvider, RuleItem, RuleProvider, Traffic,
   asObj, jArr, jNum, jStr, parseConnection, parseJsonObj
@@ -837,7 +838,8 @@ export class Store {
     this.stopStreams();
     this.active = b;
     this.prefs?.put('active_backend', b.id);
-    const a = new CoreApi(b);
+    // 1.5.0: honk backends run through the translating adapter, clash unchanged
+    const a: CoreApi = b.isHonk() ? new HonkCoreApi(b) : new CoreApi(b);
     this.api = a;
     this.connState = 'connecting';
     this.connError = '';
@@ -883,7 +885,8 @@ export class Store {
 
   /** Tests a backend without switching to it */
   async probe(b: Backend): Promise<string> {
-    const v = await new CoreApi(b).version();
+    const api: CoreApi = b.isHonk() ? new HonkCoreApi(b) : new CoreApi(b);
+    const v = await api.version();
     return v.version.length > 0 ? v.version : t('no_version');
   }
 

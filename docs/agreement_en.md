@@ -1,7 +1,7 @@
 # Mimi Panel User Agreement
 
-Last updated: November 13, 2026
-Effective: November 13, 2026
+Last updated: November 18, 2026
+Effective: November 18, 2026
 
 Welcome to Mimi Panel ("the App"), provided by the developer Zhang Shibo ("we" or "us"). Please read this agreement carefully before using the App. By tapping "Agree" or using the App, you confirm that you have read and accept this agreement and the Mimi Panel Privacy Policy.
 
@@ -9,7 +9,7 @@ The Chinese version of this agreement (docs/agreement.md) is the governing versi
 
 ## 1. The service and its positioning
 
-The App is a control panel. Through the RESTful external-controller API of a mihomo-compatible proxy core that you deploy yourself, it lets you view and manage the core's status, proxy groups and nodes, connections, logs, rules and parts of its configuration.
+The App is a control panel. Through the management API of a proxy core that you deploy yourself (the RESTful external-controller API of mihomo-compatible cores, or the native API of the honk core), it lets you view and manage the core's status, proxy groups and nodes, connections, logs, rules and parts of its configuration.
 
 The App contains no proxy core and provides no proxy servers, nodes, subscriptions or network acceleration, and it does not create proxy or VPN connections on your device. All of its features depend on the backend you configure. The nodes, policy groups, subscription and traffic information shown in the App all come from data returned by the backend you connect to; the App does not produce or provide any of that content.
 
@@ -25,7 +25,7 @@ This app is a backend management tool, intended only to connect to and manage co
 
 ## 3. Third-party services
 
-The backend software you connect to (such as mihomo-compatible cores), Huawei AppGallery and other third-party services are operated independently by their respective providers and are governed by their own terms of service and privacy policies. Your rights and obligations when using those services exist between you and the third party and are unrelated to us; please resolve any issues arising from third-party services with that third party.
+The backend software you connect to (such as mihomo-compatible cores and the honk core), Huawei AppGallery and other third-party services are operated independently by their respective providers and are governed by their own terms of service and privacy policies. Your rights and obligations when using those services exist between you and the third party and are unrelated to us; please resolve any issues arising from third-party services with that third party.
 
 ## 4. Intellectual property
 

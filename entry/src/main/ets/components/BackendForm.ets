@@ -20,6 +20,11 @@ export struct BackendForm {
   @Local path: string = '';
   @Local secret: string = '';
   @Local label: string = '';
+  /** 1.5.0: backend kind + honk auth fields */
+  @Local kind: string = 'clash';
+  @Local honkAuth: string = 'token';
+  @Local honkUser: string = '';
+  @Local honkPass: string = '';
   @Local status: string = '';
   @Local statusOk: boolean = false;
   @Local busy: boolean = false;
@@ -33,6 +38,10 @@ export struct BackendForm {
     this.path = this.initial.secondaryPath;
     this.secret = this.initial.secret;
     this.label = this.initial.label;
+    this.kind = this.initial.kind === 'honk' ? 'honk' : 'clash';
+    this.honkAuth = this.initial.honkAuth === 'password' ? 'password' : 'token';
+    this.honkUser = this.initial.honkUser;
+    this.honkPass = this.initial.honkPass;
   }
 
   buildBackend(): Backend {
@@ -43,7 +52,15 @@ export struct BackendForm {
     b.protocol = this.protocol;
     b.host = this.host.trim();
     b.port = this.port.trim();
-    b.secondaryPath = this.path.trim();
+    b.kind = this.kind;
+    if (this.kind === 'honk') {
+      b.secondaryPath = '';
+      b.honkAuth = this.honkAuth;
+      b.honkUser = this.honkUser.trim();
+      b.honkPass = this.honkPass;
+    } else {
+      b.secondaryPath = this.path.trim();
+    }
     b.secret = this.secret;
     b.label = this.label.trim();
     return b;
@@ -71,9 +88,12 @@ export struct BackendForm {
     } else if (!Number.isInteger(port) || port < 1 || port > 65535) {
       key = 'port';
       msg = t('err_port_invalid');
-    } else if (pathHasBadChars(this.path.trim())) {
+    } else if (this.kind !== 'honk' && pathHasBadChars(this.path.trim())) {
       key = 'path';
       msg = t('err_path_invalid');
+    } else if (this.kind === 'honk' && this.honkAuth === 'password' && this.honkUser.trim().length === 0) {
+      key = 'honkUser';
+      msg = t('err_honk_user_required');
     }
     this.errField = key;
     if (key.length > 0) {
@@ -118,6 +138,30 @@ export struct BackendForm {
 
   build() {
     Column({ space: 10 }) {
+      Column() {
+        Text(t('f_kind')).fontSize(12).fontColor(this.store.palette().subtle)
+          .margin({ left: 4, bottom: 4 })
+        SegTabs({
+          pal: this.store.palette(),
+          items: [t('kind_clash'), t('kind_honk')],
+          selected: this.kind === 'honk' ? 1 : 0,
+          onSelect: (i: number) => {
+            const next = i === 1 ? 'honk' : 'clash';
+            if (next !== this.kind) {
+              this.kind = next;
+              // swap the untouched default port to the new kind's default
+              if (next === 'honk' && this.port === '9090') {
+                this.port = '9527';
+              } else if (next === 'clash' && this.port === '9527') {
+                this.port = '9090';
+              }
+            }
+          }
+        })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+
       SegTabs({
         pal: this.store.palette(),
         items: ['http', 'https'],
@@ -145,10 +189,12 @@ export struct BackendForm {
       }
       .width('100%')
 
-      this.field(t('f_path'), this.path, t('optional'), 0, this.errField === 'path', (v: string) => {
-        this.path = v;
-        this.clearErr('path');
-      })
+      if (this.kind === 'clash') {
+        this.field(t('f_path'), this.path, t('optional'), 0, this.errField === 'path', (v: string) => {
+          this.path = v;
+          this.clearErr('path');
+        })
+      }
       if (this.protocol === 'http' && this.host.trim().length > 0 && !isLocalHost(this.host)) {
         // 1.3.3: plain HTTP to a public address sends the secret unencrypted - say so in the form
         Text(t('warn_cleartext'))
@@ -156,9 +202,43 @@ export struct BackendForm {
           .fontColor(this.store.palette().warn)
           .width('100%')
       }
-      this.field(t('f_secret'), this.secret, t('optional'), 2, false, (v: string) => {
-        this.secret = v;
-      })
+      if (this.kind === 'honk') {
+        Text(t('honk_hint'))
+          .fontSize(13)
+          .fontColor(this.store.palette().subtle)
+          .width('100%')
+        Column() {
+          Text(t('f_honk_auth')).fontSize(12).fontColor(this.store.palette().subtle)
+            .margin({ left: 4, bottom: 4 })
+          SegTabs({
+            pal: this.store.palette(),
+            items: [t('auth_token'), t('auth_password')],
+            selected: this.honkAuth === 'password' ? 1 : 0,
+            onSelect: (i: number) => {
+              this.honkAuth = i === 1 ? 'password' : 'token';
+            }
+          })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        if (this.honkAuth === 'password') {
+          this.field(t('f_honk_user'), this.honkUser, 'admin', 0, this.errField === 'honkUser', (v: string) => {
+            this.honkUser = v;
+            this.clearErr('honkUser');
+          })
+          this.field(t('f_honk_pass'), this.honkPass, '', 2, false, (v: string) => {
+            this.honkPass = v;
+          })
+        } else {
+          this.field(t('f_honk_token'), this.secret, t('optional'), 2, false, (v: string) => {
+            this.secret = v;
+          })
+        }
+      } else {
+        this.field(t('f_secret'), this.secret, t('optional'), 2, false, (v: string) => {
+          this.secret = v;
+        })
+      }
       this.field(t('f_label'), this.label, t('optional'), 0, false, (v: string) => {
         this.label = v;
       })

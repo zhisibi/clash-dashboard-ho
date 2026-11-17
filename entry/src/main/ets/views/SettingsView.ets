@@ -253,8 +253,16 @@ struct BackendPage {
                 }
               })
             Column() {
-              Text(b.display()).fontSize(16).fontColor(this.store.palette().text)
-                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              Row({ space: 6 }) {
+                Text(b.display()).fontSize(16).fontColor(this.store.palette().text)
+                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                Text(b.isHonk() ? 'Honk' : 'Clash')
+                  .fontSize(10)
+                  .fontColor(this.store.palette().onPrimary)
+                  .backgroundColor(this.store.palette().accentUi)
+                  .borderRadius(6)
+                  .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+              }
               Text(b.baseUrl() + (b.secret.length > 0 ? ' · 🔑' : ''))
                 .fontSize(12)
                 .fontColor(this.store.palette().subtle)
@@ -290,7 +298,7 @@ struct BackendPage {
               this.store.connect(b);
             }
           })
-        }, (b: Backend) => b.id + '_' + b.baseUrl() + '_' + b.label + '_' + b.secret.length)
+        }, (b: Backend) => b.id + '_' + b.baseUrl() + '_' + b.label + '_' + b.secret.length + '_' + b.kind)
         RowItem({
           pal: this.store.palette(), title: t('add_backend'), clickable: true, onTap: () => {
             this.openEditor(new Backend(''), true);

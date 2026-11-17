@@ -135,6 +135,17 @@ export class Backend {
   secondaryPath: string = '';
   secret: string = '';
   label: string = '';
+  /** 1.5.0: backend kind: 'clash' (mihomo external controller) | 'honk' (daeuniverse/honk native API).
+   *  Absent in backends saved before 1.5.0 -> defaults to 'clash', fully backward compatible. */
+  kind: string = 'clash';
+  /** honk only: 'token' (secret holds the Bearer secret) | 'password' (admin account login) */
+  honkAuth: string = 'token';
+  honkUser: string = '';
+  honkPass: string = '';
+
+  isHonk(): boolean {
+    return this.kind === 'honk';
+  }
 
   constructor(id: string) {
     this.id = id;
@@ -165,6 +176,10 @@ export class Backend {
     b.secondaryPath = this.secondaryPath;
     b.secret = this.secret;
     b.label = this.label;
+    b.kind = this.kind;
+    b.honkAuth = this.honkAuth;
+    b.honkUser = this.honkUser;
+    b.honkPass = this.honkPass;
     return b;
   }
 
@@ -176,7 +191,11 @@ export class Backend {
       'port': this.port,
       'secondaryPath': this.secondaryPath,
       'secret': this.secret,
-      'label': this.label
+      'label': this.label,
+      'kind': this.kind,
+      'honkAuth': this.honkAuth,
+      'honkUser': this.honkUser,
+      'honkPass': this.honkPass
     };
     return o;
   }
@@ -189,6 +208,10 @@ export class Backend {
     b.secondaryPath = jStr(o, 'secondaryPath');
     b.secret = jStr(o, 'secret');
     b.label = jStr(o, 'label');
+    b.kind = jStr(o, 'kind') === 'honk' ? 'honk' : 'clash';
+    b.honkAuth = jStr(o, 'honkAuth') === 'password' ? 'password' : 'token';
+    b.honkUser = jStr(o, 'honkUser');
+    b.honkPass = jStr(o, 'honkPass');
     return b;
   }
 }
