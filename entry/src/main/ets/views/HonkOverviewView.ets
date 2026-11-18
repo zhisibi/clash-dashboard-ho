@@ -114,6 +114,11 @@ export struct HonkOverviewView {
   private latByName: Map<string, number> = new Map<string, number>();
 
   @Local qsGroups: QsGroup[] = [];
+  @Local qsRootId: string = '';
+  @Local qsSelId: string = '';
+  @Local qsLeafName: string = '';
+  @Local qsBusy: boolean = false;
+  private qsRootSel: string = '';
   private fastBusy: boolean = false;
   private slowBusy: boolean = false;
   private slowAt: number = 0;
@@ -629,48 +634,234 @@ export struct HonkOverviewView {
     try {
       const nodes = await api.nNodes();
       const map = new Map<string, string>();
+      const latMap = new Map<string, number>();
       for (const n of nodes) {
         map.set(jStr(n, 'id'), jStr(n, 'name'));
+        const health = jArr(n, 'health');
+        let best = -1;
+        if (health !== undefined) {
+          for (const e of health) {
+            const h = e as JObj;
+            const v = jGet(h, 'latency_ms');
+            if (jStr(h, 'state') === 'healthy' && typeof v === 'number') {
+              if (best < 0 || (v as number) < best) {
+                best = v as number;
+              }
+            }
+          }
+        }
+        if (best >= 0) {
+          latMap.set(jStr(n, 'name'), best);
+        }
       }
       const groups = await api.nGroups();
       for (const g of groups) {
         map.set(jStr(g, 'id'), jStr(g, 'name'));
       }
       this.nameById = map;
-      const out: QsGroup[] = [];
+      if (latMap.size > 0) {
+        this.latByName = latMap;
+      }
+      // fetch every group's detail: members build the hierarchy and the
+      // runtime selection gives the live leaf node
+      const details = new Map<string, JObj>();
+      const parentOf = new Map<string, string>();
+      const groupMembers = new Map<string, string[]>();
       for (const g of groups) {
-        const pol = jObj(g, 'policy');
-        const kind = pol !== undefined ? (jStr(pol, 'kind') || jStr(pol, 'native')) : '';
-        if (kind !== 'selector') {
-          continue;
-        }
-        const q = new QsGroup();
-        q.id = jStr(g, 'id');
-        q.name = jStr(g, 'name');
-        const sel = jObj(g, 'selection');
-        q.currentId = sel !== undefined ? jStr(sel, 'tcp_member_id') : '';
-        // the list selection is the config value; the live one is in the
-        // group detail's runtime.selection (they diverge after a switch)
+        const gid = jStr(g, 'id');
         try {
-          const d = await api.nGroupDetail(q.id);
+          const d = await api.nGroupDetail(gid);
+          details.set(gid, d);
+          const gms: string[] = [];
+          const arr = jArr(d, 'members');
+          if (arr !== undefined) {
+            for (const e of arr) {
+              const m = e as JObj;
+              if (jStr(m, 'kind') === 'group') {
+                gms.push(jStr(m, 'id'));
+                parentOf.set(jStr(m, 'id'), gid);
+              }
+            }
+          }
+          groupMembers.set(gid, gms);
+        } catch (e) {
+          // detail is best-effort per group
+        }
+      }
+      // root: a group holding other groups that is itself nobody's member
+      let rootId = '';
+      for (const g of groups) {
+        const gid = jStr(g, 'id');
+        const gms = groupMembers.get(gid);
+        if (gms !== undefined && gms.length > 0 && !parentOf.has(gid)) {
+          rootId = gid;
+          break;
+        }
+      }
+      this.qsRootId = rootId;
+      const selOf = (gid: string): string => {
+        const d = details.get(gid);
+        if (d === undefined) {
+          return '';
+        }
+        const rt = jObj(d, 'runtime');
+        const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
+        const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
+        return tcp !== undefined ? jStr(tcp, 'member_id') : '';
+      };
+      const leafOf = (gid: string): string => {
+        let cur = gid;
+        for (let hop = 0; hop < 4; hop++) {
+          const d = details.get(cur);
+          if (d === undefined) {
+            return cur === gid ? '' : cur;
+          }
           const rt = jObj(d, 'runtime');
           const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
           const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
-          const live = tcp !== undefined ? jStr(tcp, 'member_id') : '';
-          if (live !== '') {
-            q.currentId = live;
+          if (tcp === undefined) {
+            return '';
           }
-        } catch (e) {
-          // keep the list value
+          const leaf = jStr(tcp, 'resolved_leaf_node_id');
+          if (leaf !== '') {
+            return leaf;
+          }
+          const mid = jStr(tcp, 'member_id');
+          if (mid === '') {
+            return '';
+          }
+          const isGroup = map.has(mid) && details.has(mid);
+          if (!isGroup) {
+            return mid;
+          }
+          cur = mid;
         }
-        const nm = this.nameById.get(q.currentId);
-        q.currentName = nm !== undefined ? nm : q.currentId;
+        return cur;
+      };
+      // dropdown options: the root's sub-groups, or (flat configs) all
+      // selector groups as before
+      const optIds: string[] = [];
+      if (rootId !== '') {
+        const gms = groupMembers.get(rootId);
+        if (gms !== undefined) {
+          for (const mid of gms) {
+            optIds.push(mid);
+          }
+        }
+        this.qsRootSel = selOf(rootId);
+      }
+      if (optIds.length === 0) {
+        for (const g of groups) {
+          const pol = jObj(g, 'policy');
+          const kind = pol !== undefined ? (jStr(pol, 'kind') || jStr(pol, 'native')) : '';
+          if (kind === 'selector') {
+            optIds.push(jStr(g, 'id'));
+          }
+        }
+      }
+      const out: QsGroup[] = [];
+      for (const gid of optIds) {
+        const q = new QsGroup();
+        q.id = gid;
+        const nm = map.get(gid);
+        q.name = nm !== undefined ? nm : gid;
+        const leaf = leafOf(gid);
+        q.currentId = leaf;
+        const ln = map.get(leaf);
+        q.currentName = ln !== undefined ? ln : leaf;
         out.push(q);
       }
       this.qsGroups = out;
+      // selection: keep the user's pick while it exists; else follow the
+      // root's live selection; else the first option
+      let sel = '';
+      for (const q of out) {
+        if (q.id === this.qsSelId) {
+          sel = q.id;
+        }
+      }
+      if (sel === '' && this.qsRootSel !== '') {
+        for (const q of out) {
+          if (q.id === this.qsRootSel) {
+            sel = q.id;
+          }
+        }
+      }
+      if (sel === '' && out.length > 0) {
+        sel = out[0].id;
+      }
+      this.qsSelId = sel;
+      for (const q of out) {
+        if (q.id === sel) {
+          this.qsLeafName = q.currentName;
+        }
+      }
     } catch (e) {
       // quick switch is best-effort
     }
+  }
+
+  private qsOptionsSel(): SelectOption[] {
+    const opts: SelectOption[] = [];
+    for (const q of this.qsGroups) {
+      const o: SelectOption = { value: q.name };
+      opts.push(o);
+    }
+    return opts;
+  }
+
+  private qsSelIndex(): number {
+    for (let i = 0; i < this.qsGroups.length; i++) {
+      if (this.qsGroups[i].id === this.qsSelId) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  private qsSelName(): string {
+    const g = this.qsSelGroup();
+    return g !== null ? g.name : '';
+  }
+
+  private qsSelLatSuffix(): string {
+    const g = this.qsSelGroup();
+    return g !== null ? this.qsLatSuffix(g) : '';
+  }
+
+  private qsSelGroup(): QsGroup | null {
+    for (const q of this.qsGroups) {
+      if (q.id === this.qsSelId) {
+        return q;
+      }
+    }
+    return this.qsGroups.length > 0 ? this.qsGroups[0] : null;
+  }
+
+  /** Dropdown pick: route traffic through that group by selecting it in
+   * the root group (honk selection on the parent = the exit switch). */
+  private async setQsGroup(id: string): Promise<void> {
+    const api = this.api();
+    for (const q of this.qsGroups) {
+      if (q.id === id) {
+        this.qsSelId = id;
+        this.qsLeafName = q.currentName;
+      }
+    }
+    if (api === null || this.qsBusy || this.qsRootId === '' || id === this.qsRootSel) {
+      return;
+    }
+    this.qsBusy = true;
+    try {
+      await api.nSelect(this.qsRootId, id);
+      this.qsRootSel = id;
+      this.store.toast(t('act_ok', t('honk_switch')));
+      this.store.refreshProxies();
+      await this.loadQs(api);
+    } catch (e) {
+      this.store.toast(errMsg(e as Object));
+    }
+    this.qsBusy = false;
   }
 
   /** Tapping a group on the outbound card jumps to the policy page with
@@ -1136,33 +1327,50 @@ export struct HonkOverviewView {
             .borderRadius(18)
             .attributeModifier(this.store.glass('card'))
 
-            // outbound: tap a group to pick its node on the policy page
+            // outbound: pick the group traffic exits through; tap the
+            // node row to choose a node for it on the policy page
             if (this.qsGroups.length > 0) {
               Column() {
                 Text(t('honk_outbounds')).fontSize(16).fontWeight(FontWeight.Medium)
                   .fontColor(this.store.palette().text)
                   .margin({ bottom: 6 })
-                ForEach(this.qsGroups, (g: QsGroup) => {
-                  Row() {
-                    Column() {
-                      Text(g.name).fontSize(15).fontColor(this.store.palette().text)
-                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                      Text(g.currentName + this.qsLatSuffix(g)).fontSize(12).fontColor(this.store.palette().good)
-                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .margin({ top: 2 })
+                Select(this.qsOptionsSel())
+                  .selected(this.qsSelIndex())
+                  .value(this.qsSelName())
+                  .font({ size: 15 })
+                  .fontColor(this.store.palette().text)
+                  .backgroundColor(this.store.palette().chip)
+                  .borderRadius(12)
+                  .height(44)
+                  .width('100%')
+                  .onSelect((idx: number) => {
+                    if (idx >= 0 && idx < this.qsGroups.length) {
+                      this.setQsGroup(this.qsGroups[idx].id);
                     }
+                  })
+                Row() {
+                  Text(this.qsLeafName + this.qsSelLatSuffix())
+                    .fontSize(14)
+                    .fontColor(this.store.palette().good)
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .layoutWeight(1)
-                    .alignItems(HorizontalAlign.Start)
+                  if (this.qsBusy) {
+                    LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
+                  } else {
                     SymbolGlyph($r('sys.symbol.chevron_right'))
                       .fontSize(16)
                       .fontColor([this.store.palette().subtle])
                   }
-                  .width('100%')
-                  .padding({ top: 8, bottom: 8 })
-                  .onClick(() => {
+                }
+                .width('100%')
+                .padding({ top: 10, bottom: 4 })
+                .onClick(() => {
+                  const g = this.qsSelGroup();
+                  if (g !== null) {
                     this.jumpPick(g);
-                  })
-                }, (g: QsGroup) => g.id)
+                  }
+                })
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
