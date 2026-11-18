@@ -114,10 +114,6 @@ export struct HonkOverviewView {
   private latByName: Map<string, number> = new Map<string, number>();
 
   @Local qsGroups: QsGroup[] = [];
-  @Local mode: string = 'rule';
-  @Local modeAvail: boolean = false;
-  @Local modeBusy: boolean = false;
-  private modeChecked: boolean = false;
   private fastBusy: boolean = false;
   private slowBusy: boolean = false;
   private slowAt: number = 0;
@@ -133,7 +129,6 @@ export struct HonkOverviewView {
       const key = this.store.active !== null ? this.store.active.id : '';
       if (key !== this.lastBackendKey) {
         this.lastBackendKey = key;
-        this.modeChecked = false;
         this.loadExtras();
         return;
       }
@@ -329,10 +324,7 @@ export struct HonkOverviewView {
         activatedAt !== '' ? fmtClock(parseIsoMillis(activatedAt)) : '');
       this.sysStatusRows = sRows;
       await this.loadQs(api);
-      if (!this.modeChecked) {
-        this.modeChecked = true;
-        this.modeAvail = await api.nModeAvailable();
-      }
+      await this.loadMem(api);
     } catch (e) {
       this.rtError = errMsg(e as Object);
     }
@@ -348,7 +340,6 @@ export struct HonkOverviewView {
         try {
           await this.loadNodesLat(api2);
           await this.loadGrpCur(api2);
-          await this.loadMem(api2);
           await this.loadDns(api2);
           await this.loadStatic(api2);
         } catch (e) {
@@ -359,25 +350,7 @@ export struct HonkOverviewView {
     }
   }
 
-  private async setMode(m: string): Promise<void> {
-    const api = this.api();
-    if (api === null || this.modeBusy || m === this.mode) {
-      return;
-    }
-    if (!this.modeAvail) {
-      this.store.toast(t('honk_mode_unsupported'));
-      return;
-    }
-    this.modeBusy = true;
-    try {
-      await api.nSetMode(m);
-      this.mode = m;
-      this.store.toast(t('act_ok', t('honk_mode')));
-    } catch (e) {
-      this.store.toast(t('honk_mode_failed') + ': ' + errMsg(e as Object));
-    }
-    this.modeBusy = false;
-  }
+
 
   private pushKv(rows: KV[], k: string, v: string): void {
     if (v === '') {
@@ -745,21 +718,6 @@ export struct HonkOverviewView {
   }
 
   @Builder
-  modeChip(label: string, value: string) {
-    Text(label)
-      .fontSize(13)
-      .fontWeight(this.mode === value ? FontWeight.Medium : FontWeight.Normal)
-      .fontColor(this.mode === value ? this.store.palette().accent : this.store.palette().text)
-      .backgroundColor(this.mode === value ? this.store.palette().accentSoft : this.store.palette().chip)
-      .borderRadius(9)
-      .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-      .opacity(this.modeAvail ? 1 : 0.45)
-      .onClick(() => {
-        this.setMode(value);
-      })
-  }
-
-  @Builder
   kvCard(title: string, rows: KV[]) {
     Column() {
       Text(title).fontSize(16).fontWeight(FontWeight.Medium)
@@ -1111,8 +1069,7 @@ export struct HonkOverviewView {
             .borderRadius(18)
             .attributeModifier(this.store.glass('card'))
 
-            // outbound: tap a group to pick its node on the policy page;
-            // the mode row switches honk's runtime outbound mode
+            // outbound: tap a group to pick its node on the policy page
             if (this.qsGroups.length > 0) {
               Column() {
                 Text(t('honk_outbounds')).fontSize(16).fontWeight(FontWeight.Medium)
@@ -1139,22 +1096,6 @@ export struct HonkOverviewView {
                     this.jumpPick(g);
                   })
                 }, (g: QsGroup) => g.id)
-                Row({ space: 8 }) {
-                  Text(t('honk_mode')).fontSize(13).fontColor(this.store.palette().subtle)
-                  this.modeChip(t('honk_mode_rule'), 'rule')
-                  this.modeChip(t('honk_mode_global'), 'global')
-                  this.modeChip(t('honk_mode_direct'), 'direct')
-                  if (this.modeBusy) {
-                    LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
-                  }
-                }
-                .width('100%')
-                .margin({ top: 10 })
-                if (!this.modeAvail) {
-                  Text(t('honk_mode_unsupported')).fontSize(11)
-                    .fontColor(this.store.palette().subtle)
-                    .margin({ top: 6 })
-                }
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)

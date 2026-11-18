@@ -1110,31 +1110,7 @@ export class HonkCoreApi extends CoreApi {
     return Array.isArray(s) ? (s as Object[]).map((e: Object) => e as JObj) : [];
   }
 
-  /** Runtime outbound mode. beta.6 stubs this route as unsupported; the
-   * capability flag in /capabilities (resources: runtime_mode) says so. */
-  async nModeAvailable(): Promise<boolean> {
-    try {
-      const caps = await this.nCapabilities();
-      const res = jObj(caps, 'resources');
-      if (res === undefined) {
-        return false;
-      }
-      for (const k of Object.keys(res)) {
-        if (k.indexOf('runtime_mode') >= 0) {
-          const v = jObj(res, k);
-          return v !== undefined && jGet(v, 'available') === true;
-        }
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  async nSetMode(mode: string): Promise<void> {
-    const body: JObj = { 'mode': mode };
-    await this.hObj('PUT', '/x-honk/runtime/mode', JSON.stringify(body));
-  }
 
   async nProbe(target: JObj): Promise<JObj> {
     return this.probe(target);
