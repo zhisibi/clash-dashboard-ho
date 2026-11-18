@@ -107,6 +107,65 @@ export struct HonkToolsView {
   @Local geoRows: GeoRow[] = [];
   @Local geoMeta: string = '';
 
+  private watch: number = -1;
+  private lastBackendKey: string = '';
+
+  aboutToAppear(): void {
+    // sync watcher: when the active backend changes, drop everything this
+    // page loaded from the old backend and reload the visible section
+    this.watch = setInterval(() => {
+      const key = this.store.active !== null ? this.store.active.id : '';
+      if (this.lastBackendKey === '') {
+        this.lastBackendKey = key;
+        return;
+      }
+      if (key !== this.lastBackendKey) {
+        this.lastBackendKey = key;
+        this.resetData();
+        this.reloadSection();
+      }
+    }, 2000);
+  }
+
+  aboutToDisappear(): void {
+    if (this.watch >= 0) {
+      clearInterval(this.watch);
+      this.watch = -1;
+    }
+  }
+
+  private resetData(): void {
+    this.qResults = [];
+    this.qRaw = '';
+    this.cacheRows = [];
+    this.logRows = [];
+    this.rules = [];
+    this.dnsRules = [];
+    this.rulesLoaded = false;
+    this.traceOutbound = '';
+    this.traceEvals = [];
+    this.traceRaw = '';
+    this.geoRows = [];
+    this.rtSettings = [];
+    this.rtDatapath = [];
+    this.rtCaps = [];
+    this.rtLoaded = false;
+  }
+
+  private reloadSection(): void {
+    if (this.tab === 1) {
+      this.loadRules();
+    } else if (this.tab === 3) {
+      this.loadGeo();
+    } else if (this.tab === 4) {
+      this.loadRuntime();
+    } else if (this.tab === 0 && this.dnsSub === 1) {
+      this.loadCache();
+    } else if (this.tab === 0 && this.dnsSub === 2) {
+      this.loadDnsLog();
+    }
+  }
+
   // runtime
   @Local rtSettings: KvRow[] = [];
   @Local rtDatapath: KvRow[] = [];
@@ -251,8 +310,20 @@ export struct HonkToolsView {
         row.idx = i;
         const match = jObj(r, 'match');
         row.type = jStr(r, 'type') || jStr(r, 'kind') || (match !== undefined ? jStr(match, 'type') : '');
-        row.payload = jStr(r, 'payload') || jStr(r, 'value') || (match !== undefined ? jStr(match, 'value') : '');
-        row.target = jStr(r, 'target') || jStr(r, 'outbound') || jStr(r, 'action') || jStr(r, 'proxy');
+        row.payload = jStr(r, 'expression') || jStr(r, 'payload') || jStr(r, 'value') ||
+          (match !== undefined ? jStr(match, 'value') : '');
+        if (row.payload === '') {
+          const cond = jGet(r, 'conditions');
+          if (cond !== undefined) {
+            try {
+              const cs = JSON.stringify(cond);
+              row.payload = cs !== undefined && cs !== null ? cs.substring(0, 200) : '';
+            } catch (e) {
+              row.payload = '';
+            }
+          }
+        }
+        row.target = jStr(r, 'outbound') || jStr(r, 'target') || jStr(r, 'action') || jStr(r, 'proxy');
         rows.push(row);
       }
       this.rules = rows;
@@ -261,8 +332,9 @@ export struct HonkToolsView {
         let dItems = objArr(dr, 'rules');
         const dRows: string[] = [];
         for (const r of dItems) {
-          const name = jStr(r, 'domain') || jStr(r, 'name') || jStr(r, 'pattern');
-          const act = jStr(r, 'action') || jStr(r, 'target') || jStr(r, 'outbound') || jStr(r, 'server');
+          const name = jStr(r, 'expression') || jStr(r, 'domain') || jStr(r, 'name') || jStr(r, 'pattern');
+          const act = jStr(r, 'action') || jStr(r, 'upstream') || jStr(r, 'target') || jStr(r, 'outbound') ||
+            jStr(r, 'server');
           dRows.push(name + (act !== '' ? ' → ' + act : ''));
         }
         this.dnsRules = dRows;
@@ -689,7 +761,20 @@ export struct HonkToolsView {
   rulesSection() {
     Column({ space: 12 }) {
       Column() {
-        this.cardTitle(t('rules'))
+        Row() {
+          Text(t('rules')).fontSize(16).fontWeight(FontWeight.Medium)
+            .fontColor(this.store.palette().text).layoutWeight(1)
+          Button(t('act_refresh'))
+            .height(38)
+            .fontSize(13)
+            .fontColor(this.store.palette().text)
+            .backgroundColor(this.store.palette().chip)
+            .onClick(() => {
+              this.loadRules();
+            })
+        }
+        .width('100%')
+        .margin({ bottom: 8 })
         ForEach(this.rules, (r: RuleRow) => {
           Row() {
             Text(r.type).fontSize(12).fontColor(this.store.palette().accent)
@@ -897,6 +982,19 @@ export struct HonkToolsView {
   @Builder
   runtimeSection() {
     Column({ space: 12 }) {
+      Row() {
+        Blank()
+        Button(t('act_refresh'))
+          .height(38)
+          .fontSize(13)
+          .fontColor(this.store.palette().text)
+          .backgroundColor(this.store.palette().chip)
+          .onClick(() => {
+            this.rtLoaded = false;
+            this.loadRuntime();
+          })
+      }
+      .width('100%')
       Column() {
         this.cardTitle(t('honk_runtime_settings'))
         this.kvList(this.rtSettings)

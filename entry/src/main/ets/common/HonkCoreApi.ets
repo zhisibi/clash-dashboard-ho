@@ -272,6 +272,13 @@ export class HonkCoreApi extends CoreApi {
     return parseJsonObj(r.text);
   }
 
+  /** POST that takes NO request body (honk rejects a body on these routes:
+   * "Geodata update takes no request body") and returns the parsed reply */
+  private async hPostNoBody(path: string, timeoutMs: number = 30000): Promise<JObj> {
+    const r = await this.hCall('POST', path, null, timeoutMs);
+    return parseJsonObj(r.text);
+  }
+
   private async ensureSession(): Promise<void> {
     const b = this.backend;
     if (b.honkAuth !== 'password') {
@@ -342,8 +349,9 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async reloadConfigs(): Promise<void> {
-    const op = await this.hObj('POST', '/operations/reload', '{}');
+    const op = await this.hPostNoBody('/operations/reload');
     await this.waitOp(jStr(op, 'operation_id'), 60000);
+    this.mapsAt = 0;
   }
 
   async restart(): Promise<void> {
@@ -355,7 +363,7 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async upgradeGeo(): Promise<void> {
-    const op = await this.hObj('POST', '/geodata/update', '{}', 60000);
+    const op = await this.hPostNoBody('/geodata/update', 60000);
     await this.waitOp(jStr(op, 'operation_id'), 120000);
   }
 
@@ -364,7 +372,7 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async flushDns(): Promise<void> {
-    await this.hObj('POST', '/dns/cache/flush', '{}', 15000);
+    await this.hPostNoBody('/dns/cache/flush', 15000);
   }
 
   private async waitOp(opId: string, timeoutMs: number): Promise<JObj> {
@@ -681,7 +689,7 @@ export class HonkCoreApi extends CoreApi {
     if (pid === undefined) {
       throw new ApiError(404, 'provider not found');
     }
-    const op = await this.hObj('POST', '/providers/' + enc(pid) + '/refresh', '{}', 60000);
+    const op = await this.hPostNoBody('/providers/' + enc(pid) + '/refresh', 60000);
     await this.waitOp(jStr(op, 'operation_id'), 120000);
     this.mapsAt = 0;
   }
@@ -731,8 +739,21 @@ export class HonkCoreApi extends CoreApi {
       item.index = i;
       const match = jObj(r, 'match');
       item.type = jStr(r, 'type') || jStr(r, 'kind') || (match !== undefined ? jStr(match, 'type') : '');
-      item.payload = jStr(r, 'payload') || jStr(r, 'value') || (match !== undefined ? jStr(match, 'value') : '');
-      let target = jStr(r, 'target') || jStr(r, 'outbound') || jStr(r, 'action') || jStr(r, 'proxy');
+      // verified honk shape: the match text lives in 'expression'
+      item.payload = jStr(r, 'expression') || jStr(r, 'payload') || jStr(r, 'value') ||
+        (match !== undefined ? jStr(match, 'value') : '');
+      if (item.payload.length === 0) {
+        const cond = jGet(r, 'conditions');
+        if (cond !== undefined) {
+          try {
+            const cs = JSON.stringify(cond);
+            item.payload = cs !== undefined && cs !== null ? cs : '';
+          } catch (e) {
+            item.payload = '';
+          }
+        }
+      }
+      let target = jStr(r, 'outbound') || jStr(r, 'target') || jStr(r, 'action') || jStr(r, 'proxy');
       const tid = jStr(r, 'target_id') || jStr(r, 'outbound_id');
       if (target.length === 0 && tid.length > 0) {
         target = this.memberName(tid);
@@ -774,7 +795,7 @@ export class HonkCoreApi extends CoreApi {
   openStream(path: string, onMsg: (text: string) => void): WsStream {
     if (path.startsWith('/traffic')) {
       const s = new HonkStream(onMsg, async () => {
-        const rt = await this.hObj('GET', '/runtime');
+        const rt = await this.hObj('GET', '/runtime?detail=full');
         const traffic = jObj(rt, 'traffic');
         const rates = traffic !== undefined ? jObj(traffic, 'rates') : undefined;
         const o: JObj = {
@@ -794,6 +815,12 @@ export class HonkCoreApi extends CoreApi {
           const proc = jObj(m, 'process');
           if (proc !== undefined) {
             inuse = jNum(proc, 'rss_bytes') || jNum(proc, 'rss');
+          }
+        }
+        if (inuse === 0) {
+          const cg = jObj(m, 'cgroup');
+          if (cg !== undefined) {
+            inuse = jNum(cg, 'current_bytes');
           }
         }
         const o: JObj = { 'inuse': inuse };
@@ -845,7 +872,7 @@ export class HonkCoreApi extends CoreApi {
     let totalDown = jNum(root, 'total_download_bytes') || jNum(root, 'download_total');
     if (totalUp === 0 && totalDown === 0) {
       try {
-        const rt = await this.hObj('GET', '/runtime');
+        const rt = await this.hObj('GET', '/runtime?detail=full');
         const traffic = jObj(rt, 'traffic');
         const bytes = traffic !== undefined ? jObj(traffic, 'bytes') : undefined;
         if (bytes !== undefined) {
@@ -966,15 +993,17 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async nRefreshProvider(id: string): Promise<JObj> {
-    const op = await this.hObj('POST', '/providers/' + enc(id) + '/refresh', '{}', 60000);
+    const op = await this.hPostNoBody('/providers/' + enc(id) + '/refresh', 60000);
     const done = await this.waitOp(jStr(op, 'operation_id'), 120000);
     this.mapsAt = 0;
     return done;
   }
 
   async nReload(): Promise<JObj> {
-    const op = await this.hObj('POST', '/operations/reload', '{}');
-    return this.waitOp(jStr(op, 'operation_id'), 60000);
+    const op = await this.hPostNoBody('/operations/reload');
+    const done = await this.waitOp(jStr(op, 'operation_id'), 60000);
+    this.mapsAt = 0;
+    return done;
   }
 
   async nDnsQuery(domain: string, types: string[], cacheMode: string): Promise<JObj> {
@@ -1022,7 +1051,7 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async nGeodataUpdate(): Promise<JObj> {
-    const op = await this.hObj('POST', '/geodata/update', '{}', 60000);
+    const op = await this.hPostNoBody('/geodata/update', 60000);
     return this.waitOp(jStr(op, 'operation_id'), 120000);
   }
 

@@ -89,35 +89,70 @@ export struct HonkPolicyView {
   @Local detailCanSelect: boolean = false;
 
   @Local nodeQuery: string = '';
-  // set-as-exit sheet
-  @Local showSw: boolean = false;
-  @Local swNodeName: string = '';
-  @Local swNodeId: string = '';
-  @Local swGroups: GRow[] = [];
-  @Local swLoading: boolean = false;
+  @Local probeDone: number = 0;
+  @Local probeTotal: number = 0;
+  @Local exitNodeId: string = '';
+  @Local updatedOkId: string = '';
 
   private nameById: Map<string, string> = new Map<string, string>();
   private loaded: boolean = false;
   private timer: number = -1;
+  private ticks: number = 0;
+  private lastTab: number = -1;
+  private lastBackendKey: string = '';
 
   aboutToAppear(): void {
     if (!this.loaded) {
       this.loaded = true;
       this.loadAll();
     }
-    // keep the page fresh while it is the visible tab (e.g. after a switch
-    // made on the overview page)
+    // sync watcher: reload at once when the backend changes or this tab
+    // becomes active, and periodically while it stays active
     this.timer = setInterval(() => {
-      if (this.store.tab === 1 && this.busyKey === '') {
-        this.loadAll();
-      }
-    }, 15000);
+      this.watchTick();
+    }, 2000);
   }
 
   aboutToDisappear(): void {
     if (this.timer >= 0) {
       clearInterval(this.timer);
       this.timer = -1;
+    }
+  }
+
+  private watchTick(): void {
+    const key = this.store.active !== null ? this.store.active.id : '';
+    if (key !== this.lastBackendKey) {
+      this.lastBackendKey = key;
+      this.openGroupId = '';
+      this.members = [];
+      this.loadAll();
+      return;
+    }
+    const tab = this.store.tab;
+    if (tab === 1 && this.lastTab !== 1) {
+      this.lastTab = tab;
+      this.loadAll();
+      this.refreshOpenDetail();
+      return;
+    }
+    this.lastTab = tab;
+    this.ticks++;
+    if (tab === 1 && this.ticks % 7 === 0 && this.busyKey === '') {
+      this.loadAll();
+      this.refreshOpenDetail();
+    }
+  }
+
+  private refreshOpenDetail(): void {
+    if (this.openGroupId === '') {
+      return;
+    }
+    for (const g of this.groups) {
+      if (g.id === this.openGroupId) {
+        this.loadDetail(g);
+        return;
+      }
     }
   }
 
@@ -165,6 +200,37 @@ export struct HonkPolicyView {
         grows.push(r);
       }
       this.groups = grows;
+      // current exit node: the live runtime selection of selector groups
+      // (list selection is the config value and goes stale after a switch)
+      let exitId = '';
+      for (const g of grows) {
+        if (g.kind !== 'selector') {
+          continue;
+        }
+        try {
+          const d = await api.nGroupDetail(g.id);
+          const rt = jObj(d, 'runtime');
+          const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
+          const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
+          const live = tcp !== undefined ? jStr(tcp, 'member_id') : '';
+          if (live !== '') {
+            const nm = this.memberName(live);
+            for (const gr of grows) {
+              if (gr.id === g.id) {
+                gr.selName = nm;
+              }
+            }
+            if (exitId === '') {
+              exitId = live;
+            }
+          }
+        } catch (e) {
+          // keep list values
+        }
+      }
+      if (exitId !== '') {
+        this.exitNodeId = exitId;
+      }
       const nrows: NRow[] = [];
       for (const n of ns) {
         const r = new NRow();
@@ -333,37 +399,45 @@ export struct HonkPolicyView {
     if (api === null || this.busyKey !== '') {
       return;
     }
-    this.busyKey = 'probe_all';
-    let sent = 0;
-    for (const n of this.visibleNodes()) {
-      if (n.name === 'direct' || n.name === 'block') {
-        continue;
-      }
-      const target: JObj = { 'type': 'node', 'node_id': n.id };
-      api.nProbe(target).catch(() => {
-      });
-      sent++;
-    }
-    this.store.toast(t('honk_probe') + ' × ' + sent);
-    setTimeout(() => {
-      this.busyKey = '';
-      this.loadAll();
-    }, 9000);
-  }
-
-  private async prepareSwitch(n: NRow): Promise<void> {
-    const api = this.api();
-    if (api === null) {
+    const targets = this.visibleNodes().filter((n: NRow) => n.name !== 'direct' && n.name !== 'block');
+    if (targets.length === 0) {
       return;
     }
-    this.swNodeId = n.id;
-    this.swNodeName = n.name;
-    this.swGroups = [];
-    this.swLoading = true;
-    this.showSw = true;
-    const out: GRow[] = [];
-    for (const g of this.groups) {
-      try {
+    this.busyKey = 'probe_all';
+    this.probeDone = 0;
+    this.probeTotal = targets.length;
+    const BATCH = 6;
+    for (let i = 0; i < targets.length; i += BATCH) {
+      const batch = targets.slice(i, i + BATCH);
+      const jobs: Promise<void>[] = [];
+      for (const n of batch) {
+        const target: JObj = { 'type': 'node', 'node_id': n.id };
+        jobs.push(api.nProbe(target).then(() => {
+        }).catch(() => {
+        }));
+      }
+      await Promise.all(jobs);
+      this.probeDone = Math.min(targets.length, i + BATCH);
+      await this.loadAll();
+    }
+    this.busyKey = '';
+    this.store.toast(t('act_ok', t('honk_test_all')));
+  }
+
+  /** Tap a node: switch it as the exit of the first selectable group that
+   * contains it (honk selection is per-group; there is no global switch) */
+  private async switchNode(n: NRow): Promise<void> {
+    const api = this.api();
+    if (api === null || this.busyKey !== '' || n.id === this.exitNodeId) {
+      return;
+    }
+    this.busyKey = 'switch_' + n.id;
+    try {
+      let done = false;
+      for (const g of this.groups) {
+        if (g.kind !== 'selector') {
+          continue;
+        }
         const d = await api.nGroupDetail(g.id);
         const caps = jObj(d, 'capabilities');
         const can = caps !== undefined && (caps['can_select'] === true || caps['can_override'] === true);
@@ -374,32 +448,28 @@ export struct HonkPolicyView {
         if (arr === undefined) {
           continue;
         }
+        let contains = false;
         for (const e of arr) {
           if (jStr(e as JObj, 'id') === n.id) {
-            out.push(g);
+            contains = true;
             break;
           }
         }
-      } catch (e) {
-        // skip groups whose detail fails
+        if (!contains) {
+          continue;
+        }
+        await api.nSelect(g.id, n.id);
+        done = true;
+        break;
       }
-    }
-    this.swGroups = out;
-    this.swLoading = false;
-  }
-
-  private async applySwitch(g: GRow): Promise<void> {
-    const api = this.api();
-    if (api === null || this.busyKey !== '') {
-      return;
-    }
-    this.busyKey = 'sw_' + g.id;
-    try {
-      await api.nSelect(g.id, this.swNodeId);
-      this.store.toast(t('act_ok', t('honk_set_outbound')));
-      this.showSw = false;
-      this.store.refreshProxies();
-      await this.loadAll();
+      if (done) {
+        this.exitNodeId = n.id;
+        this.store.toast(t('act_ok', t('honk_switch')));
+        this.store.refreshProxies();
+        await this.loadAll();
+      } else {
+        this.store.toast(t('honk_no_group'));
+      }
     } catch (e) {
       this.store.toast(errMsg(e as Object));
     }
@@ -427,52 +497,22 @@ export struct HonkPolicyView {
     return this.store.palette().bad;
   }
 
+  /** Radio circle + check marking the current selection */
   @Builder
-  swSheet() {
-    Column() {
-      Text(this.swNodeName)
-        .fontSize(17)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.store.palette().text)
-        .margin({ top: 14, bottom: 4 })
-      Text(t('honk_choose_group'))
-        .fontSize(13)
-        .fontColor(this.store.palette().subtle)
-        .margin({ bottom: 8 })
-      if (this.swLoading) {
-        LoadingProgress().width(22).height(22).color(this.store.palette().accentUi)
-      } else if (this.swGroups.length === 0) {
-        Text(t('honk_no_group')).fontSize(14).fontColor(this.store.palette().warn)
-      } else {
-        List() {
-          ForEach(this.swGroups, (g: GRow) => {
-            ListItem() {
-              Row() {
-                Text(g.name).fontSize(15).fontColor(this.store.palette().text)
-                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .layoutWeight(1)
-                if (this.busyKey === 'sw_' + g.id) {
-                  LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
-                } else {
-                  Text(t('honk_set_outbound')).fontSize(13).fontColor(this.store.palette().accent)
-                }
-              }
-              .width('100%')
-              .padding({ top: 13, bottom: 13, left: 4, right: 4 })
-              .onClick(() => {
-                this.applySwitch(g);
-              })
-            }
-          }, (g: GRow) => g.id)
-        }
-        .layoutWeight(1)
-        .width('100%')
-        .divider({ strokeWidth: 0.5, color: this.store.palette().outlineVariant })
-      }
+  radioMark() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width(22)
+        .height(22)
+        .borderRadius(11)
+        .border({ width: 1.5, color: this.store.palette().accentUi })
+        .backgroundColor(this.store.palette().accentSoft)
+      SymbolGlyph($r('sys.symbol.checkmark'))
+        .fontSize(12)
+        .fontColor([this.store.palette().accentUi])
     }
-    .width('100%')
-    .height('100%')
-    .padding({ left: 16, right: 16 })
+    .width(22)
+    .height(22)
   }
 
   @Builder
@@ -501,14 +541,19 @@ export struct HonkPolicyView {
             }
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
-            Button(t('honk_probe'))
-              .height(38)
-              .fontSize(13)
-              .fontColor(this.store.palette().text)
-              .backgroundColor(this.store.palette().chip)
-              .onClick(() => {
-                this.probeGroup(g);
-              })
+            if (this.busyKey === 'probe_' + g.id) {
+              LoadingProgress().width(20).height(20).color(this.store.palette().accentUi)
+                .margin({ left: 9, right: 9 })
+            } else {
+              Button(t('honk_probe'))
+                .height(38)
+                .fontSize(13)
+                .fontColor(this.store.palette().text)
+                .backgroundColor(this.store.palette().chip)
+                .onClick(() => {
+                  this.probeGroup(g);
+                })
+            }
             SymbolGlyph($r('sys.symbol.chevron_down'))
               .fontSize(16)
               .fontColor([this.store.palette().subtle])
@@ -560,10 +605,10 @@ export struct HonkPolicyView {
                       .fontColor(this.latencyColor(m.latency))
                       .margin({ right: 8 })
                   }
-                  if (m.current) {
-                    Text('●').fontSize(13).fontColor(this.store.palette().good)
-                  } else if (this.detailCanSelect) {
-                    Text(t('honk_switch')).fontSize(13).fontColor(this.store.palette().accent)
+                  if (this.busyKey === 'sel_' + m.id) {
+                    LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
+                  } else if (m.current) {
+                    this.radioMark()
                   }
                 }
                 .width('100%')
@@ -613,6 +658,30 @@ export struct HonkPolicyView {
       }
       .width('100%')
 
+      if (this.busyKey === 'probe_all') {
+        Column() {
+          Row() {
+            Text(t('honk_probe')).fontSize(12).fontColor(this.store.palette().subtle)
+              .layoutWeight(1)
+            Text(this.probeDone.toString() + ' / ' + this.probeTotal.toString())
+              .fontSize(12)
+              .fontColor(this.store.palette().subtle)
+          }
+          .width('100%')
+          Progress({
+            value: this.probeDone,
+            total: Math.max(1, this.probeTotal),
+            type: ProgressType.Linear
+          })
+            .color(this.store.palette().accentUi)
+            .backgroundColor(this.store.palette().chip)
+            .style({ strokeWidth: 5 })
+            .width('100%')
+            .margin({ top: 4 })
+        }
+        .width('100%')
+      }
+
       ForEach(this.visibleNodes(), (n: NRow) => {
         Row() {
           Column() {
@@ -634,29 +703,36 @@ export struct HonkPolicyView {
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
-          if (n.latency >= 0) {
-            Text(n.latency.toString() + ' ms')
-              .fontSize(13)
-              .fontColor(this.latencyColor(n.latency))
-              .margin({ right: 8 })
+          .onClick(() => {
+            this.switchNode(n);
+          })
+          if (this.busyKey === 'probe_' + n.id || this.busyKey === 'switch_' + n.id) {
+            LoadingProgress().width(20).height(20).color(this.store.palette().accentUi)
+          } else {
+            if (n.latency >= 0) {
+              Text(n.latency.toString() + ' ms')
+                .fontSize(13)
+                .fontColor(this.latencyColor(n.latency))
+                .padding({ left: 6, right: 6, top: 8, bottom: 8 })
+                .onClick(() => {
+                  this.probeNode(n);
+                })
+            } else {
+              Text(t('honk_probe'))
+                .fontSize(13)
+                .fontColor(this.store.palette().accent)
+                .padding({ left: 6, right: 6, top: 8, bottom: 8 })
+                .onClick(() => {
+                  this.probeNode(n);
+                })
+            }
+            if (n.id === this.exitNodeId) {
+              Row() {
+                this.radioMark()
+              }
+              .margin({ left: 4 })
+            }
           }
-          Button(t('honk_probe'))
-            .height(38)
-            .fontSize(13)
-            .fontColor(this.store.palette().text)
-            .backgroundColor(this.store.palette().chip)
-            .onClick(() => {
-              this.probeNode(n);
-            })
-          Button(t('honk_set_outbound'))
-            .height(38)
-            .fontSize(13)
-            .fontColor(this.store.palette().onPrimary)
-            .backgroundColor(this.store.palette().primary)
-            .margin({ left: 6 })
-            .onClick(() => {
-              this.prepareSwitch(n);
-            })
         }
         .width('100%')
         .padding(14)
@@ -665,14 +741,6 @@ export struct HonkPolicyView {
       }, (n: NRow) => n.id)
     }
     .width('100%')
-    .bindSheet(this.showSw, this.swSheet(), {
-      height: SheetSize.LARGE,
-      dragBar: true,
-      backgroundColor: this.store.palette().sheet,
-      onDisappear: () => {
-        this.showSw = false;
-      }
-    })
   }
 
   @Builder
@@ -704,27 +772,42 @@ export struct HonkPolicyView {
               .margin({ top: 4 })
           }
           if (p.kind === 'subscription') {
-            Button(this.busyKey === 'prov_' + p.id ? '…' : t('act_refresh'))
-              .height(38)
-              .fontSize(13)
-              .fontColor(this.store.palette().text)
-              .backgroundColor(this.store.palette().chip)
-              .margin({ top: 10 })
-              .onClick(() => {
-                const api = this.api();
-                if (api === null || this.busyKey !== '') {
-                  return;
-                }
-                this.busyKey = 'prov_' + p.id;
-                api.nRefreshProvider(p.id).then(() => {
-                  this.store.toast(t('act_ok', t('act_refresh')));
-                  this.busyKey = '';
-                  this.loadAll();
-                }).catch((e: Object) => {
-                  this.store.toast(errMsg(e));
-                  this.busyKey = '';
-                });
-              })
+            Row({ space: 8 }) {
+              if (this.busyKey === 'prov_' + p.id) {
+                LoadingProgress().width(20).height(20).color(this.store.palette().accentUi)
+              } else {
+                Button(t('honk_update'))
+                  .height(38)
+                  .fontSize(13)
+                  .fontColor(this.store.palette().text)
+                  .backgroundColor(this.store.palette().chip)
+                  .onClick(() => {
+                    const api = this.api();
+                    if (api === null || this.busyKey !== '') {
+                      return;
+                    }
+                    this.busyKey = 'prov_' + p.id;
+                    api.nRefreshProvider(p.id).then(() => {
+                      this.store.toast(t('act_ok', t('honk_update')));
+                      this.busyKey = '';
+                      this.updatedOkId = p.id;
+                      setTimeout(() => {
+                        if (this.updatedOkId === p.id) {
+                          this.updatedOkId = '';
+                        }
+                      }, 2500);
+                      this.loadAll();
+                    }).catch((e: Object) => {
+                      this.store.toast(errMsg(e));
+                      this.busyKey = '';
+                    });
+                  })
+              }
+              if (this.updatedOkId === p.id) {
+                this.radioMark()
+              }
+            }
+            .margin({ top: 10 })
           }
         }
         .width('100%')

@@ -74,7 +74,7 @@ export const ZH: Record<string, string> = {
   "wallpaper_updated": "壁纸已更新",
   "wallpaper_read_failed": "无法读取这张图片",
   "op_reload": "重载配置文件",
-  "op_geo": "更新 GEO 数据库",
+  "op_geo": "更新地理数据",
   "op_fakeip": "清空 FakeIP 缓存",
   "op_dns": "清空 DNS 缓存",
   "op_upgrade": "更新内核",

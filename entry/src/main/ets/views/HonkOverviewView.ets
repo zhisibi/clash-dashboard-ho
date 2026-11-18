@@ -47,6 +47,9 @@ export struct HonkOverviewView {
   private sc: Scroller = new Scroller();
   private timer: number = -1;
   private busy: boolean = false;
+  private watch: number = -1;
+  private lastTab: number = -1;
+  private lastBackendKey: string = '';
 
   @Local cpuText: string = '-';
   @Local uptimeSec: number = 0;
@@ -71,16 +74,32 @@ export struct HonkOverviewView {
   aboutToAppear(): void {
     this.loadExtras();
     this.timer = setInterval(() => {
-      if (this.store.tab === 0) {
+      this.loadExtras();
+    }, 5000);
+    // immediate refresh when this tab becomes active or the backend changes
+    this.watch = setInterval(() => {
+      const key = this.store.active !== null ? this.store.active.id : '';
+      if (key !== this.lastBackendKey) {
+        this.lastBackendKey = key;
+        this.showQs = false;
+        this.loadExtras();
+        return;
+      }
+      if (this.store.tab === 0 && this.lastTab !== 0) {
         this.loadExtras();
       }
-    }, 5000);
+      this.lastTab = this.store.tab;
+    }, 1000);
   }
 
   aboutToDisappear(): void {
     if (this.timer >= 0) {
       clearInterval(this.timer);
       this.timer = -1;
+    }
+    if (this.watch >= 0) {
+      clearInterval(this.watch);
+      this.watch = -1;
     }
   }
 
@@ -95,17 +114,32 @@ export struct HonkOverviewView {
     }
     this.busy = true;
     try {
-      const rt = await api.nRuntime('summary');
+      const rt = await api.nRuntime('full');
       const life = jObj(rt, 'lifecycle');
       this.lifeState = life !== undefined ? jStr(life, 'state') : '';
-      this.uptimeSec = life !== undefined ? jNum(life, 'uptime_seconds') : 0;
-      const proc = jObj(rt, 'process');
-      const cpu = proc !== undefined ? jGet(proc, 'cpu_percent') : undefined;
+      this.uptimeSec = (life !== undefined ? jNum(life, 'uptime_seconds') : 0) || jNum(rt, 'uptime_seconds');
+      let proc = jObj(rt, 'process');
+      if (proc === undefined) {
+        proc = jObj(rt, 'system');
+      }
+      let cpu = proc !== undefined ? jGet(proc, 'cpu_percent') : undefined;
+      if (cpu === undefined && proc !== undefined) {
+        cpu = jGet(proc, 'cpu_usage_percent');
+      }
+      if (cpu === undefined) {
+        cpu = jGet(rt, 'cpu_percent');
+      }
       this.cpuText = cpu === undefined ? '-' : asNum(cpu).toFixed(1) + '%';
       const traffic = jObj(rt, 'traffic');
-      const conns = traffic !== undefined ? jObj(traffic, 'connections') : undefined;
+      let conns = traffic !== undefined ? jObj(traffic, 'connections') : undefined;
+      if (conns === undefined) {
+        conns = jObj(rt, 'connections');
+      }
       this.connTcp = conns !== undefined ? jNum(conns, 'tcp') : 0;
       this.connUdp = conns !== undefined ? jNum(conns, 'udp') : 0;
+      if (this.connTcp === 0 && this.connUdp === 0 && conns !== undefined) {
+        this.connTcp = jNum(conns, 'total') || jNum(conns, 'active');
+      }
       const degs: DegRow[] = [];
       const degArr = jArr(rt, 'degradations');
       if (degArr !== undefined) {
@@ -141,9 +175,11 @@ export struct HonkOverviewView {
           const row = new ObRow();
           row.name = jStr(o, 'name') || jStr(o, 'id');
           row.kind = jStr(o, 'kind') || jStr(o, 'type');
-          const st = jStr(o, 'state') || jStr(o, 'status');
-          const cc = jNum(o, 'connections');
-          row.note = (st !== '' ? st : '') + (cc > 0 ? ' · ' + cc : '');
+          const active = jNum(o, 'active_connections');
+          const up = jNum(o, 'upload_bytes');
+          const down = jNum(o, 'download_bytes');
+          row.note = (active > 0 ? active + ' conn' : '') +
+            (up + down > 0 ? ' · ↓' + fmtBytes(down) + ' ↑' + fmtBytes(up) : '');
           rows.push(row);
         }
       }
@@ -177,6 +213,20 @@ export struct HonkOverviewView {
         q.name = jStr(g, 'name');
         const sel = jObj(g, 'selection');
         q.currentId = sel !== undefined ? jStr(sel, 'tcp_member_id') : '';
+        // the list selection is the config value; the live one is in the
+        // group detail's runtime.selection (they diverge after a switch)
+        try {
+          const d = await api.nGroupDetail(q.id);
+          const rt = jObj(d, 'runtime');
+          const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
+          const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
+          const live = tcp !== undefined ? jStr(tcp, 'member_id') : '';
+          if (live !== '') {
+            q.currentId = live;
+          }
+        } catch (e) {
+          // keep the list value
+        }
         const nm = this.nameById.get(q.currentId);
         q.currentName = nm !== undefined ? nm : q.currentId;
         out.push(q);
@@ -414,17 +464,15 @@ export struct HonkOverviewView {
                     }
                     .layoutWeight(1)
                     .alignItems(HorizontalAlign.Start)
-                    Button(t('honk_switch'))
-                      .height(38)
-                      .fontSize(13)
-                      .fontColor(this.store.palette().onPrimary)
-                      .backgroundColor(this.store.palette().primary)
-                      .onClick(() => {
-                        this.openQs(g);
-                      })
+                    SymbolGlyph($r('sys.symbol.chevron_right'))
+                      .fontSize(16)
+                      .fontColor([this.store.palette().subtle])
                   }
                   .width('100%')
                   .padding({ top: 8, bottom: 8 })
+                  .onClick(() => {
+                    this.openQs(g);
+                  })
                 }, (g: QsGroup) => g.id)
               }
               .width('100%')

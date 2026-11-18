@@ -74,7 +74,7 @@ export const EN: Record<string, string> = {
   "wallpaper_updated": "Wallpaper updated",
   "wallpaper_read_failed": "Couldn't read this image",
   "op_reload": "Reload config",
-  "op_geo": "Update GEO databases",
+  "op_geo": "Update geodata",
   "op_fakeip": "Flush FakeIP cache",
   "op_dns": "Flush DNS cache",
   "op_upgrade": "Upgrade core",
