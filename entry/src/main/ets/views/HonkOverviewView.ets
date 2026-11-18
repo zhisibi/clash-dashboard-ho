@@ -704,20 +704,6 @@ export struct HonkOverviewView {
   }
 
   @Builder
-  statCell(title: string, value: string, color: string) {
-    Column() {
-      Text(title).fontSize(12).fontColor(this.store.palette().subtle)
-        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(value).fontSize(17).fontWeight(FontWeight.Medium)
-        .fontColor(color !== '' ? color : this.store.palette().text)
-        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        .margin({ top: 3 })
-    }
-    .layoutWeight(1)
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  @Builder
   kvCard(title: string, rows: KV[]) {
     Column() {
       Text(title).fontSize(16).fontWeight(FontWeight.Medium)
@@ -1015,21 +1001,102 @@ export struct HonkOverviewView {
             // status stats
             Column({ space: 14 }) {
               Row() {
-                this.statCell(t('upload'), fmtSpeed(this.rateUp > 0 ? this.rateUp : this.store.traffic.up), this.store.palette().upText)
-                this.statCell(t('download'), fmtSpeed(this.rateDown > 0 ? this.rateDown : this.store.traffic.down), this.store.palette().downText)
-                this.statCell(t('honk_conns'), (this.connTcp + this.connUdp).toString(), '')
+                Column() {
+                  Text(t('upload')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(fmtSpeed(this.rateUp > 0 ? this.rateUp : this.store.traffic.up)).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().upText)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column() {
+                  Text(t('download')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(fmtSpeed(this.rateDown > 0 ? this.rateDown : this.store.traffic.down)).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().downText)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column() {
+                  Text(t('honk_conns')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text((this.connTcp + this.connUdp).toString()).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
               }
               .width('100%')
               Row() {
-                this.statCell(t('honk_total_up'), fmtBytes(this.totalUpL > 0 ? this.totalUpL : this.store.connTotalUp), '')
-                this.statCell(t('honk_total_down'), fmtBytes(this.totalDownL > 0 ? this.totalDownL : this.store.connTotalDown), '')
-                this.statCell(t('honk_memory'), this.memBytes > 0 ? fmtBytes(this.memBytes) : (this.store.memory > 0 ? fmtBytes(this.store.memory) : '-'), '')
+                Column() {
+                  Text(t('honk_total_up')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(fmtBytes(this.totalUpL > 0 ? this.totalUpL : this.store.connTotalUp)).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column() {
+                  Text(t('honk_total_down')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(fmtBytes(this.totalDownL > 0 ? this.totalDownL : this.store.connTotalDown)).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column() {
+                  Text(t('honk_memory')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(this.memBytes > 0 ? fmtBytes(this.memBytes) : (this.store.memory > 0 ? fmtBytes(this.store.memory) : '-')).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
               }
               .width('100%')
               Row() {
-                this.statCell('CPU', this.cpuText, '')
-                this.statCell(t('honk_uptime'), this.uptimeSec > 0 ? fmtDuration(this.uptimeSec * 1000) : '-', '')
-                this.statCell(t('version'), this.store.version.replace('honk ', ''), '')
+                Column() {
+                  Text('CPU').fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(this.cpuText).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column() {
+                  Text(t('honk_uptime')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(this.uptimeSec > 0 ? fmtDuration(this.uptimeSec * 1000) : '-').fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column() {
+                  Text(t('version')).fontSize(12).fontColor(this.store.palette().subtle)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(this.store.version.replace('honk ', '')).fontSize(17).fontWeight(FontWeight.Medium)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
               }
               .width('100%')
               if (this.rtError.length > 0) {
