@@ -52,12 +52,6 @@ class QsGroup {
   currentName: string = '';
 }
 
-class QsMember {
-  id: string = '';
-  name: string = '';
-  kind: string = '';
-}
-
 /**
  * 1.5.0: honk-mode overview. Same information as the standalone Honk panel's
  * overview (runtime state, CPU, outbounds, degradations, quick node switch),
@@ -71,7 +65,6 @@ export struct HonkOverviewView {
   @Local headerH: number = headerGuess(1);
   private sc: Scroller = new Scroller();
   private timer: number = -1;
-  private busy: boolean = false;
   private watch: number = -1;
   private lastTab: number = -1;
   private lastBackendKey: string = '';
@@ -121,13 +114,13 @@ export struct HonkOverviewView {
   private latByName: Map<string, number> = new Map<string, number>();
 
   @Local qsGroups: QsGroup[] = [];
-  @Local showQs: boolean = false;
-  @Local qsTitle: string = '';
-  @Local qsMembers: QsMember[] = [];
-  @Local qsSelId: string = '';
-  @Local qsCanSelect: boolean = false;
-  @Local qsBusyId: string = '';
-  private qsGroupId: string = '';
+  @Local mode: string = 'rule';
+  @Local modeAvail: boolean = false;
+  @Local modeBusy: boolean = false;
+  private modeChecked: boolean = false;
+  private fastBusy: boolean = false;
+  private slowBusy: boolean = false;
+  private slowAt: number = 0;
   private nameById: Map<string, string> = new Map<string, string>();
 
   aboutToAppear(): void {
@@ -140,7 +133,7 @@ export struct HonkOverviewView {
       const key = this.store.active !== null ? this.store.active.id : '';
       if (key !== this.lastBackendKey) {
         this.lastBackendKey = key;
-        this.showQs = false;
+        this.modeChecked = false;
         this.loadExtras();
         return;
       }
@@ -168,10 +161,10 @@ export struct HonkOverviewView {
 
   private async loadExtras(): Promise<void> {
     const api = this.api();
-    if (api === null || this.busy || this.store.connState !== 'connected') {
+    if (api === null || this.fastBusy || this.store.connState !== 'connected') {
       return;
     }
-    this.busy = true;
+    this.fastBusy = true;
     try {
       const rt = await api.nRuntime('full');
       const life = jObj(rt, 'lifecycle');
@@ -281,8 +274,27 @@ export struct HonkOverviewView {
       }
       this.totalUpL = totUp;
       this.totalDownL = totDown;
+      // rates: prefer honk's own 1 s history samples (server-computed,
+      // the same source doona charts); the totals delta below is only a
+      // fallback for when the history recorder is off
+      let histOk = false;
+      try {
+        const hist = await api.nTrafficHistory(30, 30);
+        for (let i = hist.length - 1; i >= 0; i--) {
+          const up = jGet(hist[i], 'upload_bytes_per_second');
+          const down = jGet(hist[i], 'download_bytes_per_second');
+          if (up !== undefined && down !== undefined) {
+            this.rateUp = Math.max(0, Math.round(asNum(up)));
+            this.rateDown = Math.max(0, Math.round(asNum(down)));
+            histOk = true;
+            break;
+          }
+        }
+      } catch (e) {
+        // history disabled on this backend: fall through to deltas
+      }
       const nowMs = Date.now();
-      if (this.prevTotAt > 0 && nowMs > this.prevTotAt && this.prevTotUp >= 0) {
+      if (!histOk && this.prevTotAt > 0 && nowMs > this.prevTotAt && this.prevTotUp >= 0) {
         const dt = (nowMs - this.prevTotAt) / 1000;
         this.rateUp = Math.max(0, Math.round((totUp - this.prevTotUp) / dt));
         this.rateDown = Math.max(0, Math.round((totDown - this.prevTotDown) / dt));
@@ -317,15 +329,54 @@ export struct HonkOverviewView {
         activatedAt !== '' ? fmtClock(parseIsoMillis(activatedAt)) : '');
       this.sysStatusRows = sRows;
       await this.loadQs(api);
-      await this.loadNodesLat(api);
-      await this.loadGrpCur(api);
-      await this.loadMem(api);
-      await this.loadDns(api);
-      await this.loadStatic(api);
+      if (!this.modeChecked) {
+        this.modeChecked = true;
+        this.modeAvail = await api.nModeAvailable();
+      }
     } catch (e) {
       this.rtError = errMsg(e as Object);
     }
-    this.busy = false;
+    this.fastBusy = false;
+    // slow lane: heavy lists refresh at most every 12 s and never block
+    // the fast lane above (rates / quick-switch stay real-time)
+    if (!this.slowBusy && Date.now() - this.slowAt > 12000 &&
+      this.store.connState === 'connected') {
+      this.slowBusy = true;
+      this.slowAt = Date.now();
+      const api2 = this.api();
+      if (api2 !== null) {
+        try {
+          await this.loadNodesLat(api2);
+          await this.loadGrpCur(api2);
+          await this.loadMem(api2);
+          await this.loadDns(api2);
+          await this.loadStatic(api2);
+        } catch (e) {
+          // slow lane is best-effort
+        }
+      }
+      this.slowBusy = false;
+    }
+  }
+
+  private async setMode(m: string): Promise<void> {
+    const api = this.api();
+    if (api === null || this.modeBusy || m === this.mode) {
+      return;
+    }
+    if (!this.modeAvail) {
+      this.store.toast(t('honk_mode_unsupported'));
+      return;
+    }
+    this.modeBusy = true;
+    try {
+      await api.nSetMode(m);
+      this.mode = m;
+      this.store.toast(t('act_ok', t('honk_mode')));
+    } catch (e) {
+      this.store.toast(t('honk_mode_failed') + ': ' + errMsg(e as Object));
+    }
+    this.modeBusy = false;
   }
 
   private pushKv(rows: KV[], k: string, v: string): void {
@@ -649,60 +700,11 @@ export struct HonkOverviewView {
     }
   }
 
-  private async openQs(g: QsGroup): Promise<void> {
-    const api = this.api();
-    if (api === null) {
-      return;
-    }
-    this.qsGroupId = g.id;
-    this.qsTitle = g.name;
-    this.qsMembers = [];
-    this.qsSelId = '';
-    this.qsCanSelect = false;
-    this.showQs = true;
-    try {
-      const d = await api.nGroupDetail(g.id);
-      const members: QsMember[] = [];
-      const arr = jArr(d, 'members');
-      if (arr !== undefined) {
-        for (const e of arr) {
-          const m = e as JObj;
-          const row = new QsMember();
-          row.id = jStr(m, 'id');
-          row.name = jStr(m, 'name');
-          row.kind = jStr(m, 'kind');
-          members.push(row);
-        }
-      }
-      this.qsMembers = members;
-      const rt = jObj(d, 'runtime');
-      const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
-      const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
-      this.qsSelId = tcp !== undefined ? jStr(tcp, 'member_id') : '';
-      const caps = jObj(d, 'capabilities');
-      this.qsCanSelect = caps !== undefined &&
-        (caps['can_select'] === true || caps['can_override'] === true);
-    } catch (e) {
-      this.store.toast(errMsg(e as Object));
-    }
-  }
-
-  private async qsSelect(m: QsMember): Promise<void> {
-    const api = this.api();
-    if (api === null || this.qsBusyId !== '') {
-      return;
-    }
-    this.qsBusyId = m.id;
-    try {
-      await api.nSelect(this.qsGroupId, m.id);
-      this.store.toast(t('act_ok', t('honk_switch')));
-      this.showQs = false;
-      this.store.refreshProxies();
-      await this.loadQs(api);
-    } catch (e) {
-      this.store.toast(errMsg(e as Object));
-    }
-    this.qsBusyId = '';
+  /** Tapping a group on the outbound card jumps to the policy page with
+   * that group open; picking a member there returns here automatically. */
+  private jumpPick(g: QsGroup): void {
+    this.store.honkPickGroup = g.id;
+    this.store.tab = 1;
   }
 
   private latencyColor(ms: number): string {
@@ -743,61 +745,18 @@ export struct HonkOverviewView {
   }
 
   @Builder
-  qsSheet() {
-    Column() {
-      Text(this.qsTitle)
-        .fontSize(17)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.store.palette().text)
-        .margin({ top: 14, bottom: 4 })
-      if (!this.qsCanSelect && this.qsMembers.length > 0) {
-        Text(t('group_not_selectable', this.qsTitle))
-          .fontSize(13)
-          .fontColor(this.store.palette().warn)
-          .margin({ bottom: 6 })
-      }
-      List() {
-        ForEach(this.qsMembers, (m: QsMember) => {
-          ListItem() {
-            Row() {
-              Text(m.kind === 'group' ? t('honk_groups') : t('honk_nodes'))
-                .fontSize(10)
-                .fontColor(this.store.palette().subtle)
-                .backgroundColor(this.store.palette().chip)
-                .borderRadius(5)
-                .padding({ left: 5, right: 5, top: 1, bottom: 1 })
-              Text(m.name)
-                .fontSize(15)
-                .fontColor(this.store.palette().text)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .layoutWeight(1)
-                .margin({ left: 8 })
-              if (m.id === this.qsSelId) {
-                Text('●')
-                  .fontSize(13)
-                  .fontColor(this.store.palette().good)
-              } else if (this.qsBusyId === m.id) {
-                LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
-              }
-            }
-            .width('100%')
-            .padding({ top: 13, bottom: 13, left: 4, right: 4 })
-            .onClick(() => {
-              if (this.qsCanSelect && m.id !== this.qsSelId) {
-                this.qsSelect(m);
-              }
-            })
-          }
-        }, (m: QsMember) => m.id)
-      }
-      .layoutWeight(1)
-      .width('100%')
-      .divider({ strokeWidth: 0.5, color: this.store.palette().outlineVariant })
-    }
-    .width('100%')
-    .height('100%')
-    .padding({ left: 16, right: 16 })
+  modeChip(label: string, value: string) {
+    Text(label)
+      .fontSize(13)
+      .fontWeight(this.mode === value ? FontWeight.Medium : FontWeight.Normal)
+      .fontColor(this.mode === value ? this.store.palette().accent : this.store.palette().text)
+      .backgroundColor(this.mode === value ? this.store.palette().accentSoft : this.store.palette().chip)
+      .borderRadius(9)
+      .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+      .opacity(this.modeAvail ? 1 : 0.45)
+      .onClick(() => {
+        this.setMode(value);
+      })
   }
 
   @Builder
@@ -1152,10 +1111,11 @@ export struct HonkOverviewView {
             .borderRadius(18)
             .attributeModifier(this.store.glass('card'))
 
-            // quick switch
+            // outbound: tap a group to pick its node on the policy page;
+            // the mode row switches honk's runtime outbound mode
             if (this.qsGroups.length > 0) {
               Column() {
-                Text(t('honk_quick_switch')).fontSize(16).fontWeight(FontWeight.Medium)
+                Text(t('honk_outbounds')).fontSize(16).fontWeight(FontWeight.Medium)
                   .fontColor(this.store.palette().text)
                   .margin({ bottom: 6 })
                 ForEach(this.qsGroups, (g: QsGroup) => {
@@ -1176,29 +1136,37 @@ export struct HonkOverviewView {
                   .width('100%')
                   .padding({ top: 8, bottom: 8 })
                   .onClick(() => {
-                    this.openQs(g);
+                    this.jumpPick(g);
                   })
                 }, (g: QsGroup) => g.id)
+                Row({ space: 8 }) {
+                  Text(t('honk_mode')).fontSize(13).fontColor(this.store.palette().subtle)
+                  this.modeChip(t('honk_mode_rule'), 'rule')
+                  this.modeChip(t('honk_mode_global'), 'global')
+                  this.modeChip(t('honk_mode_direct'), 'direct')
+                  if (this.modeBusy) {
+                    LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
+                  }
+                }
+                .width('100%')
+                .margin({ top: 10 })
+                if (!this.modeAvail) {
+                  Text(t('honk_mode_unsupported')).fontSize(11)
+                    .fontColor(this.store.palette().subtle)
+                    .margin({ top: 6 })
+                }
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
               .padding(16)
               .borderRadius(18)
               .attributeModifier(this.store.glass('card'))
-              .bindSheet(this.showQs, this.qsSheet(), {
-                height: SheetSize.LARGE,
-                dragBar: true,
-                backgroundColor: this.store.palette().sheet,
-                onDisappear: () => {
-                  this.showQs = false;
-                }
-              })
             }
 
             // outbounds
             if (this.obs.length > 0) {
               Column() {
-                Text(t('honk_outbounds')).fontSize(16).fontWeight(FontWeight.Medium)
+                Text(t('honk_out_traffic')).fontSize(16).fontWeight(FontWeight.Medium)
                   .fontColor(this.store.palette().text)
                   .margin({ bottom: 6 })
                 ForEach(this.obs, (o: ObRow) => {

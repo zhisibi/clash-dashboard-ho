@@ -175,6 +175,11 @@ class HonkStream extends WsStream {
   }
 }
 
+interface SelPin {
+  memberId: string;
+  at: number;
+}
+
 interface RawResp {
   code: number;
   text: string;
@@ -193,6 +198,11 @@ export class HonkCoreApi extends CoreApi {
   private providerNameById: Map<string, string> = new Map<string, string>();
   private lastNodes: JObj[] = [];
   private mapsAt: number = 0;
+  // Selection pins: honk reports a fresh override lazily (peek_selection
+  // keeps returning the previously formed selection until the group
+  // re-forms it), so after a successful select we pin the member locally
+  // and rewrite group payloads until the server catches up (max 90 s).
+  private selPins: Map<string, SelPin> = new Map<string, SelPin>();
   private lastObUp: number = 0;
   private lastObDown: number = 0;
   private lastObAt: number = 0;
@@ -1005,11 +1015,69 @@ export class HonkCoreApi extends CoreApi {
   }
 
   async nGroups(): Promise<JObj[]> {
-    return this.hGroups();
+    const gs = await this.hGroups();
+    for (const g of gs) {
+      this.applyPinToListEntry(g);
+    }
+    return gs;
   }
 
   async nGroupDetail(id: string): Promise<JObj> {
-    return this.hObj('GET', '/groups/' + enc(id));
+    const d = await this.hObj('GET', '/groups/' + enc(id));
+    this.applyPinToDetail(id, d);
+    return d;
+  }
+
+  /** If a fresh local pin disagrees with the server detail, rewrite the
+   * reported selection so the UI shows the just-chosen member at once.
+   * When the server catches up, the pin clears itself. */
+  private applyPinToDetail(groupId: string, doc: JObj): void {
+    const pin = this.selPins.get(groupId);
+    if (pin === undefined) {
+      return;
+    }
+    if (Date.now() - pin.at > 90000) {
+      this.selPins.delete(groupId);
+      return;
+    }
+    const rt = jObj(doc, 'runtime');
+    const sel = rt !== undefined ? jObj(rt, 'selection') : undefined;
+    const tcp = sel !== undefined ? jObj(sel, 'tcp') : undefined;
+    if (tcp === undefined) {
+      return;
+    }
+    if (jStr(tcp, 'member_id') === pin.memberId) {
+      this.selPins.delete(groupId);
+      return;
+    }
+    tcp['member_id'] = pin.memberId;
+    tcp['source'] = 'override';
+    const udp = jObj(sel as JObj, 'udp');
+    if (udp !== undefined && jStr(udp, 'member_id') !== '') {
+      udp['member_id'] = pin.memberId;
+    }
+  }
+
+  private applyPinToListEntry(g: JObj): void {
+    const gid = jStr(g, 'id');
+    const pin = gid !== '' ? this.selPins.get(gid) : undefined;
+    if (pin === undefined) {
+      return;
+    }
+    if (Date.now() - pin.at > 90000) {
+      this.selPins.delete(gid);
+      return;
+    }
+    const sel = jObj(g, 'selection');
+    if (sel === undefined) {
+      return;
+    }
+    if (jStr(sel, 'tcp_member_id') === pin.memberId) {
+      this.selPins.delete(gid);
+      return;
+    }
+    sel['tcp_member_id'] = pin.memberId;
+    sel['udp_member_id'] = pin.memberId;
   }
 
   async nNodes(): Promise<JObj[]> {
@@ -1025,10 +1093,47 @@ export class HonkCoreApi extends CoreApi {
   async nSelect(groupId: string, memberId: string): Promise<void> {
     const body: JObj = { 'network': 'both', 'member_id': memberId };
     await this.hObj('PUT', '/groups/' + enc(groupId) + '/selection', JSON.stringify(body));
+    const pin: SelPin = { memberId: memberId, at: Date.now() };
+    this.selPins.set(groupId, pin);
   }
 
   async nClearSelection(groupId: string): Promise<void> {
     await this.hCall('DELETE', '/groups/' + enc(groupId) + '/selection', null, 15000);
+    this.selPins.delete(groupId);
+  }
+
+  /** Server-side 1 s traffic samples (rates precomputed by honk). */
+  async nTrafficHistory(windowSec: number, maxPoints: number): Promise<JObj[]> {
+    const r = await this.hObj('GET', '/runtime/traffic/history?window_seconds=' +
+      windowSec + '&max_points=' + maxPoints);
+    const s = r['samples'];
+    return Array.isArray(s) ? (s as Object[]).map((e: Object) => e as JObj) : [];
+  }
+
+  /** Runtime outbound mode. beta.6 stubs this route as unsupported; the
+   * capability flag in /capabilities (resources: runtime_mode) says so. */
+  async nModeAvailable(): Promise<boolean> {
+    try {
+      const caps = await this.nCapabilities();
+      const res = jObj(caps, 'resources');
+      if (res === undefined) {
+        return false;
+      }
+      for (const k of Object.keys(res)) {
+        if (k.indexOf('runtime_mode') >= 0) {
+          const v = jObj(res, k);
+          return v !== undefined && jGet(v, 'available') === true;
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async nSetMode(mode: string): Promise<void> {
+    const body: JObj = { 'mode': mode };
+    await this.hObj('PUT', '/x-honk/runtime/mode', JSON.stringify(body));
   }
 
   async nProbe(target: JObj): Promise<JObj> {

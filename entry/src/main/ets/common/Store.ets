@@ -227,6 +227,8 @@ export class Store {
 
   // ----- navigation -----
   @Trace tab: number = 0;
+  /** honk overview → policy jump: group id the policy page should open */
+  @Trace honkPickGroup: string = '';
   /** Open settings sub-page: '' | lang | backend | panel | proxy | conn | crash | about */
   @Trace settingsPage: string = '';
 

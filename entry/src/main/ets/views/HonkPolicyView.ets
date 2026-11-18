@@ -29,16 +29,6 @@ class MRow {
   current: boolean = false;
 }
 
-class NRow {
-  id: string = '';
-  name: string = '';
-  proto: string = '';
-  provider: string = '';
-  latency: number = -1;
-  alive: boolean = true;
-  state: string = 'unknown';
-}
-
 class PRow {
   id: string = '';
   name: string = '';
@@ -49,17 +39,6 @@ class PRow {
   error: string = '';
 }
 
-function healthState(health: Object[] | undefined): string {
-  if (health === undefined || health.length === 0) {
-    return 'unknown';
-  }
-  for (const e of health) {
-    if (jStr(e as JObj, 'state') === 'healthy') {
-      return 'ok';
-    }
-  }
-  return 'dead';
-}
 
 /** Flag emoji prefix of a node name (two regional indicators), '' if none */
 function flagOf(name: string): string {
@@ -75,25 +54,6 @@ function flagOf(name: string): string {
   return '';
 }
 
-function bestLatency(health: Object[] | undefined): number {
-  if (health === undefined) {
-    return -1;
-  }
-  let best = -1;
-  for (const e of health) {
-    const h = e as JObj;
-    if (jStr(h, 'state') === 'healthy') {
-      const v = jGet(h, 'latency_ms');
-      if (typeof v === 'number') {
-        const ms = v as number;
-        if (best < 0 || ms < best) {
-          best = ms;
-        }
-      }
-    }
-  }
-  return best;
-}
 
 /**
  * 1.5.0: honk-mode proxies page = the standalone Honk panel's policy page
@@ -109,7 +69,6 @@ export struct HonkPolicyView {
 
   @Local tab: number = 0;
   @Local groups: GRow[] = [];
-  @Local nodes: NRow[] = [];
   @Local providers: PRow[] = [];
   @Local loadError: string = '';
   @Local busyKey: string = '';
@@ -120,7 +79,6 @@ export struct HonkPolicyView {
   @Local detailSelId: string = '';
   @Local detailCanSelect: boolean = false;
 
-  @Local nodeQuery: string = '';
   @Local probeDone: number = 0;
   @Local probeTotal: number = 0;
   @Local groupProbeId: string = '';
@@ -131,10 +89,9 @@ export struct HonkPolicyView {
   @Local mSort: number = 0;
   @Local mOnlyAvail: boolean = false;
   @Local detailPinned: boolean = false;
-  @Local nSort: number = 0;
-  @Local nOnlyAvail: boolean = false;
-  @Local exitNodeId: string = '';
   @Local updatedOkId: string = '';
+  /** opened from the overview outbound card: return there after a pick */
+  @Local pickReturn: boolean = false;
 
   private nameById: Map<string, string> = new Map<string, string>();
   private loaded: boolean = false;
@@ -163,6 +120,9 @@ export struct HonkPolicyView {
   }
 
   private watchTick(): void {
+    if (this.store.tab === 1) {
+      this.consumePick();
+    }
     const key = this.store.active !== null ? this.store.active.id : '';
     if (key !== this.lastBackendKey) {
       this.lastBackendKey = key;
@@ -184,6 +144,27 @@ export struct HonkPolicyView {
       this.loadAll();
       this.refreshOpenDetail();
     }
+  }
+
+  /** Overview outbound card jump: open the requested group so the user
+   * can pick a member; a successful pick returns to the overview. */
+  private consumePick(): void {
+    const gid = this.store.honkPickGroup;
+    if (gid === '') {
+      return;
+    }
+    for (const g of this.groups) {
+      if (g.id === gid) {
+        this.store.honkPickGroup = '';
+        this.pickReturn = true;
+        this.tab = 0;
+        if (this.openGroupId !== gid) {
+          this.toggleGroup(g);
+        }
+        return;
+      }
+    }
+    // groups not loaded yet: keep the request for the next tick
   }
 
   private refreshOpenDetail(): void {
@@ -223,10 +204,6 @@ export struct HonkPolicyView {
       for (const g of gs) {
         map.set(jStr(g, 'id'), jStr(g, 'name'));
       }
-      const provName = new Map<string, string>();
-      for (const p of ps) {
-        provName.set(jStr(p, 'id'), jStr(p, 'name'));
-      }
       this.nameById = map;
       const grows: GRow[] = [];
       for (const g of gs) {
@@ -242,9 +219,8 @@ export struct HonkPolicyView {
         grows.push(r);
       }
       this.groups = grows;
-      // current exit node: the live runtime selection of selector groups
-      // (list selection is the config value and goes stale after a switch)
-      let exitId = '';
+      // group card selection label: the live runtime selection (the list
+      // selection is the config value and goes stale after a switch)
       for (const g of grows) {
         if (g.kind !== 'selector') {
           continue;
@@ -262,31 +238,11 @@ export struct HonkPolicyView {
                 gr.selName = nm;
               }
             }
-            if (exitId === '') {
-              exitId = live;
-            }
           }
         } catch (e) {
           // keep list values
         }
       }
-      if (exitId !== '') {
-        this.exitNodeId = exitId;
-      }
-      const nrows: NRow[] = [];
-      for (const n of ns) {
-        const r = new NRow();
-        r.id = jStr(n, 'id');
-        r.name = jStr(n, 'name');
-        r.proto = jStr(n, 'protocol') || jStr(n, 'type');
-        const pn = provName.get(jStr(n, 'provider_id'));
-        r.provider = pn !== undefined ? pn : '';
-        r.latency = bestLatency(jArr(n, 'health'));
-        r.state = healthState(jArr(n, 'health'));
-        r.alive = r.state !== 'dead';
-        nrows.push(r);
-      }
-      this.nodes = nrows;
       const prows: PRow[] = [];
       for (const p of ps) {
         const r = new PRow();
@@ -411,6 +367,24 @@ export struct HonkPolicyView {
     }
   }
 
+  /** Tap a member's latency: re-probe just that member. */
+  private async probeMember(g: GRow, m: MRow): Promise<void> {
+    const api = this.api();
+    if (api === null || this.busyKey !== '') {
+      return;
+    }
+    this.busyKey = 'probe_' + m.id;
+    try {
+      const target: JObj = m.kind === 'group' ?
+        { 'type': 'group', 'group_id': m.id } : { 'type': 'node', 'node_id': m.id };
+      await api.nProbe(target);
+      await this.loadDetail(g);
+    } catch (e) {
+      this.store.toast(errMsg(e as Object));
+    }
+    this.busyKey = '';
+  }
+
   private async selectMember(gid: string, m: MRow): Promise<void> {
     const api = this.api();
     if (api === null || this.busyKey !== '') {
@@ -439,6 +413,10 @@ export struct HonkPolicyView {
       this.members = rows;
       this.store.refreshProxies();
       await this.loadAll();
+      if (this.pickReturn) {
+        this.pickReturn = false;
+        this.store.tab = 0;
+      }
     } catch (e) {
       this.store.toast(errMsg(e as Object));
     }
@@ -499,135 +477,6 @@ export struct HonkPolicyView {
     }
     this.busyKey = '';
     this.groupProbeId = '';
-  }
-
-  private async probeNode(n: NRow): Promise<void> {
-    const api = this.api();
-    if (api === null || this.busyKey !== '') {
-      return;
-    }
-    this.busyKey = 'probe_' + n.id;
-    try {
-      const target: JObj = { 'type': 'node', 'node_id': n.id };
-      await api.nProbe(target);
-      await this.loadAll();
-    } catch (e) {
-      this.store.toast(errMsg(e as Object));
-    }
-    this.busyKey = '';
-  }
-
-  private async probeAll(): Promise<void> {
-    const api = this.api();
-    if (api === null || this.busyKey !== '') {
-      return;
-    }
-    // probe every node regardless of the sort / hide-unavailable display
-    // filters (a hidden dead node must stay re-probeable); the search
-    // query still scopes the run
-    const q = this.nodeQuery.trim().toLowerCase();
-    const targets = this.nodes.filter((n: NRow) => n.name !== 'direct' && n.name !== 'block' &&
-      (q === '' || n.name.toLowerCase().indexOf(q) >= 0));
-    if (targets.length === 0) {
-      return;
-    }
-    this.busyKey = 'probe_all';
-    this.probeDone = 0;
-    this.probeTotal = targets.length;
-    const BATCH = 6;
-    for (let i = 0; i < targets.length; i += BATCH) {
-      const batch = targets.slice(i, i + BATCH);
-      const jobs: Promise<void>[] = [];
-      for (const n of batch) {
-        const target: JObj = { 'type': 'node', 'node_id': n.id };
-        jobs.push(api.nProbe(target).then(() => {
-        }).catch(() => {
-        }));
-      }
-      await Promise.all(jobs);
-      this.probeDone = Math.min(targets.length, i + BATCH);
-      await this.loadAll();
-    }
-    this.busyKey = '';
-    this.store.toast(t('act_ok', t('honk_test_all')));
-  }
-
-  /** Tap a node: switch it as the exit of the first selectable group that
-   * contains it (honk selection is per-group; there is no global switch) */
-  private async switchNode(n: NRow): Promise<void> {
-    const api = this.api();
-    if (api === null || this.busyKey !== '' || n.id === this.exitNodeId) {
-      return;
-    }
-    this.busyKey = 'switch_' + n.id;
-    try {
-      let done = false;
-      for (const g of this.groups) {
-        if (g.kind !== 'selector') {
-          continue;
-        }
-        const d = await api.nGroupDetail(g.id);
-        const caps = jObj(d, 'capabilities');
-        const can = caps !== undefined && (caps['can_select'] === true || caps['can_override'] === true);
-        if (!can) {
-          continue;
-        }
-        const arr = jArr(d, 'members');
-        if (arr === undefined) {
-          continue;
-        }
-        let contains = false;
-        for (const e of arr) {
-          if (jStr(e as JObj, 'id') === n.id) {
-            contains = true;
-            break;
-          }
-        }
-        if (!contains) {
-          continue;
-        }
-        await api.nSelect(g.id, n.id);
-        done = true;
-        break;
-      }
-      if (done) {
-        this.exitNodeId = n.id;
-        this.store.toast(t('act_ok', t('honk_switch')));
-        this.store.refreshProxies();
-        await this.loadAll();
-      } else {
-        this.store.toast(t('honk_no_group'));
-      }
-    } catch (e) {
-      this.store.toast(errMsg(e as Object));
-    }
-    this.busyKey = '';
-  }
-
-  private visibleNodes(): NRow[] {
-    let rows = this.nodes.slice();
-    const q = this.nodeQuery.trim().toLowerCase();
-    if (q !== '') {
-      rows = rows.filter((n: NRow) => n.name.toLowerCase().indexOf(q) >= 0);
-    }
-    if (this.nOnlyAvail) {
-      rows = rows.filter((n: NRow) => n.state !== 'dead');
-    }
-    if (this.nSort === 1) {
-      rows.sort((a: NRow, b: NRow) => {
-        const ra = a.state === 'ok' ? 0 : (a.state === 'unknown' ? 1 : 2);
-        const rb = b.state === 'ok' ? 0 : (b.state === 'unknown' ? 1 : 2);
-        if (ra !== rb) {
-          return ra - rb;
-        }
-        const la = a.latency >= 0 ? a.latency : 1000000000;
-        const lb = b.latency >= 0 ? b.latency : 1000000000;
-        return la - lb;
-      });
-    } else if (this.nSort === 2) {
-      rows.sort((a: NRow, b: NRow) => a.name.localeCompare(b.name));
-    }
-    return rows;
   }
 
   private effLatency(m: MRow): number {
@@ -705,16 +554,6 @@ export struct HonkPolicyView {
       rows.sort((a: MRow, b: MRow) => a.name.localeCompare(b.name));
     }
     return rows;
-  }
-
-  private nodeCountState(state: string): number {
-    let n = 0;
-    for (const r of this.nodes) {
-      if (r.state === state) {
-        n++;
-      }
-    }
-    return n;
   }
 
   private countState(rows: MRow[], state: string): number {
@@ -995,12 +834,10 @@ export struct HonkPolicyView {
 
               ForEach(this.visibleMembers(), (m: MRow) => {
                 Row() {
-                  Text(m.kind === 'group' ? t('honk_groups') : t('honk_nodes'))
+                  Text('●')
                     .fontSize(10)
-                    .fontColor(this.store.palette().subtle)
-                    .backgroundColor(this.store.palette().chip)
-                    .borderRadius(5)
-                    .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+                    .fontColor(this.effState(m) === 'ok' ? this.store.palette().good :
+                      (this.effState(m) === 'dead' ? this.store.palette().bad : this.store.palette().subtle))
                   Text(m.name)
                     .fontSize(14)
                     .fontColor(this.effState(m) === 'dead' ? this.store.palette().subtle : this.store.palette().text)
@@ -1008,11 +845,25 @@ export struct HonkPolicyView {
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .layoutWeight(1)
                     .margin({ left: 8 })
+                  if (m.kind === 'group') {
+                    Text(t('honk_groups'))
+                      .fontSize(10)
+                      .fontColor(this.store.palette().subtle)
+                      .backgroundColor(this.store.palette().chip)
+                      .borderRadius(5)
+                      .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+                      .margin({ right: 8 })
+                  }
                   if (this.effLatency(m) >= 0) {
                     Text(this.effLatency(m).toString() + ' ms')
                       .fontSize(12)
                       .fontColor(this.latencyColor(this.effLatency(m)))
                       .margin({ right: 8 })
+                      .onClick(() => {
+                        if (this.busyKey === '') {
+                          this.probeMember(g, m);
+                        }
+                      })
                   } else if (this.effState(m) === 'dead') {
                     Text(t('honk_timeout'))
                       .fontSize(12)
@@ -1026,7 +877,10 @@ export struct HonkPolicyView {
                   }
                 }
                 .width('100%')
-                .padding({ top: 11, bottom: 11 })
+                .padding({ left: 12, right: 12, top: 12, bottom: 12 })
+                .borderRadius(14)
+                .backgroundColor(m.current ? this.store.palette().accentSoft : this.store.palette().chip)
+                .margin({ bottom: 8 })
                 .onClick(() => {
                   if (this.detailCanSelect && !m.current) {
                     this.selectMember(g.id, m);
@@ -1049,158 +903,6 @@ export struct HonkPolicyView {
         .borderRadius(18)
         .attributeModifier(this.store.glass('card'))
       }, (g: GRow) => g.id)
-    }
-    .width('100%')
-  }
-
-  @Builder
-  nodesSection() {
-    Column({ space: 12 }) {
-      Row({ space: 8 }) {
-        TextInput({ text: this.nodeQuery, placeholder: t('search') })
-          .layoutWeight(1)
-          .height(42)
-          .fontSize(14)
-          .fontColor(this.store.palette().text)
-          .placeholderColor(this.store.palette().subtle)
-          .backgroundColor(this.store.palette().chip)
-          .borderRadius(12)
-          .onChange((v: string) => {
-            this.nodeQuery = v;
-          })
-        Button(t('honk_test_all'))
-          .height(42)
-          .fontSize(13)
-          .fontColor(this.store.palette().text)
-          .backgroundColor(this.store.palette().chip)
-          .onClick(() => {
-            this.probeAll();
-          })
-      }
-      .width('100%')
-
-      Row({ space: 14 }) {
-        Row({ space: 4 }) {
-          Text('●').fontSize(10).fontColor(this.store.palette().good)
-          Text(t('honk_avail', this.nodeCountState('ok').toString()))
-            .fontSize(12).fontColor(this.store.palette().subtle)
-        }
-        Row({ space: 4 }) {
-          Text('●').fontSize(10).fontColor(this.store.palette().bad)
-          Text(t('honk_dead', this.nodeCountState('dead').toString()))
-            .fontSize(12).fontColor(this.store.palette().subtle)
-        }
-        Row({ space: 4 }) {
-          Text('●').fontSize(10).fontColor(this.store.palette().subtle)
-          Text(t('honk_untested', this.nodeCountState('unknown').toString()))
-            .fontSize(12).fontColor(this.store.palette().subtle)
-        }
-      }
-      .width('100%')
-
-      Row({ space: 8 }) {
-        Text(t('honk_sort')).fontSize(13).fontColor(this.store.palette().subtle)
-        Select(this.sortOptions())
-          .selected(this.nSort)
-          .value(t('honk_sort_default'))
-          .font({ size: 13 })
-          .fontColor(this.store.palette().text)
-          .height(38)
-          .onSelect((idx: number) => {
-            this.nSort = idx;
-          })
-        Blank()
-        Toggle({ type: ToggleType.Switch, isOn: this.nOnlyAvail })
-          .selectedColor(this.store.palette().accentUi)
-          .onChange((on: boolean) => {
-            this.nOnlyAvail = on;
-          })
-        Text(t('honk_only_avail')).fontSize(13).fontColor(this.store.palette().text)
-      }
-      .width('100%')
-
-      if (this.busyKey === 'probe_all') {
-        Column() {
-          Row() {
-            Text(t('honk_probe')).fontSize(12).fontColor(this.store.palette().subtle)
-              .layoutWeight(1)
-            Text(this.probeDone.toString() + ' / ' + this.probeTotal.toString())
-              .fontSize(12)
-              .fontColor(this.store.palette().subtle)
-          }
-          .width('100%')
-          Progress({
-            value: this.probeDone,
-            total: Math.max(1, this.probeTotal),
-            type: ProgressType.Linear
-          })
-            .color(this.store.palette().accentUi)
-            .backgroundColor(this.store.palette().chip)
-            .style({ strokeWidth: 5 })
-            .width('100%')
-            .margin({ top: 4 })
-        }
-        .width('100%')
-      }
-
-      ForEach(this.visibleNodes(), (n: NRow) => {
-        Row() {
-          Column() {
-            Row({ space: 6 }) {
-              Text('●')
-                .fontSize(11)
-                .fontColor(n.state === 'ok' ? this.store.palette().good :
-                  (n.state === 'dead' ? this.store.palette().bad : this.store.palette().subtle))
-              Text(n.name)
-                .fontSize(15)
-                .fontColor(this.store.palette().text)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-            }
-            Text((n.proto !== '' ? n.proto : '') + (n.provider !== '' ? ' · ' + n.provider : ''))
-              .fontSize(12)
-              .fontColor(this.store.palette().subtle)
-              .maxLines(1)
-              .margin({ top: 3 })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          .onClick(() => {
-            this.switchNode(n);
-          })
-          if (this.busyKey === 'probe_' + n.id || this.busyKey === 'switch_' + n.id) {
-            LoadingProgress().width(20).height(20).color(this.store.palette().accentUi)
-          } else {
-            if (n.latency >= 0) {
-              Text(n.latency.toString() + ' ms')
-                .fontSize(13)
-                .fontColor(this.latencyColor(n.latency))
-                .padding({ left: 6, right: 6, top: 8, bottom: 8 })
-                .onClick(() => {
-                  this.probeNode(n);
-                })
-            } else {
-              Text(t('honk_probe'))
-                .fontSize(13)
-                .fontColor(this.store.palette().accent)
-                .padding({ left: 6, right: 6, top: 8, bottom: 8 })
-                .onClick(() => {
-                  this.probeNode(n);
-                })
-            }
-            if (n.id === this.exitNodeId) {
-              Row() {
-                this.radioMark()
-              }
-              .margin({ left: 4 })
-            }
-          }
-        }
-        .width('100%')
-        .padding(14)
-        .borderRadius(18)
-        .attributeModifier(this.store.glass('card'))
-      }, (n: NRow) => n.id)
     }
     .width('100%')
   }
@@ -1288,7 +990,7 @@ export struct HonkPolicyView {
         Column({ space: 12 }) {
           SegTabs({
             pal: this.store.palette(),
-            items: [t('honk_groups'), t('honk_nodes'), t('honk_providers')],
+            items: [t('honk_groups'), t('honk_providers')],
             selected: this.tab,
             onSelect: (i: number) => {
               this.tab = i;
@@ -1299,8 +1001,6 @@ export struct HonkPolicyView {
           }
           if (this.tab === 0) {
             this.groupsSection()
-          } else if (this.tab === 1) {
-            this.nodesSection()
           } else {
             this.providersSection()
           }
