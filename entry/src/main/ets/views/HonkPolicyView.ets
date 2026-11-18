@@ -423,6 +423,35 @@ export struct HonkPolicyView {
     this.busyKey = '';
   }
 
+  /** Clear a manual override on an auto-policy group: honk falls back
+   * to its own automatic pick; reload the detail so the check lands on
+   * the auto-picked member right away. */
+  private async clearOverride(g: GRow): Promise<void> {
+    const api = this.api();
+    if (api === null || this.busyKey !== '') {
+      return;
+    }
+    this.busyKey = 'clear_' + g.id;
+    try {
+      await api.nClearSelection(g.id);
+      this.detailPinned = false;
+      this.store.toast(t('act_ok', t('honk_clear_override')));
+      this.store.refreshProxies();
+      // honk re-forms the automatic selection asynchronously; give it a
+      // beat before reading the detail back
+      await new Promise<void>((resolve: () => void) => {
+        setTimeout(() => {
+          resolve();
+        }, 700);
+      });
+      await this.loadDetail(g);
+      await this.loadAll();
+    } catch (e) {
+      this.store.toast(errMsg(e as Object));
+    }
+    this.busyKey = '';
+  }
+
   private async probeGroup(g: GRow): Promise<void> {
     const api = this.api();
     if (api === null || this.busyKey !== '') {
@@ -640,13 +669,6 @@ export struct HonkPolicyView {
                   .borderRadius(5)
                   .padding({ left: 5, right: 5, top: 1, bottom: 1 })
               }
-              Text(t('honk_member_count', g.memberCount.toString()) +
-                (g.selName !== '' ? ' · ' + g.selName : ''))
-                .fontSize(12)
-                .fontColor(this.store.palette().good)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .margin({ top: 3 })
             }
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
@@ -701,21 +723,13 @@ export struct HonkPolicyView {
 
           if (this.openGroupId === g.id) {
             Column() {
-              if (this.detailCanSelect) {
+              if (this.detailCanSelect && g.kind !== 'selector' && this.detailPinned) {
                 Text(t('honk_clear_override'))
                   .fontSize(13)
                   .fontColor(this.store.palette().accent)
                   .padding({ top: 8, bottom: 4 })
                   .onClick(() => {
-                    const api = this.api();
-                    if (api !== null) {
-                      api.nClearSelection(g.id).then(() => {
-                        this.store.toast(t('act_ok', t('honk_clear_override')));
-                        this.loadAll();
-                      }).catch((e: Object) => {
-                        this.store.toast(errMsg(e));
-                      });
-                    }
+                    this.clearOverride(g);
                   })
               }
               Row({ space: 14 }) {
@@ -872,21 +886,21 @@ export struct HonkPolicyView {
                   }
                   if (this.busyKey === 'sel_' + m.id) {
                     LoadingProgress().width(16).height(16).color(this.store.palette().accentUi)
-                  } else if (m.current) {
+                  } else if (m.id === this.detailSelId) {
                     this.radioMark()
                   }
                 }
                 .width('100%')
                 .padding({ left: 12, right: 12, top: 12, bottom: 12 })
                 .borderRadius(14)
-                .backgroundColor(m.current ? this.store.palette().accentSoft : this.store.palette().chip)
+                .backgroundColor(m.id === this.detailSelId ? this.store.palette().accentSoft : this.store.palette().chip)
                 .margin({ bottom: 8 })
                 .onClick(() => {
-                  if (this.detailCanSelect && !m.current) {
+                  if (this.detailCanSelect && m.id !== this.detailSelId) {
                     this.selectMember(g.id, m);
                   }
                 })
-              }, (m: MRow) => m.id)
+              }, (m: MRow) => m.id + (m.id === this.detailSelId ? ':c' : ''))
 
               Text(t('honk_members_dead', this.members.length.toString(),
                 this.countState(this.members, 'dead').toString()))

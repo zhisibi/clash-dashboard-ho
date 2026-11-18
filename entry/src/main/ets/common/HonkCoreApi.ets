@@ -27,6 +27,15 @@ import {
   asNum, asObj, jArr, jBool, jGet, jNum, jObj, jStr, parseIsoMillis, parseJson, parseJsonObj
 } from './Models';
 import { ApiError, CoreApi, VersionInfo, WsStream } from './CoreApi';
+import { readModeTarget, writeModeTarget } from './DaeMode';
+
+/** Outbound-mode state read from the main config source. */
+export class HonkModeState {
+  /** '' = auto (authored rules decide); otherwise the group all traffic is forced to ('direct' possible). */
+  target: string = '';
+  /** True when the main source can be written (mode switching available). */
+  writable: boolean = false;
+}
 
 function enc(s: string): string {
   return encodeURIComponent(s);
@@ -213,13 +222,19 @@ export class HonkCoreApi extends CoreApi {
 
   // ---------------- transport ----------------
 
-  private async raw(method: string, url: string, body: string | null, timeoutMs: number): Promise<RawResp> {
+  private async raw(method: string, url: string, body: string | null, timeoutMs: number,
+    extraHeaders: Record<string, string> | null = null): Promise<RawResp> {
     const headers: Record<string, string> = {};
     if (this.token.length > 0) {
       headers['Authorization'] = 'Bearer ' + this.token;
     }
     if (body !== null) {
       headers['Content-Type'] = 'application/json';
+    }
+    if (extraHeaders !== null) {
+      for (const k of Object.keys(extraHeaders)) {
+        headers[k] = extraHeaders[k];
+      }
     }
     const req = http.createHttp();
     try {
@@ -265,14 +280,15 @@ export class HonkCoreApi extends CoreApi {
   }
 
   /** One honk API call with session handling: logs in when needed, re-logins once on 401. */
-  private async hCall(method: string, path: string, body: string | null, timeoutMs: number): Promise<RawResp> {
+  private async hCall(method: string, path: string, body: string | null, timeoutMs: number,
+    extraHeaders: Record<string, string> | null = null): Promise<RawResp> {
     await this.ensureSession();
-    let r = await this.raw(method, this.base() + '/api/v1' + path, body, timeoutMs);
+    let r = await this.raw(method, this.base() + '/api/v1' + path, body, timeoutMs, extraHeaders);
     if (r.code === 401 && this.backend.honkAuth === 'password') {
       this.token = '';
       this.tokenExpMs = 0;
       await this.ensureSession();
-      r = await this.raw(method, this.base() + '/api/v1' + path, body, timeoutMs);
+      r = await this.raw(method, this.base() + '/api/v1' + path, body, timeoutMs, extraHeaders);
     }
     if (r.code < 200 || r.code >= 300) {
       throw HonkCoreApi.toError(r);
@@ -1128,6 +1144,116 @@ export class HonkCoreApi extends CoreApi {
     const done = await this.waitOp(jStr(op, 'operation_id'), 60000);
     this.mapsAt = 0;
     return done;
+  }
+
+  // ---------------- config outbound mode (catch-all rule) ----------------
+  // The overview outbound card's real traffic switch, doona's mechanism:
+  // a marked catch-all rule in the main source's routing block forces all
+  // traffic to one group; removing it restores the authored rules (auto).
+  // Writes are If-Match guarded, fully validated before they are stored,
+  // and the PUT itself activates + reloads on the server side.
+
+  async nConfigSources(): Promise<JObj[]> {
+    const r = await this.hObj('GET', '/config');
+    return arrOf(r, 'sources');
+  }
+
+  /** The main config source with full content (falls back to the
+   * single-source read when the list copy is missing or redacted). */
+  private async mainConfigSource(): Promise<JObj | null> {
+    const sources = await this.nConfigSources();
+    let main: JObj | undefined = undefined;
+    for (const s of sources) {
+      if (jStr(s, 'kind') === 'main') {
+        main = s;
+        break;
+      }
+    }
+    if (main === undefined && sources.length > 0) {
+      main = sources[0];
+    }
+    if (main === undefined) {
+      return null;
+    }
+    const content = jStr(main, 'content');
+    if (content === '' || content.indexOf('<redacted>') >= 0) {
+      try {
+        const one = await this.hObj('GET', '/config/sources/' + enc(jStr(main, 'id')));
+        if (jStr(one, 'content') !== '') {
+          main = one;
+        }
+      } catch (e) {
+        // keep the list copy
+      }
+    }
+    return main;
+  }
+
+  async nModeState(): Promise<HonkModeState> {
+    const st = new HonkModeState();
+    const main = await this.mainConfigSource();
+    if (main === null) {
+      return st;
+    }
+    const content = jStr(main, 'content');
+    st.writable = jBool(main, 'writable', false) && content !== '' &&
+      content.indexOf('<redacted>') < 0;
+    st.target = content !== '' ? readModeTarget(content) : '';
+    return st;
+  }
+
+  /** Set the catch-all target ('' removes it = back to auto). */
+  async nSetModeTarget(target: string): Promise<void> {
+    const main = await this.mainConfigSource();
+    if (main === null) {
+      throw new ApiError(0, 'no config source');
+    }
+    if (!jBool(main, 'writable', false)) {
+      throw new ApiError(0, 'config is read-only');
+    }
+    const content = jStr(main, 'content');
+    if (content === '' || content.indexOf('<redacted>') >= 0) {
+      throw new ApiError(0, 'config content is redacted');
+    }
+    const w = writeModeTarget(content, target);
+    if (!w.ok) {
+      throw new ApiError(0, w.error);
+    }
+    if (w.text === content) {
+      return;
+    }
+    // full validation before anything is written
+    const src: JObj = { 'id': jStr(main, 'id'), 'path': jStr(main, 'path'), 'content': w.text };
+    const vBody: JObj = { 'mode': 'full', 'sources': [src] };
+    const v = await this.hObj('POST', '/config/validate', JSON.stringify(vBody), 60000);
+    if (!jBool(v, 'valid', false)) {
+      let msg = '';
+      const diags = jArr(v, 'diagnostics');
+      if (diags !== undefined) {
+        for (const e of diags) {
+          const m = jStr(e as JObj, 'message');
+          if (m !== '') {
+            msg = m;
+            break;
+          }
+        }
+      }
+      throw new ApiError(0, 'config validation failed' + (msg !== '' ? ': ' + msg : ''));
+    }
+    const headers: Record<string, string> = {};
+    const sha = jStr(main, 'content_sha256');
+    if (sha !== '') {
+      headers['If-Match'] = '"' + sha + '"';
+    }
+    const body: JObj = { 'content': w.text };
+    const r = await this.hCall('PUT', '/config/sources/' + enc(jStr(main, 'id')),
+      JSON.stringify(body), 60000, headers);
+    const op = parseJsonObj(r.text);
+    const opId = jStr(op, 'operation_id');
+    if (opId !== '') {
+      await this.waitOp(opId, 120000);
+    }
+    this.mapsAt = 0;
   }
 
   async nDnsQuery(domain: string, types: string[], cacheMode: string): Promise<JObj> {

@@ -114,11 +114,14 @@ export struct HonkOverviewView {
   private latByName: Map<string, number> = new Map<string, number>();
 
   @Local qsGroups: QsGroup[] = [];
-  @Local qsRootId: string = '';
   @Local qsSelId: string = '';
   @Local qsLeafName: string = '';
   @Local qsBusy: boolean = false;
-  private qsRootSel: string = '';
+  /** Outbound mode from the config catch-all: '' = auto, else the group
+   * name all traffic is forced to. Mirrors doona's activity card. */
+  @Local qsModeTarget: string = '';
+  @Local qsModeWritable: boolean = false;
+  private modeLoadedAt: number = 0;
   private fastBusy: boolean = false;
   private slowBusy: boolean = false;
   private slowAt: number = 0;
@@ -662,53 +665,18 @@ export struct HonkOverviewView {
       if (latMap.size > 0) {
         this.latByName = latMap;
       }
-      // fetch every group's detail: members build the hierarchy and the
-      // runtime selection gives the live leaf node
+      // fetch every group's detail: the runtime selection gives the
+      // live leaf node each group currently exits through
       const details = new Map<string, JObj>();
-      const parentOf = new Map<string, string>();
-      const groupMembers = new Map<string, string[]>();
       for (const g of groups) {
         const gid = jStr(g, 'id');
         try {
           const d = await api.nGroupDetail(gid);
           details.set(gid, d);
-          const gms: string[] = [];
-          const arr = jArr(d, 'members');
-          if (arr !== undefined) {
-            for (const e of arr) {
-              const m = e as JObj;
-              if (jStr(m, 'kind') === 'group') {
-                gms.push(jStr(m, 'id'));
-                parentOf.set(jStr(m, 'id'), gid);
-              }
-            }
-          }
-          groupMembers.set(gid, gms);
         } catch (e) {
           // detail is best-effort per group
         }
       }
-      // root: a group holding other groups that is itself nobody's member
-      let rootId = '';
-      for (const g of groups) {
-        const gid = jStr(g, 'id');
-        const gms = groupMembers.get(gid);
-        if (gms !== undefined && gms.length > 0 && !parentOf.has(gid)) {
-          rootId = gid;
-          break;
-        }
-      }
-      this.qsRootId = rootId;
-      const selOf = (gid: string): string => {
-        const d = details.get(gid);
-        if (d === undefined) {
-          return '';
-        }
-        const rt = jObj(d, 'runtime');
-        const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
-        const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
-        return tcp !== undefined ? jStr(tcp, 'member_id') : '';
-      };
       const leafOf = (gid: string): string => {
         let cur = gid;
         for (let hop = 0; hop < 4; hop++) {
@@ -738,29 +706,11 @@ export struct HonkOverviewView {
         }
         return cur;
       };
-      // dropdown options: the root's sub-groups, or (flat configs) all
-      // selector groups as before
-      const optIds: string[] = [];
-      if (rootId !== '') {
-        const gms = groupMembers.get(rootId);
-        if (gms !== undefined) {
-          for (const mid of gms) {
-            optIds.push(mid);
-          }
-        }
-        this.qsRootSel = selOf(rootId);
-      }
-      if (optIds.length === 0) {
-        for (const g of groups) {
-          const pol = jObj(g, 'policy');
-          const kind = pol !== undefined ? (jStr(pol, 'kind') || jStr(pol, 'native')) : '';
-          if (kind === 'selector') {
-            optIds.push(jStr(g, 'id'));
-          }
-        }
-      }
+      // dropdown options: every group from the API (doona-style), the
+      // synthetic Auto entry is added by qsOptionsSel()
       const out: QsGroup[] = [];
-      for (const gid of optIds) {
+      for (const g of groups) {
+        const gid = jStr(g, 'id');
         const q = new QsGroup();
         q.id = gid;
         const nm = map.get(gid);
@@ -772,27 +722,56 @@ export struct HonkOverviewView {
         out.push(q);
       }
       this.qsGroups = out;
-      // selection: keep the user's pick while it exists; else follow the
-      // root's live selection; else the first option
-      let sel = '';
-      for (const q of out) {
-        if (q.id === this.qsSelId) {
-          sel = q.id;
+      // outbound mode from the config catch-all (the config text is
+      // large: re-read at most every 12 s, our own writes set it first)
+      if (Date.now() - this.modeLoadedAt > 12000) {
+        this.modeLoadedAt = Date.now();
+        try {
+          const ms = await api.nModeState();
+          this.qsModeTarget = ms.target;
+          this.qsModeWritable = ms.writable;
+        } catch (e) {
+          // mode display is best-effort
         }
       }
-      if (sel === '' && this.qsRootSel !== '') {
+      // displayed group: the forced group when a catch-all is set; in
+      // auto mode the group carrying the most active connections, else
+      // the first group with a live node, else the first group
+      let disp = '';
+      if (this.qsModeTarget !== '') {
         for (const q of out) {
-          if (q.id === this.qsRootSel) {
-            sel = q.id;
+          if (q.name === this.qsModeTarget) {
+            disp = q.id;
           }
         }
       }
-      if (sel === '' && out.length > 0) {
-        sel = out[0].id;
+      if (disp === '') {
+        let best = 0;
+        for (const o of this.obs) {
+          if (o.active > best) {
+            for (const q of out) {
+              if (q.name === o.name) {
+                disp = q.id;
+                best = o.active;
+              }
+            }
+          }
+        }
       }
-      this.qsSelId = sel;
+      if (disp === '') {
+        for (const q of out) {
+          if (q.currentName !== '') {
+            disp = q.id;
+            break;
+          }
+        }
+      }
+      if (disp === '' && out.length > 0) {
+        disp = out[0].id;
+      }
+      this.qsSelId = disp;
       for (const q of out) {
-        if (q.id === sel) {
+        if (q.id === disp) {
           this.qsLeafName = q.currentName;
         }
       }
@@ -801,8 +780,11 @@ export struct HonkOverviewView {
     }
   }
 
+  /** Dropdown options: Auto first, then every group (doona-style). */
   private qsOptionsSel(): SelectOption[] {
     const opts: SelectOption[] = [];
+    const auto: SelectOption = { value: t('honk_qs_auto') };
+    opts.push(auto);
     for (const q of this.qsGroups) {
       const o: SelectOption = { value: q.name };
       opts.push(o);
@@ -811,17 +793,19 @@ export struct HonkOverviewView {
   }
 
   private qsSelIndex(): number {
+    if (this.qsModeTarget === '') {
+      return 0;
+    }
     for (let i = 0; i < this.qsGroups.length; i++) {
-      if (this.qsGroups[i].id === this.qsSelId) {
-        return i;
+      if (this.qsGroups[i].name === this.qsModeTarget) {
+        return i + 1;
       }
     }
     return 0;
   }
 
   private qsSelName(): string {
-    const g = this.qsSelGroup();
-    return g !== null ? g.name : '';
+    return this.qsModeTarget === '' ? t('honk_qs_auto') : this.qsModeTarget;
   }
 
   private qsSelLatSuffix(): string {
@@ -838,24 +822,52 @@ export struct HonkOverviewView {
     return this.qsGroups.length > 0 ? this.qsGroups[0] : null;
   }
 
-  /** Dropdown pick: route traffic through that group by selecting it in
-   * the root group (honk selection on the parent = the exit switch). */
-  private async setQsGroup(id: string): Promise<void> {
-    const api = this.api();
-    for (const q of this.qsGroups) {
-      if (q.id === id) {
-        this.qsSelId = id;
-        this.qsLeafName = q.currentName;
-      }
+  /** Dropdown pick: '' = auto (authored rules), a group name = force
+   * all traffic through that group via the config catch-all rule.
+   * Forcing rewrites the router's config, so it asks first (like doona);
+   * returning to auto applies at once. */
+  private pickMode(target: string): void {
+    if (this.qsBusy || target === this.qsModeTarget) {
+      return;
     }
-    if (api === null || this.qsBusy || this.qsRootId === '' || id === this.qsRootSel) {
+    if (!this.qsModeWritable) {
+      this.store.toast(t('honk_qs_readonly'));
+      return;
+    }
+    if (target === '') {
+      this.applyMode('');
+      return;
+    }
+    this.getUIContext().showAlertDialog({
+      title: t('honk_qs_global_title'),
+      message: t('honk_qs_global_msg', target),
+      autoCancel: true,
+      primaryButton: {
+        value: t('cancel'),
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: t('honk_switch'),
+        fontColor: this.store.palette().accent,
+        action: () => {
+          this.applyMode(target);
+        }
+      }
+    });
+  }
+
+  private async applyMode(target: string): Promise<void> {
+    const api = this.api();
+    if (api === null || this.qsBusy) {
       return;
     }
     this.qsBusy = true;
     try {
-      await api.nSelect(this.qsRootId, id);
-      this.qsRootSel = id;
-      this.store.toast(t('act_ok', t('honk_switch')));
+      await api.nSetModeTarget(target);
+      this.qsModeTarget = target;
+      this.modeLoadedAt = Date.now();
+      this.store.toast(t('act_ok', target === '' ? t('honk_qs_auto') : target));
       this.store.refreshProxies();
       await this.loadQs(api);
     } catch (e) {
@@ -1327,8 +1339,9 @@ export struct HonkOverviewView {
             .borderRadius(18)
             .attributeModifier(this.store.glass('card'))
 
-            // outbound: pick the group traffic exits through; tap the
-            // node row to choose a node for it on the policy page
+            // outbound: Auto follows the authored rules; picking a
+            // group forces all traffic through it (config catch-all).
+            // Tap the node row to choose a node on the policy page.
             if (this.qsGroups.length > 0) {
               Column() {
                 Text(t('honk_outbounds')).fontSize(16).fontWeight(FontWeight.Medium)
@@ -1344,8 +1357,10 @@ export struct HonkOverviewView {
                   .height(44)
                   .width('100%')
                   .onSelect((idx: number) => {
-                    if (idx >= 0 && idx < this.qsGroups.length) {
-                      this.setQsGroup(this.qsGroups[idx].id);
+                    if (idx === 0) {
+                      this.pickMode('');
+                    } else if (idx > 0 && idx <= this.qsGroups.length) {
+                      this.pickMode(this.qsGroups[idx - 1].name);
                     }
                   })
                 Row() {

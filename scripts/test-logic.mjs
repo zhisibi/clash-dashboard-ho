@@ -7,12 +7,13 @@ import { pathToFileURL } from 'url';
 
 const root = path.join(path.dirname(new URL(import.meta.url).pathname), '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mimipanel-logic-'));
-for (const f of ['MotionLogic', 'ReviewLogic', 'Sanitize']) {
+for (const f of ['MotionLogic', 'ReviewLogic', 'Sanitize', 'DaeMode']) {
   fs.copyFileSync(path.join(root, 'entry/src/main/ets/common', f + '.ets'), path.join(tmp, f + '.ts'));
 }
 const mot = await import(pathToFileURL(path.join(tmp, 'MotionLogic.ts')).href);
 const rev = await import(pathToFileURL(path.join(tmp, 'ReviewLogic.ts')).href);
 const san = await import(pathToFileURL(path.join(tmp, 'Sanitize.ts')).href);
+const dae = await import(pathToFileURL(path.join(tmp, 'DaeMode.ts')).href);
 let failed = 0, passed = 0;
 const eq = (name, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -86,6 +87,22 @@ eq('sanitize timestamp intact', sanOut.includes('2026-11-13 20:54:13'), true);
 eq('sanitize ip exact', san.sanitizeCrashText('ping 192.168.1.1:9090 ok'), 'ping *** ok');
 eq('sanitize auth exact', san.sanitizeCrashText('Authorization: Bearer abc123'), 'Authorization: *** ***');
 eq('sanitize query exact', san.sanitizeCrashText('a?secret=xyz&b=2'), 'a?secret=***&b=2');
+
+// ---- dae outbound mode (config catch-all surgery)
+const daeBase = "global {\n  note: 'a{b}'\n}\nrouting {\n  dip(geoip:private) -> direct (must)\n  domain(suffix: cn) -> direct\n  fallback: proxy\n}\n";
+eq('dae read none', dae.readModeTarget(daeBase), '');
+const daeW = dae.writeModeTarget(daeBase, 'shoudongxuanze');
+eq('dae write ok', daeW.ok, true);
+eq('dae write placement', daeW.text,
+  "global {\n  note: 'a{b}'\n}\nrouting {\n  dip(geoip:private) -> direct (must)\n  l4proto(tcp, udp) -> shoudongxuanze # mimipanel: outbound mode\n  domain(suffix: cn) -> direct\n  fallback: proxy\n}\n");
+eq('dae read back', dae.readModeTarget(daeW.text), 'shoudongxuanze');
+eq('dae round trip', dae.writeModeTarget(daeW.text, '').text, daeBase);
+const daeDoona = daeBase.replace('  fallback: proxy\n', '  l4proto(tcp, udp) -> proxy # doona: outbound mode\n  fallback: proxy\n');
+eq('dae read doona line', dae.readModeTarget(daeDoona), 'proxy');
+eq('dae doona removed', dae.writeModeTarget(daeDoona, '').text, daeBase);
+eq('dae interleaved refused', dae.writeModeTarget(
+  'routing {\n  domain(suffix: cn) -> direct\n  dip(geoip:private) -> direct (must)\n}\n', 'proxy').ok, false);
+eq('dae no routing refused', dae.writeModeTarget('global {\n}\n', 'proxy').ok, false);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
