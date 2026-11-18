@@ -193,6 +193,9 @@ export class HonkCoreApi extends CoreApi {
   private providerNameById: Map<string, string> = new Map<string, string>();
   private lastNodes: JObj[] = [];
   private mapsAt: number = 0;
+  private lastObUp: number = 0;
+  private lastObDown: number = 0;
+  private lastObAt: number = 0;
 
   private base(): string {
     return this.backend.baseUrl();
@@ -798,10 +801,27 @@ export class HonkCoreApi extends CoreApi {
         const rt = await this.hObj('GET', '/runtime?detail=full');
         const traffic = jObj(rt, 'traffic');
         const rates = traffic !== undefined ? jObj(traffic, 'rates') : undefined;
-        const o: JObj = {
-          'up': rates !== undefined ? asNum(jGet(rates, 'upload_bytes_per_second')) : 0,
-          'down': rates !== undefined ? asNum(jGet(rates, 'download_bytes_per_second')) : 0
-        };
+        let up = rates !== undefined ? asNum(jGet(rates, 'upload_bytes_per_second')) : 0;
+        let down = rates !== undefined ? asNum(jGet(rates, 'download_bytes_per_second')) : 0;
+        if (up === 0 && down === 0) {
+          // the runtime sampler can lack totals on some builds; derive the
+          // rates from the outbounds counters, which are always live
+          try {
+            const sums = await this.outboundSums();
+            const now = Date.now();
+            if (this.lastObAt > 0 && now > this.lastObAt) {
+              const dt = (now - this.lastObAt) / 1000;
+              up = Math.max(0, Math.round((sums[0] - this.lastObUp) / dt));
+              down = Math.max(0, Math.round((sums[1] - this.lastObDown) / dt));
+            }
+            this.lastObUp = sums[0];
+            this.lastObDown = sums[1];
+            this.lastObAt = now;
+          } catch (e) {
+            // keep the zero rates
+          }
+        }
+        const o: JObj = { 'up': up, 'down': down };
         s.emit(JSON.stringify(o));
       }, 1000);
       s.start();
@@ -850,10 +870,26 @@ export class HonkCoreApi extends CoreApi {
     return s;
   }
 
+  private async outboundSums(): Promise<number[]> {
+    const root = await this.hObj('GET', '/runtime/outbounds');
+    const arr = jArr(root, 'outbounds');
+    let up = 0;
+    let down = 0;
+    let active = 0;
+    if (arr !== undefined) {
+      for (const e of arr) {
+        const o = e as JObj;
+        up += jNum(o, 'upload_bytes');
+        down += jNum(o, 'download_bytes');
+        active += jNum(o, 'active_connections');
+      }
+    }
+    return [up, down, active];
+  }
+
   private async connectionsJson(): Promise<string> {
     await this.loadMaps(false);
-    const root = await this.hObj('GET', '/connections');
-    const conns = jObj(root, 'connections');
+    const root = await this.hObj('GET', '/connections?detail=full');
     const list: JObj[] = [];
     let sumUp = 0;
     let sumDown = 0;
@@ -864,10 +900,8 @@ export class HonkCoreApi extends CoreApi {
         sumDown += asNum(jGet(c, 'download_bytes'));
       }
     };
-    if (conns !== undefined) {
-      pushAll(arrOf(conns, 'tcp'), 'tcp');
-      pushAll(arrOf(conns, 'udp'), 'udp');
-    }
+    pushAll(arrOf(root, 'tcp'), 'tcp');
+    pushAll(arrOf(root, 'udp'), 'udp');
     let totalUp = jNum(root, 'total_upload_bytes') || jNum(root, 'upload_total');
     let totalDown = jNum(root, 'total_download_bytes') || jNum(root, 'download_total');
     if (totalUp === 0 && totalDown === 0) {
@@ -879,6 +913,15 @@ export class HonkCoreApi extends CoreApi {
           totalUp = asNum(jGet(bytes, 'upload')) || asNum(jGet(bytes, 'upload_bytes'));
           totalDown = asNum(jGet(bytes, 'download')) || asNum(jGet(bytes, 'download_bytes'));
         }
+      } catch (e) {
+        // fall through to the outbounds fallback
+      }
+    }
+    if (totalUp === 0 && totalDown === 0) {
+      try {
+        const sums = await this.outboundSums();
+        totalUp = sums[0];
+        totalDown = sums[1];
       } catch (e) {
         totalUp = sumUp;
         totalDown = sumDown;

@@ -1,8 +1,8 @@
 import { Store } from '../common/Store';
 import { Palette } from '../common/Theme';
-import { JObj, Traffic, asNum, jArr, jGet, jNum, jObj, jStr } from '../common/Models';
-import { fmtBytes, fmtDuration, fmtSpeed } from '../common/Format';
-import { HeaderStatus, Legend, LineChart } from '../components/Widgets';
+import { JObj, Traffic, asNum, asStr, jArr, jGet, jNum, jObj, jStr, parseIsoMillis } from '../common/Models';
+import { fmtBytes, fmtClock, fmtDuration, fmtSpeed } from '../common/Format';
+import { HeaderStatus, Legend, LineChart, SegTabs } from '../components/Widgets';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { HonkCoreApi } from '../common/HonkCoreApi';
 import { errMsg } from '../common/CoreApi';
@@ -18,6 +18,31 @@ class ObRow {
   name: string = '';
   kind: string = '';
   note: string = '';
+  active: number = 0;
+  up: number = 0;
+  down: number = 0;
+  pct: number = 0;
+}
+
+class KV {
+  k: string = '';
+  v: string = '';
+}
+
+class LatRow {
+  name: string = '';
+  ms: number = 0;
+}
+
+class GrpCur {
+  name: string = '';
+  sel: string = '';
+  ms: number = -1;
+}
+
+class RankRow {
+  name: string = '';
+  bytes: number = 0;
 }
 
 class QsGroup {
@@ -58,8 +83,42 @@ export struct HonkOverviewView {
   @Local connUdp: number = 0;
   @Local degs: DegRow[] = [];
   @Local obs: ObRow[] = [];
+  @Local obActive: number = 0;
+  @Local obUpSum: number = 0;
+  @Local obDownSum: number = 0;
   @Local lastReload: string = '';
   @Local rtError: string = '';
+
+  @Local subTab: number = 0;
+  // locally polled values (the Store streams are only a fallback: on some
+  // gateways the sampler fields the streams read stay empty)
+  @Local rateUp: number = 0;
+  @Local rateDown: number = 0;
+  @Local totalUpL: number = 0;
+  @Local totalDownL: number = 0;
+  @Local memBytes: number = 0;
+  @Local counterSince: string = '';
+  @Local rateWindow: string = '';
+  @Local startedText: string = '';
+  @Local sysStatusRows: KV[] = [];
+  @Local engineRows: KV[] = [];
+  @Local trafficRows: KV[] = [];
+  @Local memRows: KV[] = [];
+  @Local dpRows: KV[] = [];
+  @Local capOn: string[] = [];
+  @Local capOff: string[] = [];
+  @Local latOk: LatRow[] = [];
+  @Local latDead: string[] = [];
+  @Local latUnknown: string[] = [];
+  @Local showAllLat: boolean = false;
+  @Local rankTab: number = 0;
+  @Local dnsRows: string[] = [];
+  @Local grpCur: GrpCur[] = [];
+  private prevTotUp: number = -1;
+  private prevTotDown: number = -1;
+  private prevTotAt: number = 0;
+  private staticKey: string = '';
+  private latByName: Map<string, number> = new Map<string, number>();
 
   @Local qsGroups: QsGroup[] = [];
   @Local showQs: boolean = false;
@@ -75,7 +134,7 @@ export struct HonkOverviewView {
     this.loadExtras();
     this.timer = setInterval(() => {
       this.loadExtras();
-    }, 5000);
+    }, 3000);
     // immediate refresh when this tab becomes active or the backend changes
     this.watch = setInterval(() => {
       const key = this.store.active !== null ? this.store.active.id : '';
@@ -118,6 +177,13 @@ export struct HonkOverviewView {
       const life = jObj(rt, 'lifecycle');
       this.lifeState = life !== undefined ? jStr(life, 'state') : '';
       this.uptimeSec = (life !== undefined ? jNum(life, 'uptime_seconds') : 0) || jNum(rt, 'uptime_seconds');
+      if (this.uptimeSec === 0 && life !== undefined) {
+        // some builds omit uptime_seconds; derive it from started_at
+        const started = parseIsoMillis(jStr(life, 'started_at'));
+        if (started > 0 && Date.now() > started) {
+          this.uptimeSec = Math.floor((Date.now() - started) / 1000);
+        }
+      }
       let proc = jObj(rt, 'process');
       if (proc === undefined) {
         proc = jObj(rt, 'system');
@@ -140,6 +206,44 @@ export struct HonkOverviewView {
       if (this.connTcp === 0 && this.connUdp === 0 && conns !== undefined) {
         this.connTcp = jNum(conns, 'total') || jNum(conns, 'active');
       }
+      // traffic counters: totals feed the stats grid and the locally
+      // computed rates; doona reads the same fields
+      let totUp = 0;
+      let totDown = 0;
+      if (traffic !== undefined) {
+        const bytes = jObj(traffic, 'bytes');
+        if (bytes !== undefined) {
+          totUp = asNum(jGet(bytes, 'upload')) || asNum(jGet(bytes, 'upload_bytes'));
+          totDown = asNum(jGet(bytes, 'download')) || asNum(jGet(bytes, 'download_bytes'));
+        }
+        this.counterSince = jStr(traffic, 'counter_since');
+        const rates = jObj(traffic, 'rates');
+        if (rates !== undefined) {
+          const w = jGet(rates, 'window_seconds');
+          this.rateWindow = w !== undefined ? asNum(w).toFixed(1) : '';
+        }
+      }
+      const gen = jObj(rt, 'generation');
+      const cfgRev = gen !== undefined ? jStr(gen, 'config_revision') : '';
+      const activatedAt = gen !== undefined ? jStr(gen, 'activated_at') : '';
+      this.startedText = life !== undefined ? jStr(life, 'started_at') : '';
+      const dp = jObj(rt, 'datapath');
+      const dpRows: KV[] = [];
+      if (dp !== undefined) {
+        this.pushKv(dpRows, 'kind', jStr(dp, 'kind'));
+        this.pushKv(dpRows, 'state', jStr(dp, 'state'));
+        this.pushKv(dpRows, 'visibility', jStr(dp, 'visibility'));
+        const ebpf = jObj(dp, 'ebpf');
+        if (ebpf !== undefined) {
+          for (const k of Object.keys(ebpf)) {
+            const v = jGet(ebpf, k);
+            if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+              this.pushKv(dpRows, k, asStr(v));
+            }
+          }
+        }
+      }
+      this.dpRows = dpRows;
       const degs: DegRow[] = [];
       const degArr = jArr(rt, 'degradations');
       if (degArr !== undefined) {
@@ -154,14 +258,304 @@ export struct HonkOverviewView {
       }
       this.degs = degs;
       const lr = jObj(rt, 'last_reload');
-      this.lastReload = lr !== undefined ? jStr(lr, 'status') : '';
+      if (lr !== undefined) {
+        const st = jStr(lr, 'status') || jStr(lr, 'state') || jStr(lr, 'result');
+        let at = jStr(lr, 'completed_at') || jStr(lr, 'finished_at') || jStr(lr, 'at') ||
+          jStr(lr, 'started_at') || jStr(lr, 'timestamp');
+        if (at !== '') {
+          const ms = parseIsoMillis(at);
+          at = ms > 0 ? fmtClock(ms) : at;
+        }
+        this.lastReload = (st + ' ' + at).trim();
+      } else {
+        this.lastReload = jStr(rt, 'last_reload');
+      }
       this.rtError = '';
       await this.loadOutbounds(api);
+      if (this.connTcp + this.connUdp === 0 && this.obActive > 0) {
+        this.connTcp = this.obActive;
+      }
+      if (totUp === 0 && totDown === 0) {
+        totUp = this.obUpSum;
+        totDown = this.obDownSum;
+      }
+      this.totalUpL = totUp;
+      this.totalDownL = totDown;
+      const nowMs = Date.now();
+      if (this.prevTotAt > 0 && nowMs > this.prevTotAt && this.prevTotUp >= 0) {
+        const dt = (nowMs - this.prevTotAt) / 1000;
+        this.rateUp = Math.max(0, Math.round((totUp - this.prevTotUp) / dt));
+        this.rateDown = Math.max(0, Math.round((totDown - this.prevTotDown) / dt));
+      }
+      this.prevTotUp = totUp;
+      this.prevTotDown = totDown;
+      this.prevTotAt = nowMs;
+      const tRows: KV[] = [];
+      this.pushKv(tRows, t('honk_tcp_conn'), this.connTcp.toString());
+      this.pushKv(tRows, t('honk_udp_conn'), this.connUdp.toString());
+      this.pushKv(tRows, t('honk_conn_total'), (this.connTcp + this.connUdp).toString());
+      this.pushKv(tRows, t('honk_total_up'), fmtBytes(totUp));
+      this.pushKv(tRows, t('honk_total_down'), fmtBytes(totDown));
+      if (this.rateWindow !== '') {
+        this.pushKv(tRows, t('honk_rate_window'), this.rateWindow + ' s');
+      }
+      if (this.counterSince !== '') {
+        const cs = parseIsoMillis(this.counterSince);
+        this.pushKv(tRows, t('honk_counter_since'), cs > 0 ? fmtClock(cs) : this.counterSince);
+      }
+      this.trafficRows = tRows;
+      const sRows: KV[] = [];
+      this.pushKv(sRows, t('honk_status'), this.lifeState);
+      this.pushKv(sRows, t('honk_config_ver'), cfgRev);
+      this.pushKv(sRows, t('honk_uptime'),
+        this.uptimeSec > 0 ? fmtDuration(this.uptimeSec * 1000) : '-');
+      this.pushKv(sRows, 'CPU', this.cpuText);
+      this.pushKv(sRows, t('honk_last_reload'), this.lastReload);
+      this.pushKv(sRows, t('honk_started'),
+        this.startedText !== '' ? fmtClock(parseIsoMillis(this.startedText)) : '');
+      this.pushKv(sRows, t('honk_activated'),
+        activatedAt !== '' ? fmtClock(parseIsoMillis(activatedAt)) : '');
+      this.sysStatusRows = sRows;
       await this.loadQs(api);
+      await this.loadNodesLat(api);
+      await this.loadGrpCur(api);
+      await this.loadMem(api);
+      await this.loadDns(api);
+      await this.loadStatic(api);
     } catch (e) {
       this.rtError = errMsg(e as Object);
     }
     this.busy = false;
+  }
+
+  private pushKv(rows: KV[], k: string, v: string): void {
+    if (v === '') {
+      return;
+    }
+    const r = new KV();
+    r.k = k;
+    r.v = v;
+    rows.push(r);
+  }
+
+  private async loadNodesLat(api: HonkCoreApi): Promise<void> {
+    try {
+      const ns = await api.nNodes();
+      const ok: LatRow[] = [];
+      const dead: string[] = [];
+      const unknown: string[] = [];
+      const byName = new Map<string, number>();
+      for (const n of ns) {
+        const name = jStr(n, 'name');
+        if (name === '' || name === 'direct' || name === 'block') {
+          continue;
+        }
+        const health = jArr(n, 'health');
+        let best = -1;
+        let tested = false;
+        if (health !== undefined) {
+          for (const e of health) {
+            const h = e as JObj;
+            tested = true;
+            const v = jGet(h, 'latency_ms');
+            if (jStr(h, 'state') === 'healthy' && typeof v === 'number') {
+              if (best < 0 || (v as number) < best) {
+                best = v as number;
+              }
+            }
+          }
+        }
+        if (best >= 0) {
+          const r = new LatRow();
+          r.name = name;
+          r.ms = best;
+          ok.push(r);
+          byName.set(name, best);
+        } else if (tested) {
+          dead.push(name);
+        } else {
+          unknown.push(name);
+        }
+      }
+      ok.sort((a: LatRow, b: LatRow) => a.ms - b.ms);
+      this.latOk = ok;
+      this.latDead = dead;
+      this.latUnknown = unknown;
+      this.latByName = byName;
+    } catch (e) {
+      // latency card is best-effort
+    }
+  }
+
+  private async loadGrpCur(api: HonkCoreApi): Promise<void> {
+    try {
+      const gs = await api.nGroups();
+      const rows: GrpCur[] = [];
+      for (const g of gs) {
+        const sel = jObj(g, 'selection');
+        const cur = sel !== undefined ? jStr(sel, 'tcp_member_id') : '';
+        if (cur === '') {
+          continue;
+        }
+        const r = new GrpCur();
+        r.name = jStr(g, 'name');
+        r.sel = this.nameById.get(cur) ?? cur;
+        const ms = this.latByName.get(r.sel);
+        r.ms = ms !== undefined ? ms : -1;
+        rows.push(r);
+      }
+      this.grpCur = rows;
+    } catch (e) {
+      // best-effort
+    }
+  }
+
+  private async loadMem(api: HonkCoreApi): Promise<void> {
+    try {
+      const m = await api.nRuntimeMemory();
+      const proc = jObj(m, 'process');
+      const rss = proc !== undefined ? jNum(proc, 'rss_bytes') : 0;
+      if (rss > 0) {
+        this.memBytes = rss;
+      }
+      const rows: KV[] = [];
+      this.pushKv(rows, t('honk_rss'), rss > 0 ? fmtBytes(rss) : '-');
+      const cg = jObj(m, 'cgroup');
+      if (cg !== undefined) {
+        const cur = jNum(cg, 'current_bytes');
+        const lim = jNum(cg, 'limit_bytes');
+        this.pushKv(rows, t('honk_cgroup_used'), cur > 0 ? fmtBytes(cur) : '-');
+        this.pushKv(rows, t('honk_cgroup_limit'), lim > 0 ? fmtBytes(lim) : '-');
+        this.pushKv(rows, t('honk_cgroup_scope'), jStr(cg, 'scope'));
+        const ev = jObj(cg, 'events');
+        if (ev !== undefined) {
+          this.pushKv(rows, 'high', jStr(ev, 'high'));
+          this.pushKv(rows, 'oom', jStr(ev, 'oom'));
+          this.pushKv(rows, 'oom_kill', jStr(ev, 'oom_kill'));
+        }
+      }
+      const kernel = jObj(m, 'kernel');
+      if (kernel !== undefined) {
+        const eb = jNum(kernel, 'ebpf_bytes');
+        this.pushKv(rows, t('honk_ebpf_mem'), eb > 0 ? fmtBytes(eb) : '-');
+      }
+      this.memRows = rows;
+    } catch (e) {
+      // best-effort
+    }
+  }
+
+  private async loadDns(api: HonkCoreApi): Promise<void> {
+    try {
+      const res = await api.nDnsLog('', 100);
+      let entries = jArr(res, 'entries');
+      if (entries === undefined || entries.length === 0) {
+        entries = jArr(res, 'logs');
+      }
+      if (entries === undefined || entries.length === 0) {
+        entries = jArr(res, 'records');
+      }
+      const rows: string[] = [];
+      if (entries !== undefined) {
+        for (const e of entries) {
+          const o = e as JObj;
+          const name = jStr(o, 'name') || jStr(o, 'domain') || jStr(o, 'question');
+          if (name === '') {
+            continue;
+          }
+          const ans = jStr(o, 'answer') || jStr(o, 'result') || jStr(o, 'status');
+          rows.push(name + (ans !== '' ? ' → ' + ans : ''));
+          if (rows.length >= 6) {
+            break;
+          }
+        }
+      }
+      this.dnsRows = rows;
+    } catch (e) {
+      // best-effort
+    }
+  }
+
+  private capLabel(key: string): string {
+    const lk = 'cap_' + key;
+    const v = t(lk);
+    return v !== lk ? v : key;
+  }
+
+  private async loadStatic(api: HonkCoreApi): Promise<void> {
+    const key = this.store.active !== null ? this.store.active.id : '';
+    if (key === this.staticKey) {
+      return;
+    }
+    this.staticKey = key;
+    try {
+      const v = await api.nVersionRaw();
+      const rows: KV[] = [];
+      const eng = jObj(v, 'engine');
+      this.pushKv(rows, t('honk_engine'),
+        (eng !== undefined ? jStr(eng, 'name') + ' ' + jStr(eng, 'version') : jStr(v, 'version')));
+      const ap = jObj(v, 'api');
+      if (ap !== undefined) {
+        this.pushKv(rows, 'API', jStr(ap, 'name') + ' v' + jNum(ap, 'major').toString() +
+          (jStr(ap, 'status') !== '' ? ' (' + jStr(ap, 'status') + ')' : ''));
+      }
+      const build = jObj(v, 'build');
+      if (build !== undefined) {
+        const rev = jStr(build, 'revision');
+        const tgt = jStr(build, 'target');
+        this.pushKv(rows, t('honk_build'),
+          (rev !== '' ? rev.substring(0, Math.min(12, rev.length)) : '') +
+          (tgt !== '' ? ' · ' + tgt : ''));
+      }
+      this.engineRows = rows;
+    } catch (e) {
+      // best-effort
+    }
+    try {
+      const caps = await api.nCapabilities();
+      const res = jObj(caps, 'resources');
+      const on: string[] = [];
+      const off: string[] = [];
+      if (res !== undefined) {
+        for (const k of Object.keys(res)) {
+          const r = jObj(res, k);
+          if (r === undefined) {
+            continue;
+          }
+          const av = jGet(r, 'available');
+          if (av === true) {
+            on.push(this.capLabel(k));
+          } else if (av === false) {
+            off.push(this.capLabel(k));
+          }
+        }
+      }
+      this.capOn = on;
+      this.capOff = off;
+    } catch (e) {
+      // best-effort
+    }
+  }
+
+  private rankList(): RankRow[] {
+    const agg = new Map<string, number>();
+    for (const c of this.store.activeConns) {
+      const key = this.rankTab === 0 ? c.meta.sourceIP :
+        (c.meta.host !== '' ? c.meta.host : c.meta.destinationIP);
+      if (key === '') {
+        continue;
+      }
+      agg.set(key, (agg.get(key) ?? 0) + c.upload + c.download);
+    }
+    const rows: RankRow[] = [];
+    agg.forEach((bytes: number, name: string) => {
+      const r = new RankRow();
+      r.name = name;
+      r.bytes = bytes;
+      rows.push(r);
+    });
+    rows.sort((a: RankRow, b: RankRow) => b.bytes - a.bytes);
+    return rows.slice(0, 8);
   }
 
   private async loadOutbounds(api: HonkCoreApi): Promise<void> {
@@ -169,6 +563,9 @@ export struct HonkOverviewView {
       const root = await api.nOutbounds();
       const arr = jArr(root, 'outbounds');
       const rows: ObRow[] = [];
+      let obSum = 0;
+      let upSum = 0;
+      let downSum = 0;
       if (arr !== undefined) {
         for (const e of arr) {
           const o = e as JObj;
@@ -176,14 +573,29 @@ export struct HonkOverviewView {
           row.name = jStr(o, 'name') || jStr(o, 'id');
           row.kind = jStr(o, 'kind') || jStr(o, 'type');
           const active = jNum(o, 'active_connections');
+          obSum += active;
           const up = jNum(o, 'upload_bytes');
           const down = jNum(o, 'download_bytes');
+          row.active = active;
+          row.up = up;
+          row.down = down;
+          upSum += up;
+          downSum += down;
           row.note = (active > 0 ? active + ' conn' : '') +
             (up + down > 0 ? ' · ↓' + fmtBytes(down) + ' ↑' + fmtBytes(up) : '');
           rows.push(row);
         }
       }
+      if (downSum > 0) {
+        for (const r of rows) {
+          r.pct = Math.round(r.down * 1000 / downSum) / 10;
+        }
+      }
+      rows.sort((a: ObRow, b: ObRow) => b.down - a.down);
       this.obs = rows;
+      this.obActive = obSum;
+      this.obUpSum = upSum;
+      this.obDownSum = downSum;
     } catch (e) {
       // outbounds are best-effort
     }
@@ -293,6 +705,21 @@ export struct HonkOverviewView {
     this.qsBusyId = '';
   }
 
+  private latencyColor(ms: number): string {
+    if (ms <= this.store.lowLatency) {
+      return this.store.palette().good;
+    }
+    if (ms <= this.store.mediumLatency) {
+      return this.store.palette().warn;
+    }
+    return this.store.palette().bad;
+  }
+
+  private qsLatSuffix(g: QsGroup): string {
+    const ms = this.latByName.get(g.currentName);
+    return ms !== undefined ? ' · ' + ms.toString() + ' ms' : '';
+  }
+
   private peak(): number {
     let p = 0;
     for (const x of this.store.trafficHistory) {
@@ -373,6 +800,275 @@ export struct HonkOverviewView {
     .padding({ left: 16, right: 16 })
   }
 
+  @Builder
+  kvCard(title: string, rows: KV[]) {
+    Column() {
+      Text(title).fontSize(16).fontWeight(FontWeight.Medium)
+        .fontColor(this.store.palette().text)
+        .margin({ bottom: 6 })
+      ForEach(rows, (r: KV) => {
+        Row() {
+          Text(r.k).fontSize(13).fontColor(this.store.palette().subtle)
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Blank()
+          Text(r.v).fontSize(13).fontColor(this.store.palette().text)
+            .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .margin({ left: 12 })
+        }
+        .width('100%')
+        .padding({ top: 5, bottom: 5 })
+      }, (r: KV) => r.k)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .borderRadius(18)
+    .attributeModifier(this.store.glass('card'))
+  }
+
+  @Builder
+  actExtra() {
+    // group selections (all groups, with the selected node's latency)
+    if (this.grpCur.length > 0) {
+      Column() {
+        Text(t('honk_group_current')).fontSize(16).fontWeight(FontWeight.Medium)
+          .fontColor(this.store.palette().text)
+          .margin({ bottom: 6 })
+        ForEach(this.grpCur, (g: GrpCur) => {
+          Row() {
+            Text(g.name).fontSize(14).fontColor(this.store.palette().subtle)
+              .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            Blank()
+            Text(g.sel).fontSize(14).fontColor(this.store.palette().text)
+              .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ left: 12 })
+            if (g.ms >= 0) {
+              Text(g.ms.toString() + ' ms').fontSize(12)
+                .fontColor(this.latencyColor(g.ms))
+                .margin({ left: 6 })
+            }
+          }
+          .width('100%')
+          .padding({ top: 6, bottom: 6 })
+        }, (g: GrpCur) => g.name)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding(16)
+      .borderRadius(18)
+      .attributeModifier(this.store.glass('card'))
+    }
+
+    // traffic ranking by device / domain, from the live connection list
+    Column() {
+      Row() {
+        Text(t('honk_rank')).fontSize(16).fontWeight(FontWeight.Medium)
+          .fontColor(this.store.palette().text).layoutWeight(1)
+        SegTabs({
+          pal: this.store.palette(),
+          items: [t('honk_rank_device'), t('honk_rank_domain')],
+          selected: this.rankTab,
+          onSelect: (i: number) => {
+            this.rankTab = i;
+          }
+        })
+      }
+      .width('100%')
+      .margin({ bottom: 6 })
+      if (this.rankList().length === 0) {
+        Text(t('honk_no_rank')).fontSize(13).fontColor(this.store.palette().subtle)
+          .padding({ top: 8, bottom: 8 })
+      } else {
+        ForEach(this.rankList(), (r: RankRow) => {
+          Row() {
+            Text(r.name).fontSize(14).fontColor(this.store.palette().text)
+              .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+            Text(fmtBytes(r.bytes)).fontSize(13).fontColor(this.store.palette().subtle)
+              .margin({ left: 8 })
+          }
+          .width('100%')
+          .padding({ top: 6, bottom: 6 })
+        }, (r: RankRow) => r.name)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .borderRadius(18)
+    .attributeModifier(this.store.glass('card'))
+
+    // node latency overview
+    if (this.latOk.length > 0 || this.latDead.length > 0 || this.latUnknown.length > 0) {
+      Column() {
+        Text(t('honk_node_latency')).fontSize(16).fontWeight(FontWeight.Medium)
+          .fontColor(this.store.palette().text)
+          .margin({ bottom: 6 })
+        if (this.latOk.length > 0) {
+          Row() {
+            Text(t('honk_lat_min')).fontSize(12).fontColor(this.store.palette().subtle)
+              .layoutWeight(1)
+            Text(this.latOk[0].ms.toString() + ' ms').fontSize(13)
+              .fontColor(this.latencyColor(this.latOk[0].ms))
+          }
+          .width('100%')
+          Row() {
+            Text(t('honk_lat_max')).fontSize(12).fontColor(this.store.palette().subtle)
+              .layoutWeight(1)
+            Text(this.latOk[this.latOk.length - 1].ms.toString() + ' ms').fontSize(13)
+              .fontColor(this.latencyColor(this.latOk[this.latOk.length - 1].ms))
+          }
+          .width('100%')
+          .margin({ bottom: 4 })
+          ForEach(this.showAllLat ? this.latOk : this.latOk.slice(0, 12), (r: LatRow) => {
+            Row() {
+              Text(r.name).fontSize(14).fontColor(this.store.palette().text)
+                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                .layoutWeight(1)
+              Text(r.ms.toString() + ' ms').fontSize(13)
+                .fontColor(this.latencyColor(r.ms))
+                .margin({ left: 8 })
+            }
+            .width('100%')
+            .padding({ top: 5, bottom: 5 })
+          }, (r: LatRow) => r.name)
+          if (this.latOk.length > 12) {
+            Text(this.showAllLat ? t('honk_collapse') : t('honk_show_all', this.latOk.length.toString()))
+              .fontSize(13)
+              .fontColor(this.store.palette().accent)
+              .padding({ top: 6, bottom: 2 })
+              .onClick(() => {
+                this.showAllLat = !this.showAllLat;
+              })
+          }
+        }
+        ForEach(this.latDead, (n: string) => {
+          Text(n + ': ' + t('honk_unavail'))
+            .fontSize(13)
+            .fontColor(this.store.palette().bad)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .padding({ top: 3, bottom: 3 })
+        }, (n: string) => n)
+        ForEach(this.latUnknown, (n: string) => {
+          Text(n + ': ' + t('honk_unknown'))
+            .fontSize(13)
+            .fontColor(this.store.palette().subtle)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .padding({ top: 3, bottom: 3 })
+        }, (n: string) => n)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding(16)
+      .borderRadius(18)
+      .attributeModifier(this.store.glass('card'))
+    }
+
+    // per-outbound active connections
+    Column() {
+      Text(t('honk_conns')).fontSize(16).fontWeight(FontWeight.Medium)
+        .fontColor(this.store.palette().text)
+        .margin({ bottom: 6 })
+      if (this.obActive === 0) {
+        Text(t('honk_no_conn')).fontSize(13).fontColor(this.store.palette().subtle)
+          .padding({ top: 6, bottom: 6 })
+      } else {
+        ForEach(this.obs.filter((o: ObRow) => o.active > 0), (o: ObRow) => {
+          Row() {
+            Text(o.name).fontSize(14).fontColor(this.store.palette().text)
+              .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+            Text(o.active.toString()).fontSize(13).fontColor(this.store.palette().subtle)
+              .margin({ left: 8 })
+          }
+          .width('100%')
+          .padding({ top: 5, bottom: 5 })
+        }, (o: ObRow) => o.name)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .borderRadius(18)
+    .attributeModifier(this.store.glass('card'))
+
+    // recent DNS queries
+    Column() {
+      Text(t('honk_dns_recent')).fontSize(16).fontWeight(FontWeight.Medium)
+        .fontColor(this.store.palette().text)
+        .margin({ bottom: 6 })
+      if (this.dnsRows.length === 0) {
+        Text(t('honk_no_dns')).fontSize(13).fontColor(this.store.palette().subtle)
+          .padding({ top: 6, bottom: 6 })
+      } else {
+        ForEach(this.dnsRows, (r: string) => {
+          Text(r).fontSize(13).fontColor(this.store.palette().text)
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .padding({ top: 4, bottom: 4 })
+        }, (r: string) => r)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .borderRadius(18)
+    .attributeModifier(this.store.glass('card'))
+  }
+
+  @Builder
+  sysCards() {
+    this.kvCard(t('honk_sysstatus'), this.sysStatusRows)
+    this.kvCard(t('honk_engine'), this.engineRows)
+    this.kvCard(t('honk_traffic_count'), this.trafficRows)
+    this.kvCard(t('honk_memory'), this.memRows)
+    if (this.dpRows.length > 0) {
+      this.kvCard(t('honk_datapath'), this.dpRows)
+    }
+    if (this.capOn.length > 0) {
+      Column() {
+        Text(t('honk_caps')).fontSize(16).fontWeight(FontWeight.Medium)
+          .fontColor(this.store.palette().text)
+          .margin({ bottom: 6 })
+        ForEach(this.capOn, (c: string) => {
+          Row({ space: 8 }) {
+            Text('●').fontSize(10).fontColor(this.store.palette().good)
+            Text(c).fontSize(14).fontColor(this.store.palette().text)
+          }
+          .padding({ top: 4, bottom: 4 })
+        }, (c: string) => c)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding(16)
+      .borderRadius(18)
+      .attributeModifier(this.store.glass('card'))
+    }
+    Column() {
+      Text(t('honk_disabled_feats')).fontSize(16).fontWeight(FontWeight.Medium)
+        .fontColor(this.store.palette().text)
+        .margin({ bottom: 6 })
+      if (this.capOff.length === 0) {
+        Text(t('honk_all_enabled')).fontSize(13).fontColor(this.store.palette().subtle)
+          .padding({ top: 6, bottom: 6 })
+      } else {
+        ForEach(this.capOff, (c: string) => {
+          Row({ space: 8 }) {
+            Text('●').fontSize(10).fontColor(this.store.palette().subtle)
+            Text(c).fontSize(14).fontColor(this.store.palette().subtle)
+          }
+          .padding({ top: 4, bottom: 4 })
+        }, (c: string) => c)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .borderRadius(18)
+    .attributeModifier(this.store.glass('card'))
+  }
+
   build() {
     Stack({ alignContent: Alignment.Top }) {
       Scroll(this.sc) {
@@ -390,18 +1086,27 @@ export struct HonkOverviewView {
             .borderRadius(18)
             .attributeModifier(this.store.glass('card'))
           } else {
+            SegTabs({
+              pal: this.store.palette(),
+              items: [t('honk_activity'), t('honk_sysstatus')],
+              selected: this.subTab,
+              onSelect: (i: number) => {
+                this.subTab = i;
+              }
+            })
+            if (this.subTab === 0) {
             // status stats
             Column({ space: 14 }) {
               Row() {
-                this.statCell(t('upload'), fmtSpeed(this.store.traffic.up), this.store.palette().upText)
-                this.statCell(t('download'), fmtSpeed(this.store.traffic.down), this.store.palette().downText)
+                this.statCell(t('upload'), fmtSpeed(this.rateUp > 0 ? this.rateUp : this.store.traffic.up), this.store.palette().upText)
+                this.statCell(t('download'), fmtSpeed(this.rateDown > 0 ? this.rateDown : this.store.traffic.down), this.store.palette().downText)
                 this.statCell(t('honk_conns'), (this.connTcp + this.connUdp).toString(), '')
               }
               .width('100%')
               Row() {
-                this.statCell(t('honk_total_up'), fmtBytes(this.store.connTotalUp), '')
-                this.statCell(t('honk_total_down'), fmtBytes(this.store.connTotalDown), '')
-                this.statCell(t('honk_memory'), this.store.memory > 0 ? fmtBytes(this.store.memory) : '-', '')
+                this.statCell(t('honk_total_up'), fmtBytes(this.totalUpL > 0 ? this.totalUpL : this.store.connTotalUp), '')
+                this.statCell(t('honk_total_down'), fmtBytes(this.totalDownL > 0 ? this.totalDownL : this.store.connTotalDown), '')
+                this.statCell(t('honk_memory'), this.memBytes > 0 ? fmtBytes(this.memBytes) : (this.store.memory > 0 ? fmtBytes(this.store.memory) : '-'), '')
               }
               .width('100%')
               Row() {
@@ -458,7 +1163,7 @@ export struct HonkOverviewView {
                     Column() {
                       Text(g.name).fontSize(15).fontColor(this.store.palette().text)
                         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                      Text(g.currentName).fontSize(12).fontColor(this.store.palette().good)
+                      Text(g.currentName + this.qsLatSuffix(g)).fontSize(12).fontColor(this.store.palette().good)
                         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                         .margin({ top: 2 })
                     }
@@ -497,19 +1202,34 @@ export struct HonkOverviewView {
                   .fontColor(this.store.palette().text)
                   .margin({ bottom: 6 })
                 ForEach(this.obs, (o: ObRow) => {
-                  Row() {
-                    Text(o.name).fontSize(14).fontColor(this.store.palette().text)
-                      .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                      .layoutWeight(1)
-                    if (o.kind !== '') {
-                      Text(o.kind).fontSize(11).fontColor(this.store.palette().subtle)
-                        .backgroundColor(this.store.palette().chip)
-                        .borderRadius(5)
-                        .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+                  Column() {
+                    Row() {
+                      Text(o.name).fontSize(14).fontColor(this.store.palette().text)
+                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                        .layoutWeight(1)
+                      if (o.kind !== '') {
+                        Text(o.kind).fontSize(11).fontColor(this.store.palette().subtle)
+                          .backgroundColor(this.store.palette().chip)
+                          .borderRadius(5)
+                          .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+                      }
+                      if (o.note !== '') {
+                        Text(o.note).fontSize(12).fontColor(this.store.palette().subtle)
+                          .margin({ left: 6 })
+                      }
+                      if (o.down > 0) {
+                        Text(o.pct.toString() + '%').fontSize(12).fontColor(this.store.palette().subtle)
+                          .margin({ left: 6 })
+                      }
                     }
-                    if (o.note !== '') {
-                      Text(o.note).fontSize(12).fontColor(this.store.palette().subtle)
-                        .margin({ left: 6 })
+                    .width('100%')
+                    if (o.down > 0) {
+                      Progress({ value: o.pct, total: 100, type: ProgressType.Linear })
+                        .color(this.store.palette().down)
+                        .backgroundColor(this.store.palette().chip)
+                        .style({ strokeWidth: 4 })
+                        .width('100%')
+                        .margin({ top: 4 })
                     }
                   }
                   .width('100%')
@@ -523,10 +1243,12 @@ export struct HonkOverviewView {
               .attributeModifier(this.store.glass('card'))
             }
 
+            this.actExtra()
+
             // degradations
             if (this.degs.length > 0) {
               Column() {
-                Text(t('honk_degradations') + ' (' + this.degs.length + ')')
+                Text(t('honk_notices') + ' (' + this.degs.length + ')')
                   .fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.store.palette().warn)
                   .margin({ bottom: 6 })
                 ForEach(this.degs, (d: DegRow) => {
@@ -571,6 +1293,9 @@ export struct HonkOverviewView {
             .padding(16)
             .borderRadius(18)
             .attributeModifier(this.store.glass('card'))
+            } else {
+              this.sysCards()
+            }
           }
         }
         .width('100%')

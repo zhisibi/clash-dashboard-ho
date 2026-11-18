@@ -21,6 +21,11 @@ class MRow {
   name: string = '';
   kind: string = '';
   latency: number = -1;
+  latTcp: number = -1;
+  latUdp: number = -1;
+  hasTcp: boolean = false;
+  hasUdp: boolean = false;
+  state: string = 'unknown';
   current: boolean = false;
 }
 
@@ -31,6 +36,7 @@ class NRow {
   provider: string = '';
   latency: number = -1;
   alive: boolean = true;
+  state: string = 'unknown';
 }
 
 class PRow {
@@ -41,6 +47,32 @@ class PRow {
   updated: string = '';
   status: string = '';
   error: string = '';
+}
+
+function healthState(health: Object[] | undefined): string {
+  if (health === undefined || health.length === 0) {
+    return 'unknown';
+  }
+  for (const e of health) {
+    if (jStr(e as JObj, 'state') === 'healthy') {
+      return 'ok';
+    }
+  }
+  return 'dead';
+}
+
+/** Flag emoji prefix of a node name (two regional indicators), '' if none */
+function flagOf(name: string): string {
+  if (name.length >= 4) {
+    const a = name.charCodeAt(0);
+    const b = name.charCodeAt(1);
+    const c = name.charCodeAt(2);
+    const d = name.charCodeAt(3);
+    if (a === 0xD83C && b >= 0xDDE6 && b <= 0xDDFF && c === 0xD83C && d >= 0xDDE6 && d <= 0xDDFF) {
+      return name.substring(0, 4);
+    }
+  }
+  return '';
 }
 
 function bestLatency(health: Object[] | undefined): number {
@@ -91,6 +123,16 @@ export struct HonkPolicyView {
   @Local nodeQuery: string = '';
   @Local probeDone: number = 0;
   @Local probeTotal: number = 0;
+  @Local groupProbeId: string = '';
+  // doona-style member toolbar state
+  @Local mQuery: string = '';
+  @Local mNet: number = 0;
+  @Local mRegion: string = '';
+  @Local mSort: number = 0;
+  @Local mOnlyAvail: boolean = false;
+  @Local detailPinned: boolean = false;
+  @Local nSort: number = 0;
+  @Local nOnlyAvail: boolean = false;
   @Local exitNodeId: string = '';
   @Local updatedOkId: string = '';
 
@@ -240,8 +282,8 @@ export struct HonkPolicyView {
         const pn = provName.get(jStr(n, 'provider_id'));
         r.provider = pn !== undefined ? pn : '';
         r.latency = bestLatency(jArr(n, 'health'));
-        const health = jArr(n, 'health');
-        r.alive = health === undefined || health.length === 0 || bestLatency(health) >= 0;
+        r.state = healthState(jArr(n, 'health'));
+        r.alive = r.state !== 'dead';
         nrows.push(r);
       }
       this.nodes = nrows;
@@ -290,14 +332,44 @@ export struct HonkPolicyView {
       const d = await api.nGroupDetail(g.id);
       const rt = jObj(d, 'runtime');
       const healthById = new Map<string, number>();
+      const tcpById = new Map<string, number>();
+      const udpById = new Map<string, number>();
+      const testedById = new Set<string>();
+      const seenTcp = new Set<string>();
+      const seenUdp = new Set<string>();
       if (rt !== undefined) {
         const health = jArr(rt, 'health');
         if (health !== undefined) {
           for (const e of health) {
             const h = e as JObj;
+            const mid = jStr(h, 'member_id');
+            const net = jStr(h, 'network');
+            testedById.add(mid);
+            if (net === 'tcp' || net === '') {
+              seenTcp.add(mid);
+            }
+            if (net === 'udp' || net === '') {
+              seenUdp.add(mid);
+            }
             const v = jGet(h, 'latency_ms');
             if (jStr(h, 'state') === 'healthy' && typeof v === 'number') {
-              healthById.set(jStr(h, 'member_id'), v as number);
+              const ms = v as number;
+              const prev = healthById.get(mid);
+              if (prev === undefined || ms < prev) {
+                healthById.set(mid, ms);
+              }
+              if (net === 'tcp' || net === '') {
+                const pt = tcpById.get(mid);
+                if (pt === undefined || ms < pt) {
+                  tcpById.set(mid, ms);
+                }
+              }
+              if (net === 'udp' || net === '') {
+                const pu = udpById.get(mid);
+                if (pu === undefined || ms < pu) {
+                  udpById.set(mid, ms);
+                }
+              }
             }
           }
         }
@@ -305,6 +377,9 @@ export struct HonkPolicyView {
       const rsel = rt !== undefined ? jObj(rt, 'selection') : undefined;
       const tcp = rsel !== undefined ? jObj(rsel, 'tcp') : undefined;
       this.detailSelId = tcp !== undefined ? jStr(tcp, 'member_id') : '';
+      const src = tcp !== undefined ? jStr(tcp, 'source') : '';
+      this.detailPinned = src.indexOf('manual') >= 0 || src.indexOf('override') >= 0 ||
+        src.indexOf('pin') >= 0 || src.indexOf('user') >= 0;
       const caps = jObj(d, 'capabilities');
       this.detailCanSelect = caps !== undefined &&
         (caps['can_select'] === true || caps['can_override'] === true);
@@ -319,6 +394,13 @@ export struct HonkPolicyView {
           r.kind = jStr(m, 'kind');
           const lat = healthById.get(r.id);
           r.latency = lat !== undefined ? lat : -1;
+          const lt = tcpById.get(r.id);
+          r.latTcp = lt !== undefined ? lt : -1;
+          const lu = udpById.get(r.id);
+          r.latUdp = lu !== undefined ? lu : -1;
+          r.hasTcp = seenTcp.has(r.id);
+          r.hasUdp = seenUdp.has(r.id);
+          r.state = !testedById.has(r.id) ? 'unknown' : (r.latency >= 0 ? 'ok' : 'dead');
           r.current = r.id === this.detailSelId;
           rows.push(r);
         }
@@ -346,6 +428,11 @@ export struct HonkPolicyView {
         c.name = r.name;
         c.kind = r.kind;
         c.latency = r.latency;
+        c.latTcp = r.latTcp;
+        c.latUdp = r.latUdp;
+        c.hasTcp = r.hasTcp;
+        c.hasUdp = r.hasUdp;
+        c.state = r.state;
         c.current = r.id === m.id;
         rows.push(c);
       }
@@ -364,18 +451,54 @@ export struct HonkPolicyView {
       return;
     }
     this.busyKey = 'probe_' + g.id;
+    this.groupProbeId = g.id;
     try {
-      const target: JObj = { 'type': 'group', 'group_id': g.id };
-      await api.nProbe(target);
-      this.store.toast(t('act_ok', t('honk_probe')));
-      if (this.openGroupId === g.id) {
-        await this.loadDetail(g);
+      const d = await api.nGroupDetail(g.id);
+      const targets: JObj[] = [];
+      const arr = jArr(d, 'members');
+      if (arr !== undefined) {
+        for (const e of arr) {
+          const m = e as JObj;
+          const mid = jStr(m, 'id');
+          if (mid === '') {
+            continue;
+          }
+          if (jStr(m, 'kind') === 'group') {
+            targets.push({ 'type': 'group', 'group_id': mid });
+          } else {
+            targets.push({ 'type': 'node', 'node_id': mid });
+          }
+        }
       }
+      if (targets.length === 0) {
+        const target: JObj = { 'type': 'group', 'group_id': g.id };
+        await api.nProbe(target);
+      } else {
+        this.probeDone = 0;
+        this.probeTotal = targets.length;
+        const BATCH = 6;
+        for (let i = 0; i < targets.length; i += BATCH) {
+          const batch = targets.slice(i, i + BATCH);
+          const jobs: Promise<void>[] = [];
+          for (const tg of batch) {
+            jobs.push(api.nProbe(tg).then(() => {
+            }).catch(() => {
+            }));
+          }
+          await Promise.all(jobs);
+          this.probeDone = Math.min(targets.length, i + BATCH);
+          if (this.openGroupId === g.id) {
+            await this.loadDetail(g);
+          }
+        }
+      }
+      this.store.toast(t('act_ok', t('honk_probe')));
       await this.loadAll();
     } catch (e) {
       this.store.toast(errMsg(e as Object));
     }
     this.busyKey = '';
+    this.groupProbeId = '';
   }
 
   private async probeNode(n: NRow): Promise<void> {
@@ -399,7 +522,12 @@ export struct HonkPolicyView {
     if (api === null || this.busyKey !== '') {
       return;
     }
-    const targets = this.visibleNodes().filter((n: NRow) => n.name !== 'direct' && n.name !== 'block');
+    // probe every node regardless of the sort / hide-unavailable display
+    // filters (a hidden dead node must stay re-probeable); the search
+    // query still scopes the run
+    const q = this.nodeQuery.trim().toLowerCase();
+    const targets = this.nodes.filter((n: NRow) => n.name !== 'direct' && n.name !== 'block' &&
+      (q === '' || n.name.toLowerCase().indexOf(q) >= 0));
     if (targets.length === 0) {
       return;
     }
@@ -477,11 +605,153 @@ export struct HonkPolicyView {
   }
 
   private visibleNodes(): NRow[] {
+    let rows = this.nodes.slice();
     const q = this.nodeQuery.trim().toLowerCase();
-    if (q === '') {
-      return this.nodes;
+    if (q !== '') {
+      rows = rows.filter((n: NRow) => n.name.toLowerCase().indexOf(q) >= 0);
     }
-    return this.nodes.filter((n: NRow) => n.name.toLowerCase().indexOf(q) >= 0);
+    if (this.nOnlyAvail) {
+      rows = rows.filter((n: NRow) => n.state !== 'dead');
+    }
+    if (this.nSort === 1) {
+      rows.sort((a: NRow, b: NRow) => {
+        const ra = a.state === 'ok' ? 0 : (a.state === 'unknown' ? 1 : 2);
+        const rb = b.state === 'ok' ? 0 : (b.state === 'unknown' ? 1 : 2);
+        if (ra !== rb) {
+          return ra - rb;
+        }
+        const la = a.latency >= 0 ? a.latency : 1000000000;
+        const lb = b.latency >= 0 ? b.latency : 1000000000;
+        return la - lb;
+      });
+    } else if (this.nSort === 2) {
+      rows.sort((a: NRow, b: NRow) => a.name.localeCompare(b.name));
+    }
+    return rows;
+  }
+
+  private effLatency(m: MRow): number {
+    if (this.mNet === 1) {
+      return m.latTcp;
+    }
+    if (this.mNet === 2) {
+      return m.latUdp;
+    }
+    return m.latency;
+  }
+
+  private effState(m: MRow): string {
+    if (this.mNet === 1) {
+      if (m.latTcp >= 0) {
+        return 'ok';
+      }
+      return m.hasTcp ? 'dead' : m.state;
+    }
+    if (this.mNet === 2) {
+      if (m.latUdp >= 0) {
+        return 'ok';
+      }
+      return m.hasUdp ? 'dead' : m.state;
+    }
+    return m.state;
+  }
+
+  private regionKey(name: string): string {
+    const f = flagOf(name);
+    return f !== '' ? f : '__other__';
+  }
+
+  private regionKeys(): string[] {
+    const seen: string[] = [];
+    for (const m of this.members) {
+      const k = this.regionKey(m.name);
+      if (seen.indexOf(k) < 0) {
+        seen.push(k);
+      }
+    }
+    return seen;
+  }
+
+  private regionLabel(k: string): string {
+    return k === '__other__' ? t('honk_other_region') : k;
+  }
+
+  private visibleMembers(): MRow[] {
+    let rows = this.members.slice();
+    const q = this.mQuery.trim().toLowerCase();
+    if (q !== '') {
+      rows = rows.filter((m: MRow) => m.name.toLowerCase().indexOf(q) >= 0);
+    }
+    if (this.mRegion !== '') {
+      rows = rows.filter((m: MRow) => this.regionKey(m.name) === this.mRegion);
+    }
+    if (this.mOnlyAvail) {
+      rows = rows.filter((m: MRow) => this.effState(m) !== 'dead');
+    }
+    if (this.mSort === 1) {
+      rows.sort((a: MRow, b: MRow) => {
+        const sa = this.effState(a);
+        const sb = this.effState(b);
+        const ra = sa === 'ok' ? 0 : (sa === 'unknown' ? 1 : 2);
+        const rb = sb === 'ok' ? 0 : (sb === 'unknown' ? 1 : 2);
+        if (ra !== rb) {
+          return ra - rb;
+        }
+        const la = this.effLatency(a) >= 0 ? this.effLatency(a) : 1000000000;
+        const lb = this.effLatency(b) >= 0 ? this.effLatency(b) : 1000000000;
+        return la - lb;
+      });
+    } else if (this.mSort === 2) {
+      rows.sort((a: MRow, b: MRow) => a.name.localeCompare(b.name));
+    }
+    return rows;
+  }
+
+  private nodeCountState(state: string): number {
+    let n = 0;
+    for (const r of this.nodes) {
+      if (r.state === state) {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  private countState(rows: MRow[], state: string): number {
+    let n = 0;
+    for (const m of rows) {
+      if (this.effState(m) === state) {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  private sortOptions(): SelectOption[] {
+    const a: SelectOption = { value: t('honk_sort_default') };
+    const b: SelectOption = { value: t('honk_sort_latency') };
+    const c: SelectOption = { value: t('honk_sort_name') };
+    return [a, b, c];
+  }
+
+  private regionOptionsSel(): SelectOption[] {
+    const out: SelectOption[] = [];
+    const all: SelectOption = { value: t('honk_all_regions') };
+    out.push(all);
+    for (const k of this.regionKeys()) {
+      const o: SelectOption = { value: this.regionLabel(k) };
+      out.push(o);
+    }
+    return out;
+  }
+
+  private detailSelName(): string {
+    for (const m of this.members) {
+      if (m.id === this.detailSelId) {
+        return m.name;
+      }
+    }
+    return this.detailSelId !== '' ? this.memberName(this.detailSelId) : '';
   }
 
   private latencyColor(ms: number): string {
@@ -565,6 +835,31 @@ export struct HonkPolicyView {
             this.toggleGroup(g);
           })
 
+          if (this.groupProbeId === g.id) {
+            Column() {
+              Row() {
+                Text(t('honk_probe')).fontSize(12).fontColor(this.store.palette().subtle)
+                  .layoutWeight(1)
+                Text(this.probeDone.toString() + ' / ' + this.probeTotal.toString())
+                  .fontSize(12)
+                  .fontColor(this.store.palette().subtle)
+              }
+              .width('100%')
+              Progress({
+                value: this.probeDone,
+                total: Math.max(1, this.probeTotal),
+                type: ProgressType.Linear
+              })
+                .color(this.store.palette().accentUi)
+                .backgroundColor(this.store.palette().chip)
+                .style({ strokeWidth: 5 })
+                .width('100%')
+                .margin({ top: 4 })
+            }
+            .width('100%')
+            .margin({ top: 10 })
+          }
+
           if (this.openGroupId === g.id) {
             Column() {
               if (this.detailCanSelect) {
@@ -584,7 +879,121 @@ export struct HonkPolicyView {
                     }
                   })
               }
-              ForEach(this.members, (m: MRow) => {
+              Row({ space: 14 }) {
+                Row({ space: 4 }) {
+                  Text('●').fontSize(10).fontColor(this.store.palette().good)
+                  Text(t('honk_avail', this.countState(this.members, 'ok').toString()))
+                    .fontSize(12).fontColor(this.store.palette().subtle)
+                }
+                Row({ space: 4 }) {
+                  Text('●').fontSize(10).fontColor(this.store.palette().bad)
+                  Text(t('honk_dead', this.countState(this.members, 'dead').toString()))
+                    .fontSize(12).fontColor(this.store.palette().subtle)
+                }
+                Row({ space: 4 }) {
+                  Text('●').fontSize(10).fontColor(this.store.palette().subtle)
+                  Text(t('honk_untested', this.countState(this.members, 'unknown').toString()))
+                    .fontSize(12).fontColor(this.store.palette().subtle)
+                }
+              }
+              .width('100%')
+              .margin({ top: 10, bottom: 2 })
+
+              if (this.detailSelId !== '') {
+                Row({ space: 8 }) {
+                  Text(t('honk_current') + this.detailSelName())
+                    .fontSize(13)
+                    .fontColor(this.store.palette().text)
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .layoutWeight(1)
+                  if (this.detailPinned || g.kind === 'selector') {
+                    Text(t('honk_pinned'))
+                      .fontSize(11)
+                      .fontColor(this.store.palette().subtle)
+                      .backgroundColor(this.store.palette().chip)
+                      .borderRadius(6)
+                      .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                  }
+                }
+                .width('100%')
+                .margin({ bottom: 4 })
+              }
+
+              TextInput({ text: this.mQuery, placeholder: t('honk_filter_nodes') })
+                .width('100%')
+                .height(40)
+                .fontSize(14)
+                .fontColor(this.store.palette().text)
+                .placeholderColor(this.store.palette().subtle)
+                .backgroundColor(this.store.palette().chip)
+                .borderRadius(12)
+                .onChange((v: string) => {
+                  this.mQuery = v;
+                })
+
+              Row({ space: 8 }) {
+                Button(t('honk_net_both'))
+                  .height(36)
+                  .fontSize(13)
+                  .fontColor(this.store.palette().text)
+                  .backgroundColor(this.mNet === 0 ? this.store.palette().accentSoft : this.store.palette().chip)
+                  .onClick(() => {
+                    this.mNet = 0;
+                  })
+                Button('TCP')
+                  .height(36)
+                  .fontSize(13)
+                  .fontColor(this.store.palette().text)
+                  .backgroundColor(this.mNet === 1 ? this.store.palette().accentSoft : this.store.palette().chip)
+                  .onClick(() => {
+                    this.mNet = 1;
+                  })
+                Button('UDP')
+                  .height(36)
+                  .fontSize(13)
+                  .fontColor(this.store.palette().text)
+                  .backgroundColor(this.mNet === 2 ? this.store.palette().accentSoft : this.store.palette().chip)
+                  .onClick(() => {
+                    this.mNet = 2;
+                  })
+                Select(this.regionOptionsSel())
+                  .selected(this.mRegion === '' ? 0 : this.regionKeys().indexOf(this.mRegion) + 1)
+                  .value(t('honk_all_regions'))
+                  .font({ size: 13 })
+                  .fontColor(this.store.palette().text)
+                  .height(36)
+                  .layoutWeight(1)
+                  .onSelect((idx: number) => {
+                    this.mRegion = idx === 0 ? '' : this.regionKeys()[idx - 1];
+                  })
+              }
+              .width('100%')
+              .margin({ top: 8 })
+
+              Row({ space: 8 }) {
+                Text(t('honk_sort')).fontSize(13).fontColor(this.store.palette().subtle)
+                Select(this.sortOptions())
+                  .selected(this.mSort)
+                  .value(t('honk_sort_default'))
+                  .font({ size: 13 })
+                  .fontColor(this.store.palette().text)
+                  .height(36)
+                  .onSelect((idx: number) => {
+                    this.mSort = idx;
+                  })
+                Blank()
+                Toggle({ type: ToggleType.Switch, isOn: this.mOnlyAvail })
+                  .selectedColor(this.store.palette().accentUi)
+                  .onChange((on: boolean) => {
+                    this.mOnlyAvail = on;
+                  })
+                Text(t('honk_only_avail')).fontSize(13).fontColor(this.store.palette().text)
+              }
+              .width('100%')
+              .margin({ top: 8, bottom: 2 })
+
+              ForEach(this.visibleMembers(), (m: MRow) => {
                 Row() {
                   Text(m.kind === 'group' ? t('honk_groups') : t('honk_nodes'))
                     .fontSize(10)
@@ -594,15 +1003,20 @@ export struct HonkPolicyView {
                     .padding({ left: 5, right: 5, top: 1, bottom: 1 })
                   Text(m.name)
                     .fontSize(14)
-                    .fontColor(this.store.palette().text)
+                    .fontColor(this.effState(m) === 'dead' ? this.store.palette().subtle : this.store.palette().text)
                     .maxLines(1)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .layoutWeight(1)
                     .margin({ left: 8 })
-                  if (m.latency >= 0) {
-                    Text(m.latency.toString() + ' ms')
+                  if (this.effLatency(m) >= 0) {
+                    Text(this.effLatency(m).toString() + ' ms')
                       .fontSize(12)
-                      .fontColor(this.latencyColor(m.latency))
+                      .fontColor(this.latencyColor(this.effLatency(m)))
+                      .margin({ right: 8 })
+                  } else if (this.effState(m) === 'dead') {
+                    Text(t('honk_timeout'))
+                      .fontSize(12)
+                      .fontColor(this.store.palette().bad)
                       .margin({ right: 8 })
                   }
                   if (this.busyKey === 'sel_' + m.id) {
@@ -619,6 +1033,13 @@ export struct HonkPolicyView {
                   }
                 })
               }, (m: MRow) => m.id)
+
+              Text(t('honk_members_dead', this.members.length.toString(),
+                this.countState(this.members, 'dead').toString()))
+                .fontSize(12)
+                .fontColor(this.store.palette().subtle)
+                .width('100%')
+                .margin({ top: 6 })
             }
             .width('100%')
           }
@@ -658,6 +1079,46 @@ export struct HonkPolicyView {
       }
       .width('100%')
 
+      Row({ space: 14 }) {
+        Row({ space: 4 }) {
+          Text('●').fontSize(10).fontColor(this.store.palette().good)
+          Text(t('honk_avail', this.nodeCountState('ok').toString()))
+            .fontSize(12).fontColor(this.store.palette().subtle)
+        }
+        Row({ space: 4 }) {
+          Text('●').fontSize(10).fontColor(this.store.palette().bad)
+          Text(t('honk_dead', this.nodeCountState('dead').toString()))
+            .fontSize(12).fontColor(this.store.palette().subtle)
+        }
+        Row({ space: 4 }) {
+          Text('●').fontSize(10).fontColor(this.store.palette().subtle)
+          Text(t('honk_untested', this.nodeCountState('unknown').toString()))
+            .fontSize(12).fontColor(this.store.palette().subtle)
+        }
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        Text(t('honk_sort')).fontSize(13).fontColor(this.store.palette().subtle)
+        Select(this.sortOptions())
+          .selected(this.nSort)
+          .value(t('honk_sort_default'))
+          .font({ size: 13 })
+          .fontColor(this.store.palette().text)
+          .height(38)
+          .onSelect((idx: number) => {
+            this.nSort = idx;
+          })
+        Blank()
+        Toggle({ type: ToggleType.Switch, isOn: this.nOnlyAvail })
+          .selectedColor(this.store.palette().accentUi)
+          .onChange((on: boolean) => {
+            this.nOnlyAvail = on;
+          })
+        Text(t('honk_only_avail')).fontSize(13).fontColor(this.store.palette().text)
+      }
+      .width('100%')
+
       if (this.busyKey === 'probe_all') {
         Column() {
           Row() {
@@ -686,9 +1147,10 @@ export struct HonkPolicyView {
         Row() {
           Column() {
             Row({ space: 6 }) {
-              Text(n.alive ? '●' : '○')
+              Text('●')
                 .fontSize(11)
-                .fontColor(this.store.palette().good)
+                .fontColor(n.state === 'ok' ? this.store.palette().good :
+                  (n.state === 'dead' ? this.store.palette().bad : this.store.palette().subtle))
               Text(n.name)
                 .fontSize(15)
                 .fontColor(this.store.palette().text)
