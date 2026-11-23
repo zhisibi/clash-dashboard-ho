@@ -1699,7 +1699,7 @@ export class Store {
     }
     this.tpBegin(1, name);
     this.nodeTesting.set(name, true);
-    a.proxyDelay(name, url, this.testTimeout).then((d: number) => {
+    this.measureNode(a, name, url).then((d: number) => {
       this.manualDelay.set(name, d);
     }).catch(() => {
       this.manualDelay.set(name, 0);
@@ -1710,6 +1710,44 @@ export class Store {
         this.testLabel = '';
       }
     });
+  }
+
+  /** 1.5.6: measures one node for testNode. The bare per-node delay request is the
+   * one test path that can fail for a node that group-tests fine (its own short
+   * HTTP timeout, no core-side concurrency, no history to reconcile with); the
+   * resulting 0 was pinned into manualDelay as the node's result and — since
+   * 1.5.5 stopped wiping manualDelay on refresh — stayed on the badge as
+   * unreachable. On failure, re-measure through a containing group's delay
+   * endpoint (the path group tests prove works) and keep only this node's
+   * value; other members' recorded results are not touched. A node the group
+   * endpoint also reports dead (0 / absent / 5xx) still records 0. */
+  private async measureNode(a: CoreApi, name: string, url: string): Promise<number> {
+    let d = 0;
+    try {
+      d = await a.proxyDelay(name, url, this.testTimeout);
+    } catch (e) {
+      d = 0;
+    }
+    if (d > 0) {
+      return d;
+    }
+    let g: ProxyItem | undefined = undefined;
+    for (const x of this.groups()) {
+      if (x.name !== 'GLOBAL' && x.all.indexOf(name) >= 0) {
+        g = x;
+        break;
+      }
+    }
+    if (g === undefined) {
+      return 0;
+    }
+    try {
+      const res = await a.groupDelay(g.name, this.groupTestUrl(g), this.testTimeout);
+      const gd = res.get(name);
+      return gd !== undefined ? gd : 0;
+    } catch (e) {
+      return 0;
+    }
   }
 
   /** 1.2.6: true while any proxy group latency test is running (drives the header test-all spinner) */

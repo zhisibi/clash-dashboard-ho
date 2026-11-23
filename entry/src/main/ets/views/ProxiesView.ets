@@ -531,22 +531,18 @@ export struct ProxiesView {
   // 1.4.18: latency-test progress strip under the header filter row. Data comes from the
   // Store's aggregate counters (real per-node results, see Store.tpBegin/tpStep); the strip
   // exists only while a test runs and disappears when the counters complete.
+  // 1.5.6: the text row shows the percentage only — no current-item label, no done/total
+  // fraction (the counters and label still run in the Store, they are just not rendered).
   @Builder
   testProgressBar() {
     Column() {
       Row() {
-        Text(this.store.testLabel.length > 0 ? this.store.testLabel : t('latency_test'))
+        Text(this.store.testPercent() + '%')
           .fontSize(11)
           .fontColor(this.store.palette().subtle)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
-        Text(this.store.testDone + '/' + this.store.testTotal + ' · ' + this.store.testPercent() + '%')
-          .fontSize(11)
-          .fontColor(this.store.palette().subtle)
-          .margin({ left: 8 })
       }
       .width('100%')
+      .justifyContent(FlexAlign.End)
 
       Stack({ alignContent: Alignment.Start }) {
         Row()
