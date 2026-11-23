@@ -36,6 +36,11 @@ export function fmtDuration(ms: number): string {
   return t('dur_dh', Math.floor(s / 86400), Math.floor((s % 86400) / 3600));
 }
 
+/** Display-only: honk reports fractional ms; round for display (stored/sorted values keep full precision). */
+export function fmtMsInt(ms: number): string {
+  return Math.round(ms).toString();
+}
+
 export function fmtAgo(ms: number): string {
   if (ms <= 0) {
     return '-';

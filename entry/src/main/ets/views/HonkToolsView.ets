@@ -1,6 +1,6 @@
 import { Store } from '../common/Store';
 import { JObj, asNum, jArr, jBool, jGet, jNum, jObj, jStr, parseIsoMillis } from '../common/Models';
-import { fmtBytes, fmtClock } from '../common/Format';
+import { fmtBytes, fmtClock, fmtMsInt } from '../common/Format';
 import { HeaderStatus, SegTabs } from '../components/Widgets';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { HonkCoreApi } from '../common/HonkCoreApi';
@@ -616,7 +616,7 @@ export struct HonkToolsView {
                 Text(jStr(r, 'status')).fontSize(12).fontColor(this.store.palette().subtle)
                   .margin({ left: 8 })
                 Blank()
-                Text(jNum(r, 'elapsed_ms').toString() + ' ms').fontSize(12)
+                Text(fmtMsInt(jNum(r, 'elapsed_ms')) + ' ms').fontSize(12)
                   .fontColor(this.store.palette().subtle)
               }
               .width('100%')

@@ -1,6 +1,6 @@
 import { Store } from '../common/Store';
 import { JObj, asNum, jArr, jBool, jGet, jNum, jObj, jStr } from '../common/Models';
-import { fmtClock } from '../common/Format';
+import { fmtClock, fmtMsInt } from '../common/Format';
 import { parseIsoMillis } from '../common/Models';
 import { HeaderStatus, SegTabs } from '../components/Widgets';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
@@ -724,10 +724,12 @@ export struct HonkPolicyView {
           if (this.openGroupId === g.id) {
             Column() {
               if (this.detailCanSelect && g.kind !== 'selector' && this.detailPinned) {
-                Text(t('honk_clear_override'))
+                Button(t('honk_clear_override'))
+                  .height(38)
                   .fontSize(13)
-                  .fontColor(this.store.palette().accent)
-                  .padding({ top: 8, bottom: 4 })
+                  .fontColor(this.store.palette().text)
+                  .backgroundColor(this.store.palette().chip)
+                  .margin({ top: 8, bottom: 4 })
                   .onClick(() => {
                     this.clearOverride(g);
                   })
@@ -869,7 +871,7 @@ export struct HonkPolicyView {
                       .margin({ right: 8 })
                   }
                   if (this.effLatency(m) >= 0) {
-                    Text(this.effLatency(m).toString() + ' ms')
+                    Text(fmtMsInt(this.effLatency(m)) + ' ms')
                       .fontSize(12)
                       .fontColor(this.latencyColor(this.effLatency(m)))
                       .margin({ right: 8 })

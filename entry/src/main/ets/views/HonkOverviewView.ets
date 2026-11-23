@@ -1,7 +1,7 @@
 import { Store } from '../common/Store';
 import { Palette } from '../common/Theme';
 import { JObj, Traffic, asNum, asStr, jArr, jGet, jNum, jObj, jStr, parseIsoMillis } from '../common/Models';
-import { fmtBytes, fmtClock, fmtDuration, fmtSpeed } from '../common/Format';
+import { fmtBytes, fmtClock, fmtDuration, fmtMsInt, fmtSpeed } from '../common/Format';
 import { HeaderStatus, Legend, LineChart, SegTabs } from '../components/Widgets';
 import { GlassHeader, headerGuess } from '../components/GlassHeader';
 import { HonkCoreApi } from '../common/HonkCoreApi';
@@ -895,7 +895,7 @@ export struct HonkOverviewView {
 
   private qsLatSuffix(g: QsGroup): string {
     const ms = this.latByName.get(g.currentName);
-    return ms !== undefined ? ' · ' + ms.toString() + ' ms' : '';
+    return ms !== undefined ? ' · ' + fmtMsInt(ms) + ' ms' : '';
   }
 
   private peak(): number {
@@ -949,7 +949,7 @@ export struct HonkOverviewView {
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               .margin({ left: 12 })
             if (g.ms >= 0) {
-              Text(g.ms.toString() + ' ms').fontSize(12)
+              Text(fmtMsInt(g.ms) + ' ms').fontSize(12)
                 .fontColor(this.latencyColor(g.ms))
                 .margin({ left: 6 })
             }
@@ -1014,14 +1014,14 @@ export struct HonkOverviewView {
           Row() {
             Text(t('honk_lat_min')).fontSize(12).fontColor(this.store.palette().subtle)
               .layoutWeight(1)
-            Text(this.latOk[0].ms.toString() + ' ms').fontSize(13)
+            Text(fmtMsInt(this.latOk[0].ms) + ' ms').fontSize(13)
               .fontColor(this.latencyColor(this.latOk[0].ms))
           }
           .width('100%')
           Row() {
             Text(t('honk_lat_max')).fontSize(12).fontColor(this.store.palette().subtle)
               .layoutWeight(1)
-            Text(this.latOk[this.latOk.length - 1].ms.toString() + ' ms').fontSize(13)
+            Text(fmtMsInt(this.latOk[this.latOk.length - 1].ms) + ' ms').fontSize(13)
               .fontColor(this.latencyColor(this.latOk[this.latOk.length - 1].ms))
           }
           .width('100%')
@@ -1031,7 +1031,7 @@ export struct HonkOverviewView {
               Text(r.name).fontSize(14).fontColor(this.store.palette().text)
                 .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                 .layoutWeight(1)
-              Text(r.ms.toString() + ' ms').fontSize(13)
+              Text(fmtMsInt(r.ms) + ' ms').fontSize(13)
                 .fontColor(this.latencyColor(r.ms))
                 .margin({ left: 8 })
             }
