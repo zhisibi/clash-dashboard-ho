@@ -1447,7 +1447,10 @@ export class Store {
         this.proxies = p;
         this.providers = providers;
         this.proxiesAt = Date.now();
-        this.manualDelay = new Map<string, number>();
+        // 1.5.5: manual test results are NOT wiped on refresh — selecting a node, switching
+        // groups, pull-refresh and page re-entry all funnel through here and used to erase
+        // every measured delay. Results now persist until the next test re-records them
+        // (testNode overwrites its one node, testGroup its own members only).
       } finally {
         this.proxiesLoading = false;
       }

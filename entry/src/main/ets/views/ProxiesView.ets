@@ -6,6 +6,18 @@ import { fmtAgo, fmtBytes, fmtDate, safeRegex, textMatch } from '../common/Forma
 import { LatencyBadge, ProxyIcon, RoundIconButton, SearchBox, SheetHeaderButton, SegTabs, Tag, EmptyCard } from '../components/Widgets';
 import { t } from '../common/I18n';
 
+/** Grid columns for the cards-per-row setting (1/2/3), shared by the group grid and the node grid */
+function proxyColsTemplate(cols: number): string {
+  const n = Math.max(1, Math.min(3, cols));
+  if (n === 1) {
+    return '1fr';
+  }
+  if (n === 2) {
+    return '1fr 1fr';
+  }
+  return '1fr 1fr 1fr';
+}
+
 @ComponentV2
 struct GroupCard {
   private store: Store = Store.get();
@@ -119,16 +131,20 @@ struct NodeCard {
         // 1.2.3: the chip area takes the width left of the latency pill; the last chip (a group's current node)
         // shrinks and ends in an ellipsis instead of running under the pill
         Row({ space: 4 }) {
-          Tag({ pal: this.store.palette(), text: this.store.proxies.get(this.node)?.type ?? '?' })
-            .flexShrink(1)
-            .constraintSize({ minWidth: 24 })
-          if (this.store.proxies.get(this.node)?.udp === true) {
+          // 1.5.5: type chip shows the real type when known and is omitted entirely when not —
+          // the old `?? '?'` fallback put a '?' pill on every leaf the proxies map could not
+          // resolve. flexShrink(0): type words are short and must never truncate to 'U…'.
+          if (this.item() !== undefined && (this.item() as ProxyItem).type.length > 0) {
+            Tag({ pal: this.store.palette(), text: (this.item() as ProxyItem).type })
+              .flexShrink(0)
+          }
+          if (this.item()?.udp === true) {
             Tag({ pal: this.store.palette(), text: 'UDP' }).flexShrink(0)
           }
-          if (this.store.proxies.get(this.node)?.isGroup() === true) {
-            Tag({ pal: this.store.palette(), text: this.store.proxies.get(this.node)?.now ?? '' })
+          if (this.item()?.isGroup() === true) {
+            Tag({ pal: this.store.palette(), text: this.item()?.now ?? '' })
               .flexShrink(1)
-              .constraintSize({ minWidth: 24 })
+              .constraintSize({ minWidth: 56 })
           }
         }
         .layoutWeight(1)
@@ -175,6 +191,23 @@ struct NodeCard {
   url(): string {
     const g = this.store.proxies.get(this.groupName);
     return g !== undefined ? this.store.groupTestUrl(g) : this.store.testUrl;
+  }
+
+  /** 1.5.5: main proxies map first, then provider member lists (provider-backed leaves can be
+   * missing from the map on some cores while their provider entry carries the real type) */
+  item(): ProxyItem | undefined {
+    const p = this.store.proxies.get(this.node);
+    if (p !== undefined) {
+      return p;
+    }
+    for (const prov of this.store.providers) {
+      for (const q of prov.proxies) {
+        if (q.name === this.node) {
+          return q;
+        }
+      }
+    }
+    return undefined;
   }
 }
 
@@ -259,7 +292,8 @@ struct GroupDetail {
             }
           }, (n: string) => n)
         }
-        .columnsTemplate('1fr 1fr')
+        // 1.5.5: node cards follow the same cards-per-row setting as the group grid (was hardcoded 2)
+        .columnsTemplate(proxyColsTemplate(this.store.proxyCols))
         .columnsGap(10)
         .rowsGap(10)
         .padding({ left: 14, right: 14, top: 12, bottom: 32 })
@@ -536,14 +570,7 @@ export struct ProxiesView {
   }
 
   colsTemplate(): string {
-    const n = Math.max(1, Math.min(3, this.store.proxyCols));
-    if (n === 1) {
-      return '1fr';
-    }
-    if (n === 2) {
-      return '1fr 1fr';
-    }
-    return '1fr 1fr 1fr';
+    return proxyColsTemplate(this.store.proxyCols);
   }
 
   build() {
