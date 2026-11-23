@@ -8,7 +8,6 @@ import { ConnectionsView } from '../views/ConnectionsView';
 import { LogsView } from '../views/LogsView';
 import { HonkOverviewView } from '../views/HonkOverviewView';
 import { HonkPolicyView } from '../views/HonkPolicyView';
-import { HonkToolsView } from '../views/HonkToolsView';
 import { RulesView } from '../views/RulesView';
 import { SettingsView, CrashDetail } from '../views/SettingsView';
 import { withAlpha } from '../common/Theme';
@@ -88,39 +87,82 @@ struct Index {
     return this.navBottom() + BAR_H + 16 + (this.store.connState === 'failed' && i !== 5 ? 52 : 0);
   }
 
-  /** Highlighted tab: the target page while an animation runs */
-  selTab(): number {
-    return this.navTarget >= 0 ? this.navTarget : this.store.tab;
+  /**
+   * 1.5.9: Store.tab always holds a page id (0 overview, 1 proxies/policy, 2 connections,
+   * 3 logs, 4 rules, 5 settings), but bar/Tabs positions are per backend kind: honk backends
+   * have no page at slot 3 (their tools page was removed; slot 3 is the clash logs page),
+   * so honk shows five tabs. Positions translate through this list.
+   */
+  visPages(): number[] {
+    return this.store.activeIsHonk() ? [0, 1, 2, 4, 5] : [0, 1, 2, 3, 4, 5];
   }
 
-  /** Tab tapped: animate to that page (index and Store.tab are synced back through Tabs.onChange) */
-  selectTab(i: number): void {
-    if (i < 0 || i >= TABS.length) {
+  /** Bar/Tabs position of a page id (0 when the page is not visible in this mode) */
+  visPos(page: number): number {
+    const v = this.visPages();
+    const i = v.indexOf(page);
+    return i >= 0 ? i : 0;
+  }
+
+  /** Page id at a bar/Tabs position (clamped into range) */
+  pageAt(pos: number): number {
+    const v = this.visPages();
+    if (pos < 0) {
+      return v[0];
+    }
+    if (pos >= v.length) {
+      return v[v.length - 1];
+    }
+    return v[pos];
+  }
+
+  /** Highlighted bar position: the target position while a page animation runs */
+  selPos(): number {
+    return this.navTarget >= 0 ? this.navTarget : this.visPos(this.store.tab);
+  }
+
+  /** Page the bar currently points at (collapsed-bar icon) */
+  selPage(): number {
+    return this.navTarget >= 0 ? this.pageAt(this.navTarget) : this.store.tab;
+  }
+
+  /** Tab label for a page: 1.5.9 honk renames the proxies tab via honk_routing (clash keeps tab_proxies) */
+  tabLabel(page: number): string {
+    if (page === 1 && this.store.activeIsHonk()) {
+      return t('honk_routing');
+    }
+    return t(TABS[page].title);
+  }
+
+  /** Tab tapped (bar position): animate to that page (position and Store.tab are synced back through Tabs.onChange) */
+  selectTab(pos: number): void {
+    if (pos < 0 || pos >= this.visPages().length) {
       return;
     }
-    if (i === this.store.tab && this.navTarget < 0) {
+    if (this.pageAt(pos) === this.store.tab && this.navTarget < 0) {
       return;
     }
-    this.navTarget = i;
+    this.navTarget = pos;
     try {
-      this.tabsCtl.changeIndex(i);
+      this.tabsCtl.changeIndex(pos);
     } catch (e) {
       // ignore
     }
     // Fallback: if onChange never fires (e.g. controller not bound yet), write Store.tab; the Tabs index follows
     setTimeout(() => {
-      if (this.store.tab !== i && this.navTarget === i) {
-        this.store.tab = i;
+      if (this.store.tab !== this.pageAt(pos) && this.navTarget === pos) {
+        this.store.tab = this.pageAt(pos);
         this.navTarget = -1;
       }
     }, 650);
   }
 
-  /** Tabs page changed (tap or swipe) */
+  /** Tabs page changed (tap or swipe); i is a bar position, Store.tab stores the page id */
   onPageChanged(i: number): void {
     this.navTarget = -1;
-    if (this.store.tab !== i) {
-      this.store.tab = i;
+    const page = this.pageAt(i);
+    if (this.store.tab !== page) {
+      this.store.tab = page;
       this.sweep();
     }
     // Swiping to another page expands an auto-hidden bar again
@@ -394,21 +436,21 @@ struct Index {
   @Builder
   barTabs(lightOn: boolean) {
     Row() {
-      ForEach(TABS, (tab: TabDef, i: number) => {
+      ForEach(this.visPages(), (page: number) => {
         Column() {
-          SymbolGlyph(i === 3 && this.store.activeIsHonk() ? $r('sys.symbol.wrench_and_screwdriver') : tab.icon).fontSize(22)
-            .fontColor([i === this.selTab() ? this.store.palette().accentUi :
+          SymbolGlyph(TABS[page].icon).fontSize(22)
+            .fontColor([this.visPos(page) === this.selPos() ? this.store.palette().accentUi :
               (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text)])
             .symbolShadow(this.barHalo(lightOn))
-          Text(i === 3 && this.store.activeIsHonk() ? t('tab_tools') : t(tab.title))
+          Text(this.tabLabel(page))
             .fontSize(11)
             .maxFontSize(11)
             .minFontSize(8)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor(i === this.selTab() ? this.store.palette().accent :
+            .fontColor(this.visPos(page) === this.selPos() ? this.store.palette().accent :
               (lightOn && this.store.isDark() ? GLASS_LABEL_DARK : this.store.palette().text))
-            .fontWeight(i === this.selTab() ? FontWeight.Bold : FontWeight.Normal)
+            .fontWeight(this.visPos(page) === this.selPos() ? FontWeight.Bold : FontWeight.Normal)
             .textShadow(this.barHalo(lightOn))
             .margin({ top: 2 })
         }
@@ -416,11 +458,11 @@ struct Index {
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .borderRadius(34)
-        .backgroundColor(i === this.selTab() && !lightOn ? this.store.palette().accentSoft : Color.Transparent)
+        .backgroundColor(this.visPos(page) === this.selPos() && !lightOn ? this.store.palette().accentSoft : Color.Transparent)
         .onClick(() => {
-          this.selectTab(i);
+          this.selectTab(this.visPos(page));
         })
-      }, (tab: TabDef) => tab.title)
+      }, (page: number) => 'tab-' + page)
     }
     .width(this.rootW > 0 ? this.rootW - 28 : '100%')
     .height('100%')
@@ -506,7 +548,7 @@ struct Index {
         if (this.collapsed()) {
           // Collapsed: round glass button at the bottom left with the current page icon; tap to expand
           Stack() {
-            SymbolGlyph(TABS[Math.min(this.selTab(), TABS.length - 1)].icon)
+            SymbolGlyph(TABS[this.selPage()].icon)
               .fontSize(24)
               .fontColor([this.store.palette().accentUi])
           }
@@ -637,10 +679,11 @@ struct Index {
           }
         }
 
-        // 1.1.6: Tabs (own tab bar hidden) hold the six pages and support swiping; pages keep their state,
-        // index <-> Store.tab: tapping the bar -> changeIndex animation; swiping -> onChange writes Store.tab.
+        // 1.1.6: Tabs (own tab bar hidden) hold the pages and support swiping; pages keep their state.
+        // 1.5.9: the Tabs index is a bar position, Store.tab the page id (see visPages): tapping the
+        // bar -> changeIndex animation; swiping -> onChange translates the position back to a page id.
         // Horizontal scrolls (e.g. crash log), sliders etc. inside a page win over the Tabs swipe.
-        Tabs({ index: this.store.tab, controller: this.tabsCtl }) {
+        Tabs({ index: this.visPos(this.store.tab), controller: this.tabsCtl }) {
           TabContent() {
             if (this.store.activeIsHonk()) {
               HonkOverviewView({ bottomPad: this.bottomPad(0) })
@@ -661,10 +704,10 @@ struct Index {
             ConnectionsView({ bottomPad: this.bottomPad(2) })
           }
 
-          TabContent() {
-            if (this.store.activeIsHonk()) {
-              HonkToolsView({ bottomPad: this.bottomPad(3) })
-            } else {
+          // 1.5.9: slot 3 exists for clash backends only — honk has no page there any more
+          // (its tools page was removed), so the honk bar/Tabs run with five pages
+          if (!this.store.activeIsHonk()) {
+            TabContent() {
               LogsView({ bottomPad: this.bottomPad(3) })
             }
           }
@@ -692,7 +735,7 @@ struct Index {
           }
         })
         .onAnimationEnd((index: number, event: TabsAnimationEvent) => {
-          if (this.navTarget >= 0 && (this.navTarget !== index || this.store.tab === index)) {
+          if (this.navTarget >= 0 && (this.navTarget !== index || this.store.tab === this.pageAt(index))) {
             this.navTarget = -1;
           }
         })

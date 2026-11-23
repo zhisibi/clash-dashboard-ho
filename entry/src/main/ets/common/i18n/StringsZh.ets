@@ -218,7 +218,6 @@ export const ZH: Record<string, string> = {
   "f_honk_pass": "管理员密码",
   "honk_hint": "Honk 是 daeuniverse 的代理内核，通过其原生 API 管理（需在 honk 配置中开启 native_api）。主机须填 IP 地址，域名会被 honk 拒绝。",
   "err_honk_user_required": "请填写管理员用户名",
-  "tab_tools": "工具",
   "honk_quick_switch": "快捷切换出口",
   "honk_switch": "切换",
   "honk_groups": "分组",

@@ -840,6 +840,12 @@ export class Store {
     this.stopStreams();
     this.active = b;
     this.prefs?.put('active_backend', b.id);
+    // 1.5.9: honk mode has no page at slot 3 (its tools page was removed; slot 3 is the clash
+    // logs page). If the current tab names that slot while a honk backend connects, fall back
+    // to the overview so Store.tab always names a page the bar actually shows.
+    if (b.isHonk() && this.tab === 3) {
+      this.tab = 0;
+    }
     // 1.5.0: honk backends run through the translating adapter, clash unchanged
     const a: CoreApi = b.isHonk() ? new HonkCoreApi(b) : new CoreApi(b);
     this.api = a;

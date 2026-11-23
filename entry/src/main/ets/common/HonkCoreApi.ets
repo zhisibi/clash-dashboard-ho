@@ -1014,7 +1014,7 @@ export class HonkCoreApi extends CoreApi {
   }
 
   // ---------------- native passthroughs (honk pages) ----------------
-  // The honk-mode pages (HonkOverviewView / HonkPolicyView / HonkToolsView)
+  // The honk-mode pages (HonkOverviewView / HonkPolicyView)
   // work on raw honk payloads; these wrappers reuse this adapter's session
   // and transport so there is exactly one honk client per backend.
 

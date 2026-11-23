@@ -11,7 +11,7 @@
 | --- | --- |
 | 应用名 | 咪咪面板（英文 Mimi Panel） |
 | bundleName | `com.zhisibi.mimipanel`（**唯一的修改位置：`AppScope/app.json5` 的 `bundleName`**，必须与 AppGallery Connect 中创建的应用包名一致） |
-| 版本 | 1.5.8（versionCode 1060800） |
+| 版本 | 1.5.9（versionCode 1060900） |
 | 最低系统 | HarmonyOS 6.0（`compatibleSdkVersion: "6.0.0(20)"`） |
 | 目标系统 | HarmonyOS 7（`targetSdkVersion: "26.0.0"`，API 26） |
 | 开发工具 | DevEco Studio 26.0.0 Release（26.0.0.821）或同版本 Command Line Tools |
@@ -19,6 +19,10 @@
 | 界面语言 | 简体中文、English（设置 → 语言，可跟随系统） |
 
 ## 更新日志
+
+### 1.5.9
+- **honk 模式去掉工具页**：导航栏不再有「工具」页签，`HonkToolsView` 及其装配、文案键 `tab_tools` 一并摘除。实现上 `Store.tab` 保持页面 id 语义（0 概览 / 1 代理·策略 / 2 连接 / 3 日志 / 4 规则 / 5 设置），导航栏与 Tabs 的位置按后端类型翻译：clash 六页签、honk 五页签（无 3 号位）；连接 honk 后端时若当前页签正指向 3 号位，自动回落到概览，不白屏不越界。clash 模式页签与页面全不变
+- **honk 模式导航栏「代理」页签改名「路由」**：继 1.5.8 策略页页头改名后，底部页签文案也按后端模式分流——honk 显示「路由」（复用 `honk_routing` 键），clash 仍显示「代理」；页签图标、跳转目标与选中逻辑不变
 
 ### 1.5.8
 - **honk 策略页页头改名「路由」**：honk 模式下策略页页头原与底部页签共用 `tab_proxies`（「代理」），现拆出 honk 专用文案键 `honk_routing`（中文「路由」/ 英文 Routing），页头显示「路由」；底部页签与 clash 模式全部「代理」文案不动。只换展示文案，页面内容、交互与数据不变

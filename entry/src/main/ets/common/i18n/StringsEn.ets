@@ -218,7 +218,6 @@ export const EN: Record<string, string> = {
   "f_honk_pass": "Admin password",
   "honk_hint": "Honk is the daeuniverse proxy core, managed through its native API (native_api must be enabled in the honk config). The host must be an IP address; honk rejects domain names.",
   "err_honk_user_required": "Please enter the admin username",
-  "tab_tools": "Tools",
   "honk_quick_switch": "Quick switch",
   "honk_switch": "Switch",
   "honk_groups": "Groups",
