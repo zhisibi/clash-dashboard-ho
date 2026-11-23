@@ -224,6 +224,7 @@ export const EN: Record<string, string> = {
   "honk_groups": "Groups",
   "honk_nodes": "Nodes",
   "honk_providers": "Subscriptions",
+  "honk_routing": "Routing",
   "honk_outbounds": "Outbounds",
   "honk_degradations": "Degradations",
   "honk_uptime": "Uptime",

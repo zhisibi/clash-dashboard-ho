@@ -224,6 +224,7 @@ export const ZH: Record<string, string> = {
   "honk_groups": "分组",
   "honk_nodes": "节点",
   "honk_providers": "订阅",
+  "honk_routing": "路由",
   "honk_outbounds": "出站",
   "honk_degradations": "降级项",
   "honk_uptime": "运行时长",

@@ -1040,7 +1040,7 @@ export struct HonkPolicyView {
       }) {
         HeaderStatus({
           pal: this.store.palette(),
-          title: t('tab_proxies'),
+          title: t('honk_routing'),
           connState: this.store.connState,
           address: this.store.active !== null ? this.store.active.display() : t('not_connected'),
           tag: this.store.version
